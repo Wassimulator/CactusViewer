@@ -1,0 +1,16 @@
+.vs/AV_Racer/v16/Browse.VC.db
+bin/vc140.pdb
+
+*.pdb
+release/
+*.bin
+.vs/
+*.ilk
+*.obj
+.vscode/settings.json
+installers/AV_Racer_setup_PLAYTEST_win64.exe
+bin/AV_Racer_debug.exe
+TODO.txt
+bin/data/tracks/images/Backup/*
+temp/
+steampacks/*
