@@ -1,6 +1,6 @@
 @echo off
 cd ..
 cd bin
-AV_Racer_debug.exe
+CactusViewer.exe
 cd ..
 cd src

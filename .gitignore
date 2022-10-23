@@ -14,3 +14,6 @@ TODO.txt
 bin/data/tracks/images/Backup/*
 temp/
 steampacks/*
+*.exe
+*.jpg
+*.png

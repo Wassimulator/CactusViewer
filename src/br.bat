@@ -2,6 +2,6 @@
 call b 
 cd ..
 cd bin
-AV_Racer_debug.exe
+CactusViewer.exe D:\Code_Work\img_viewer\bin\test.png
 cd ..
 cd src

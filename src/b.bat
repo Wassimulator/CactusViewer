@@ -1,11 +1,12 @@
 @echo off
-rc /nologo /fo r.res game.rc
+rc /nologo /fo r.res res.rc
 cd ..
 pushd bin
 
-set OUT=           /OUT:AV_Racer_debug.exe 
-set ENet_Libs= enet64.lib ws2_32.lib winmm.lib
-set OpenAL_Libs= OpenAL32.lib alut.lib 
-cl /nologo ..\src\main.cpp /EHsc /Zi /Od /D DEBUG_MODE=1 /I ..\include /link %OUT% /debug /subsystem:console /LIBPATH:..\lib SDL2.lib steam_api64.lib SDL2main.lib shell32.lib imgui_all.obj %OpenAL_Libs% /LIBPATH:..\src r.res
+set OUT=           /OUT:CactusViewer.exe 
+set Libs=          /LIBPATH:..\lib SDL2.lib SDL2main.lib shell32.lib imgui_all.obj /LIBPATH:..\src r.res
+
+
+cl /nologo ..\src\main.cpp /EHsc /Zi /Od /D DEBUG_MODE=1 /I ..\include  /link %OUT% /debug /subsystem:console %Libs%
 cd ..
 cd src
