@@ -156,8 +156,7 @@ struct graphics
     GLuint VAO = 0;
     GLint MAX_GPU = 0;
     GLuint MainProgram;
-    GLuint Vertex;
-    GLuint Fragment;
+    GLuint BGProgram;
 
     image MainImage;
 
@@ -181,6 +180,7 @@ struct global
     keys Keys;
     cf_file_t *files = nullptr;
     bool *files_loading = nullptr;
+    bool *files_GIF = nullptr;
     uint allocated_files;
     uint max_files;
     uint CurrentFileIndex;
@@ -192,10 +192,20 @@ struct global
     float truescale = 1;
     float req_truescale = 1;
     bool nearest_filtering = false;
+    bool pixelgrid = false;
     v2 Position = v2(0, 0);
     cf_file_t file;
     v2 PixelMouse;
     float InspectColors[4];
+
+    gd_GIF *GIF = nullptr;
+    char *GIF_buffer[1024];
+    uint16_t GIF_FrameDelays[1024];
+    GLuint GIFTextureID;
+    int GIF_frames;
+    int GIF_index;
+    bool GIF_Loaded;
+    bool GIF_Play;
 };
 
 global Global = {0};

@@ -2,7 +2,7 @@
 #include "main.h"
 #include "structs.cpp"
 
-static bool PollEvents()
+static void PollEvents()
 {
     keys *Keys = &G->Keys;
 
@@ -100,13 +100,19 @@ static bool PollEvents()
     SDL_Event Ev = {0};
     SDL_Event *Event = &Ev;
 
-    bool result = true;
-
-    while (SDL_PollEvent(Event))
+    while (1)
     {
-#if IMGUI
-        ImGui_ImplSDL2_ProcessEvent(Event);
-#endif
+        if (G->GIF)
+        {
+            if (!SDL_PollEvent(Event))
+                break;
+        }
+        else if (!SDL_WaitEvent(Event))
+            break;
+            
+        bool should_update = ImGui_ImplSDL2_ProcessEvent(Event);
+        if (G->GIF)
+            should_update = true;
 
         // SDL_GetMouseState(&Keys->Mouse.x, &Keys->Mouse.y);
         SDL_GetMouseState(&Keys->Mouse.x, &Keys->Mouse.y);
@@ -130,16 +136,23 @@ static bool PollEvents()
             {
                 Keys->Space_Key = false;
             }
-
         }
 
         if (Event->type == SDL_QUIT)
         {
             Running = false;
-            // abort();
         }
+        should_update |= Event->type == SDL_KEYDOWN;
+        should_update |= Event->type == SDL_KEYUP;
+        should_update |= Event->type == SDL_QUIT;
+
         // Mouse Events:
         {
+            should_update |= Event->type == SDL_MOUSEMOTION;
+            should_update |= Event->type == SDL_MOUSEBUTTONDOWN;
+            should_update |= Event->type == SDL_MOUSEBUTTONUP;
+            should_update |= Event->type == SDL_MOUSEWHEEL;
+
             if (Event->button.clicks == 1)
             {
                 Keys->MouseLeft_Click = true;
@@ -152,7 +165,6 @@ static bool PollEvents()
                     Keys->MouseRight = true;
                     Keys->MouseRightOnce = true;
                 }
-
             }
             if (Event->type == SDL_MOUSEBUTTONUP && Event->button.button == SDL_BUTTON_RIGHT)
             {
@@ -505,6 +517,7 @@ static bool PollEvents()
                 break;
             }
         }
+        if (should_update)
+            break;
     }
-    return result;
 }

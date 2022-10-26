@@ -7,10 +7,10 @@
 - [ ] rectangle selection: and show w h, x y 
 - [ ] gif player
 - [ ] border less switch, always on top switch
-- [ ] pixel grid
+- [x] pixel grid
 - [ ] detect file and directory change and update
-- [ ] Histograms
 - [ ] Turning individual RGBA channels off
 - [ ] Checkerboard alpha BG
 - [ ] custom color BG
+- [ ] Histograms
 
