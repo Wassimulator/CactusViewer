@@ -1,16 +1,15 @@
 - [x] flip to next image in folder
-    - [ ] dragon drop
 - [x] zoom fitting modes: reset, center, fill to screen, fit to width/ height
 - [x] metadata: zoom level, file name/ type / aspect ratio etc. mouse pos in pixels
 - [x] check pixel color value
-- [ ] open recent/ save settings/ mappable buttons
-- [ ] rectangle selection: and show w h, x y 
-- [ ] gif player
-- [ ] border less switch, always on top switch
+- [x] gif player
 - [x] pixel grid
-- [ ] detect file and directory change and update
+- [x] Checkerboard alpha BG
+- [x] custom color BG
 - [ ] Turning individual RGBA channels off
-- [ ] Checkerboard alpha BG
-- [ ] custom color BG
+- [ ] save settings/ mappable buttons
+- [ ] rectangle selection: and show w h, x y 
+- [ ] detect file and directory change and update
+- [ ] dragon drop
 - [ ] Histograms
 
