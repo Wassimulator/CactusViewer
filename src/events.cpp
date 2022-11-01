@@ -249,8 +249,6 @@ static void PollEvents()
                     Keys->ScrollY--;
                     Keys->ScrollYdiff--;
                 }
-                // if (DEBUG_MODE)
-                //     G->Camera.Scale *= (1.0f + Event->wheel.y * 0.05f);
             }
         }
 
@@ -560,8 +558,6 @@ static void PollEvents()
                 break;
             }
         }
-        // if (should_update)
-        //     break;
 
         if (should_update)
             FPS = MAX_FPS;

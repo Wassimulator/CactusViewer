@@ -362,9 +362,7 @@ void SavePPM()
     const int dimx = 800, dimy = 800;
     int i, j;
     FILE *fp = fopen("save.ppm", "wb"); /* b - binary mode */
-    // FILE *fp2 = fopen("save.txt", "w"); /* b - binary mode */
     (void)fprintf(fp, "P6\n%d %d\n255\n", G->Graphics.MainImage.w, G->Graphics.MainImage.h);
-    // (void)fprintf(fp2, "P6\n%d %d\n255\n", G->Graphics.MainImage.w, G->Graphics.MainImage.h);
     for (i = 0; i < G->Graphics.MainImage.w * G->Graphics.MainImage.h * 4; i += 4)
     {
         static unsigned char color[3];
@@ -372,10 +370,8 @@ void SavePPM()
         color[1] = G->Graphics.MainImage.data[i + 1]; /* green */
         color[2] = G->Graphics.MainImage.data[i + 2]; /* blue */
         (void)fwrite(color, 1, 3, fp);
-        // (void)fprintf(fp2, "%d %d %d\n", color[0], color[1], color[2]);
     }
     (void)fclose(fp);
-    // (void)fclose(fp2);
 }
 
 void UnLoadGIF()
@@ -464,8 +460,6 @@ static void refreshdisplay()
     SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
 }
-// enum _resetzoom_options{"Do not reset zoom", "Save zoom for each file", "Fit Width", "Fit Height", "Zoom to 1:1"};
-// enum _resetpos_options = {"Reset to center", "Save position for each file", "Persistent position across all files"};
 static void ApplySettings()
 {
     switch (G->settings_resetzoom)
@@ -743,8 +737,6 @@ static void UpdateGUI()
     ImGuiIO &io = ImGui::GetIO();
     ImGuiStyle &style = ImGui::GetStyle();
 
-    // ImGui::Text("%i", FPS);
-
     style.Colors[ImGuiCol_FrameBg] = ImVec4(0.2, 0.2, 0.2, 1);
     style.Colors[ImGuiCol_Button] = ImVec4(0.2, 0.2, 0.2, 1);
     style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.3, 0.3, 0.3, 1);
@@ -827,7 +819,6 @@ static void UpdateGUI()
             SDL_SetClipboardText(hexcolor);
         }
     }
-    // ImGui::ShowDemoWindow();
 
     if (G->settings_visible)
     {
@@ -842,6 +833,7 @@ static void UpdateGUI()
         ImGui::Separator();
         ImGui::Separator();
         ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Supported file types:");
+        ImGui::SameLine();
         ImGui::TextWrapped("PNG, JPG, JPEG, BMP, GIF");
         ImGui::Separator();
         ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "CONTROLS:");
@@ -869,6 +861,9 @@ static void UpdateGUI()
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "F:");
         ImGui::SameLine();
         ImGui::Text("Toggle between linear and nearest neighbor filtering");
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "G:");
+        ImGui::SameLine();
+        ImGui::Text("Toggle pixel grid (if in nearest neighbor filtering is on)");
         ImGui::Separator();
         ImGui::Separator();
 
@@ -899,7 +894,7 @@ static void UpdateGUI()
             Checkerboard_color2[1] = c2;
             Checkerboard_color2[2] = c2;
         }
-        ImGui::SliderFloat("Keyboard movement magnitude", &G->settings_movementmag, 0.1, 20);
+        ImGui::SliderFloat("Keyboard WASD pan speed", &G->settings_movementmag, 0.1, 20);
         GUIHelpMarker("Adjust the movement speed when panning with WASD.");
         ImGui::SliderFloat("Shift slow mode magnitude", &G->settings_shiftslowmag, 0.1, 20);
         GUIHelpMarker("Holding SHIFT down allows for slower navigation. This adjusts how much slower the movement and zoom speed is when holding down SHIFT.");
@@ -983,7 +978,6 @@ static void UpdateGUI()
         ImGui::SetNextItemWidth(100);
         bool open_popup = false;
         ImGui::SetItemAllowOverlap();
-        // ImGui::ColorButton("MyColor##3c", *(ImVec4 *)&BGcolor, ImGuiColorEditFlags_AlphaPreview, ImVec2(50, 50));
         ImGui::SetCursorPos(ImVec2(7, 7));
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(BGcolor[0], BGcolor[1], BGcolor[2], 0));
@@ -1241,7 +1235,6 @@ static void UpdateLogic()
 static void Render()
 {
 
-    // glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glrect) * 1, &G->Graphics.MainImage.Rect);
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_SCISSOR_TEST);
@@ -1336,11 +1329,7 @@ static void Render()
         glActiveTexture(GL_TEXTURE0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
-    // if (!G->loaded && G->max_files > 0)
-    // {
-    //     glClearColor(0, 0, 0, 0.6);
-    //     glClear(GL_COLOR_BUFFER_BIT);
-    // }
+
     if (G->Keys.Alt_Key || G->Keys.MouseMiddle)
     {
         glReadPixels(G->Keys.Mouse.x, WindowHeight - G->Keys.Mouse.y, 1, 1, GL_RGBA, GL_FLOAT, &G->InspectColors);

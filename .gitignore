@@ -18,3 +18,4 @@ steampacks/*
 *.png
 src/todo.md
 bin/imgui.ini
+src/dump.cpp
