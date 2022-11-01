@@ -1,3 +1,4 @@
+![logo - Copy](https://user-images.githubusercontent.com/75145262/199360352-9d8ff4c9-9e87-4f97-ae20-68671e69f919.png)
 # Cactus Image Viewer
 #### by Wassimulator
 A small handmade image viewer written in C/C++ using SDL2 for Window and event management, ImGui for the UI, decoding with stb_image, and a custom OpenGL renderer.     
