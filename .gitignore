@@ -17,3 +17,4 @@ steampacks/*
 *.jpg
 *.png
 src/todo.md
+bin/imgui.ini
