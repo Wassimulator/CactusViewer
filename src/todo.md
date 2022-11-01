@@ -6,10 +6,10 @@
 - [x] pixel grid
 - [x] Checkerboard alpha BG
 - [x] custom color BG
-- [ ] Turning individual RGBA channels off
-- [ ] save settings/ mappable buttons
+- [x] dragon drop
+- [x] Turning individual RGBA channels off
+- [x] moving the image with buttons
+- [x] save settings
 - [ ] rectangle selection: and show w h, x y 
 - [ ] detect file and directory change and update
-- [ ] dragon drop
-- [ ] Histograms
 
