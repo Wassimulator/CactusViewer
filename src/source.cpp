@@ -193,6 +193,7 @@ static void SaveSettings()
         fwrite(&G->settings_resetzoom, sizeof(int32_t), 1, F);
         fwrite(&Checkerboard_color1, sizeof(float), 3, F);
         fwrite(&Checkerboard_color2, sizeof(float), 3, F);
+        fwrite(&BGcolor, sizeof(float), 4, F);
         fwrite(&G->settings_autoplayGIFs, sizeof(bool), 1, F);
         fwrite(&G->settings_movementmag, sizeof(float), 1, F);
         fwrite(&G->settings_shiftslowmag, sizeof(float), 1, F);
@@ -211,6 +212,7 @@ static void LoadSettings()
         fread(&G->settings_resetzoom, sizeof(int32_t), 1, F);
         fread(&Checkerboard_color1, sizeof(float), 3, F);
         fread(&Checkerboard_color2, sizeof(float), 3, F);
+        fread(&BGcolor, sizeof(float), 4, F);
         fread(&G->settings_autoplayGIFs, sizeof(bool), 1, F);
         fread(&G->settings_movementmag, sizeof(float), 1, F);
         fread(&G->settings_shiftslowmag, sizeof(float), 1, F);
