@@ -39,7 +39,7 @@ static void PollEvents()
 
     Keys->B_Key = false;
     Keys->C_Key = false;
-    Keys->E_Key = false;
+    // Keys->E_Key = false;
     Keys->F_Key = false;
     Keys->G_Key = false;
     Keys->H_Key = false;
@@ -51,7 +51,7 @@ static void PollEvents()
     Keys->N_Key = false;
     Keys->O_Key = false;
     Keys->P_Key = false;
-    Keys->Q_Key = false;
+    // Keys->Q_Key = false;
     Keys->R_Key = false;
     Keys->T_Key = false;
     Keys->U_Key = false;
@@ -97,21 +97,31 @@ static void PollEvents()
     }
     // cout << Keys->MouseLeftAlready << " ";
     SDL_GetRelativeMouseState(&Keys->xrel, &Keys->yrel);
-    SDL_Event Ev = {0};
-    SDL_Event *Event = &Ev;
 
-    while (1)
+    static int arrowsrefractory = 0;
+
+    while (SDL_PollEvent(Event))
     {
-        if (G->GIF)
+        if (FPS == MAX_FPS)
         {
-            if (!SDL_PollEvent(Event))
-                break;
+            int i = 0;
         }
-        else if (!SDL_WaitEvent(Event))
-            break;
-            
-        bool should_update = ImGui_ImplSDL2_ProcessEvent(Event);
-        if (G->GIF)
+        if (G->files_TYPE[G->CurrentFileIndex] == filetype_GIF || (!G->loaded && G->max_files > 0) || G->signals.UpdatePass || G->signals.nextimage)
+            FPS = MAX_FPS;
+        else
+            FPS = 10;
+
+        // if (G->files_TYPE[G->CurrentFileIndex] == filetype_GIF || !G->loaded || G->signals.UpdatePass || G->signals.nextimage)
+        // {
+        //     if (!SDL_PollEvent(Event))
+        //         break;
+        // }
+        // else if (!SDL_WaitEvent(Event))
+        //     break;
+
+        bool should_update =
+            ImGui_ImplSDL2_ProcessEvent(Event);
+        if (G->files_TYPE[G->CurrentFileIndex])
             should_update = true;
 
         // SDL_GetMouseState(&Keys->Mouse.x, &Keys->Mouse.y);
@@ -129,13 +139,21 @@ static void PollEvents()
                 Keys->Tab_Key = true;
             }
         }
-
         if (Event->type == SDL_KEYUP)
         {
             if (Event->key.keysym.sym == SDLK_SPACE)
             {
                 Keys->Space_Key = false;
             }
+            if (Event->key.keysym.sym == SDLK_LEFT)
+            {
+                Keys->LeftButtonUp = true;
+            }
+            if (Event->key.keysym.sym == SDLK_RIGHT)
+            {
+                Keys->RightButtonUp = true;
+            }
+
         }
 
         if (Event->type == SDL_QUIT)
@@ -145,9 +163,25 @@ static void PollEvents()
         should_update |= Event->type == SDL_KEYDOWN;
         should_update |= Event->type == SDL_KEYUP;
         should_update |= Event->type == SDL_QUIT;
+        should_update |= Event->type == SDL_DROPFILE;
+
+        if (Event->type == SDL_DROPFILE)
+        {
+            if (!G->Loading_Droppedfile)
+            {
+                int l = strlen(Event->drop.file);
+                TempPath = (char *)malloc(l + 1);
+                strcpy(TempPath, Event->drop.file);
+                SDL_free(Event->drop.file);
+            }
+            G->Droppedfile = true;
+        }
 
         // Mouse Events:
         {
+            should_update |= G->Keys.MouseLeft;
+            should_update |= G->Keys.MouseRight;
+            should_update |= G->Keys.MouseMiddle;
             should_update |= Event->type == SDL_MOUSEMOTION;
             should_update |= Event->type == SDL_MOUSEBUTTONDOWN;
             should_update |= Event->type == SDL_MOUSEBUTTONUP;
@@ -193,14 +227,16 @@ static void PollEvents()
             {
                 if (Event->button.button == SDL_BUTTON_MIDDLE && Event->button.state == SDL_PRESSED)
                 {
+
                     Keys->MouseMiddle = true;
                     Keys->MouseMiddleOnce = true;
                 }
             }
-            if (Event->type == SDL_BUTTON_MIDDLE && Event->button.button == SDL_BUTTON_LEFT)
+            if (Event->type == SDL_MOUSEBUTTONUP && Event->button.button == SDL_BUTTON_MIDDLE)
             {
                 Keys->MouseMiddle = false;
             }
+
             if (Event->type == SDL_MOUSEWHEEL)
             {
                 if (Event->wheel.y > 0) // scroll up
@@ -217,6 +253,7 @@ static void PollEvents()
                 //     G->Camera.Scale *= (1.0f + Event->wheel.y * 0.05f);
             }
         }
+
         if (Event->type == SDL_KEYDOWN)
         {
             if (Event->key.repeat == false)
@@ -513,11 +550,20 @@ static void PollEvents()
             case SDLK_d:
                 Keys->D_Key = KeyState;
                 break;
+            case SDLK_q:
+                Keys->Q_Key = KeyState;
+                break;
+            case SDLK_e:
+                Keys->E_Key = KeyState;
+                break;
             default:
                 break;
             }
         }
+        // if (should_update)
+        //     break;
+
         if (should_update)
-            break;
+            FPS = MAX_FPS;
     }
 }

@@ -8,7 +8,9 @@ struct keys
     bool disconnect = false;
 
     bool RightButton = false;
+    bool RightButtonUp = false;
     bool LeftButton = false;
+    bool LeftButtonUp = false;
     bool UpButton = false;
     bool DownButton = false;
 
@@ -114,6 +116,13 @@ struct keys
     int ScrollYdiff = 0;
 };
 
+enum filetypes
+{
+    filetype_Regular,
+    filetype_GIF,
+    filetype_HEIC
+};
+
 struct color
 {
     union
@@ -159,13 +168,21 @@ struct graphics
     GLuint BGProgram;
 
     image MainImage;
+    GLuint LogoTextureID;
 
     float aspect_wnd;
     float aspect_img;
 };
 
+struct error
+{
+    int timer;
+    char string[265];
+};
+
 struct signals
 {
+    bool UpdatePass = false;
     bool Initstep2 = false;
     bool update_blending = false;
     bool update_filtering = false;
@@ -180,32 +197,46 @@ struct global
     keys Keys;
     cf_file_t *files = nullptr;
     bool *files_loading = nullptr;
-    bool *files_GIF = nullptr;
+    int *files_TYPE = nullptr;
+    bool *files_Failed = nullptr;
+    v2 *files_pos = nullptr;
+    float *files_scale = nullptr;
     uint allocated_files;
     uint max_files;
     uint CurrentFileIndex;
     SDL_mutex *Mutex;
     signals signals;
+    error Error;
 
     bool loaded = false;
     float scale = 1;
     float truescale = 1;
     float req_truescale = 1;
-    bool nearest_filtering = false;
-    bool pixelgrid = false;
+
     v2 Position = v2(0, 0);
     cf_file_t file;
     v2 PixelMouse;
     float InspectColors[4];
 
-    gd_GIF *GIF = nullptr;
-    char *GIF_buffer[1024];
-    uint16_t GIF_FrameDelays[1024];
+    unsigned char *GIF_buffer;
+    int *GIF_FrameDelays;
     GLuint GIFTextureID;
     int GIF_frames;
     int GIF_index;
     bool GIF_Loaded;
     bool GIF_Play;
+    bool settings_visible;
+    bool Droppedfile;
+    bool Loading_Droppedfile;
+
+    int32_t settings_resetpos;
+    int32_t settings_resetzoom;
+    float settings_movementmag;
+    float settings_shiftslowmag;
+    bool settings_movementinvert;
+    bool settings_autoplayGIFs;
+    bool nearest_filtering = false;
+    bool pixelgrid = false;
 };
 
 global Global = {0};

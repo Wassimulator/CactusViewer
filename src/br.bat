@@ -2,6 +2,6 @@
 call b 
 cd ..
 cd bin
-CactusViewer.exe D:\Code_Work\img_viewer\bin\test.png
+CactusViewer.exe 
 cd ..
 cd src
