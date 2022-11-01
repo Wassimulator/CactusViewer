@@ -16,6 +16,6 @@ temp/
 steampacks/*
 *.jpg
 *.png
-src/todo.md
+todo.md
 bin/imgui.ini
 src/dump.cpp
