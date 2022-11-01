@@ -1,6 +1,6 @@
 # Cactus Image Viewer
 #### by Wassimulator
-A small handmade image viewer written in C/C++ using SDL, stb_image, and a custom OpenGL renderer.     
+A small handmade image viewer written in C/C++ using SDL2 for Window and event management, ImGui for the UI, decoding with stb_image, and a custom OpenGL renderer.     
 Supported file extensions: *PNG, JPG, JPEG, BMP, GIF*
 
 ## Features:
