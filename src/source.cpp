@@ -494,10 +494,16 @@ static void refreshdisplay()
     SDL_GetCurrentDisplayMode(0, &Display);
     float aspect = (float)G->Graphics.MainImage.w / G->Graphics.MainImage.h;
     printf("%i %i", Display.w, Display.h);
-    if (aspect < 1)
-        SDL_SetWindowSize(Window, Display.h * 0.85 * aspect, Display.h * 0.85);
+    if (G->Graphics.MainImage.w > Display.w * 0.85 || G->Graphics.MainImage.h > Display.h* 0.85)
+    {
+        if (aspect < 1)
+            SDL_SetWindowSize(Window, Display.h * 0.85 * aspect, Display.h * 0.85);
+        else
+            SDL_SetWindowSize(Window, Display.w * 0.85, Display.h * 0.85);
+    }
     else
-        SDL_SetWindowSize(Window, Display.w * 0.85, Display.h * 0.85);
+        SDL_SetWindowSize(Window, max(G->Graphics.MainImage.w, 500), max(G->Graphics.MainImage.h, 500));
+
     SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
 }

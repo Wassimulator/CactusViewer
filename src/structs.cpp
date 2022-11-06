@@ -229,6 +229,7 @@ struct global
     bool settings_visible;
     bool Droppedfile;
     bool Loading_Droppedfile;
+    bool SDL_inited;
 
     int32_t settings_resetpos;
     int32_t settings_resetzoom;
