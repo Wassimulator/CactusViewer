@@ -18,8 +18,8 @@ Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 - Keyboard controls to pan, zoom, flip through files and GIF controls.
 - Customizable settings to save each image's zoom and pan locations within a session, or to reset image zoom and pan upon file change.
 
-## Building:
-# Windows:
+# Building:
+## Windows:
 using a MSVC developer terminal:
 - run bgui.bat to compile ImGui to `imgui_all.obj`
 - run b.bat to build the project, output in `bin`
