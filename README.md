@@ -45,6 +45,7 @@ According to https://feedback.wildfiregames.com/report/opengl/feature/GL_MAX_TEX
 
 
 ## Possible imporovements:
+Possible things to expand on, since I don't have that much time to spend on this project for now:
 - Unlock the supported image resolutions sizes beyong maximum GPU texture sizes, to support images larger than 60MP or 268MP respectively.
 - Decode images at lower resolutions at first and only decode full image upon zooming, to improve display speed of large files.
 - Stream decoding GIF files to eliminate any load times (though it is already miniscule).
