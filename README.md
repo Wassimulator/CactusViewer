@@ -1,7 +1,9 @@
 ![logo - Copy](https://user-images.githubusercontent.com/75145262/199360352-9d8ff4c9-9e87-4f97-ae20-68671e69f919.png)
 # Cactus Image Viewer
-#### by Wassimulator
-A small handmade image viewer written in C/C++ using SDL2 for Window and event management, ImGui for the UI, decoding with stb_image, and a custom OpenGL renderer.     
+#### by Wassim Alhajomar (@wassimulator)
+A small handmade image viewer written in C/C++.
+#### Used libraries:
+*SDL2* for Window and event management, *ImGui* for the UI, decoding with *stb_image*, and a custom *OpenGL* renderer.     
 Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 
 ## Features:
@@ -27,7 +29,7 @@ using a MSVC developer terminal:
 ## Remarks:
 - This project was written with portability in mind and uses no platform dependant libraries to ease said portability. I might port it to Linux or MacOS at some point if I find the time but it should be simple. 
 - Make sure you compile `imgui_all.cpp` to `imgui_all.obj` and place that in `\bin` first.
-- When compiling the main viewer make sure you link to `SDL2.lib SDL2main.lib imgui_all.obj`
+- When compiling the main viewer make sure you link to `SDL2.lib`, `SDL2main.lib`, and `imgui_all.obj`.
 - SDL2's DLL file or its platform specific equivalent is needed in the binary folder, you can get them here: https://github.com/libsdl-org/SDL/releases/tag/release-2.24.2
 - For the sake of everyone's sanity, this repo has prebuilt binaries of all the above for Windows x64, I will provide other builds if I make any.
 
