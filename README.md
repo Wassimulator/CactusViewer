@@ -3,7 +3,7 @@
 #### by Wassim Alhajomar (@wassimulator)
 A small handmade image viewer written in C/C++.
 #### Used libraries:
-*SDL2* for Window and event management, *ImGui* for the UI, decoding with *stb_image*, *cute_files.h* to manage directories on different platforms, and a custom *OpenGL* renderer.     
+*SDL2* for Window and event management, [ImGui](https://github.com/ocornut/imgui) for the UI, [stb_image](https://github.com/nothings/stb) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, and a custom OpenGL renderer.     
 Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 
 ## Features:
