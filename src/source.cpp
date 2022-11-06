@@ -43,25 +43,37 @@ char *FragmentCode = R"###(
             layout(location = 7 ) uniform vec2 Window;
             layout(location = 8 ) uniform vec4 RGBAflags;
 
+			vec2 uv_aa_smoothstep( vec2 uv, vec2 res, float width ) 
+			{
+			    vec2 pixels = uv * res;
+
+			    vec2 pixels_floor = floor(pixels + 0.5);
+			    vec2 pixels_fract = fract(pixels + 0.5);
+			    vec2 pixels_aa = fwidth(pixels) * width * 0.5;
+			    pixels_fract = smoothstep( vec2(0.5) - pixels_aa, vec2(0.5) + pixels_aa, pixels_fract );
+
+			    return (pixels_floor + pixels_fract - 0.5) / res;
+			}
 
             void main()
             {   
+				vec2 uvActual = uv_aa_smoothstep(UV, textureSize(TextureInput, 0),1.5);
 
                 if (PixelGrid == 1)
                 {
                     vec2 uvFraction = 1.0 / ImageDim;
-                    if ( any( lessThan(mod(UV, uvFraction), uvFraction / truescale) ) )
-                        color = vec4(1,1,1,1) - texture(TextureInput, UV);
+                    if ( any( lessThan(mod(uvActual, uvFraction), uvFraction / truescale) ) )
+                        color = vec4(1,1,1,1) - texture(TextureInput, uvActual);
                     else
 				    {  
-                        color = texture(TextureInput, UV) * vec4(RGBAflags.rgb, 1);
+                        color = texture(TextureInput, uvActual) * vec4(RGBAflags.rgb, 1);
                         if (RGBAflags.a == 0.0)
                             color.a = 1.0;
                     }
                 }
                 else
 				{
-                    color = texture(TextureInput, UV) * vec4(RGBAflags.rgb, 1);
+                    color = texture(TextureInput, uvActual) * vec4(RGBAflags.rgb, 1);
                     if (RGBAflags.a == 0.0)
                         color.a = 1.0;
                 }
@@ -817,7 +829,7 @@ static void UpdateGUI()
         if (G->Keys.MouseLeft_Click)
         {
             char hexcolor[10];
-            sprintf(hexcolor, "0x%02X%02X%02X", r, g, b);
+            sprintf(hexcolor, "%02X%02X%02X", r, g, b);
             SDL_SetClipboardText(hexcolor);
         }
     }
