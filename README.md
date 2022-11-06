@@ -1,9 +1,9 @@
-![logo - Copy](https://user-images.githubusercontent.com/75145262/199360352-9d8ff4c9-9e87-4f97-ae20-68671e69f919.png)
+![logo-export](https://user-images.githubusercontent.com/75145262/200181192-35c8ea4d-e864-4ac7-89d0-8deda4901699.png)
 # Cactus Image Viewer
 #### by Wassim Alhajomar (@wassimulator)
 A small handmade image viewer written in C/C++.
 #### Used libraries:
-*SDL2* for Window and event management, *ImGui* for the UI, decoding with *stb_image*, *cute_files.h* to manage directories on different platforms, and a custom *OpenGL* renderer.     
+[SDL2](https://www.libsdl.org/) for Window and event management, [ImGui](https://github.com/ocornut/imgui) for the UI, [stb_image](https://github.com/nothings/stb) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, and a custom OpenGL renderer.     
 Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 
 ## Features:
