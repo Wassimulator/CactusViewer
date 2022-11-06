@@ -3,6 +3,17 @@
 
 int main(int argc, char **argv)
 {
+
+#ifdef _WIN32
+#include <fileapi.h>
+    char *appdata = getenv("APPDATA");
+    APPDATA_FOLDER = (char *)malloc(strlen(appdata) + 15);
+    sprintf(APPDATA_FOLDER, "%s\\CactusViewer", appdata);
+    CreateDirectoryA(APPDATA_FOLDER, NULL);
+#else
+    APPDATA_FOLDER = "./";
+#endif
+
     Main_Init();
     ScanFolder(argv[1]);
     if (argc > 1)
@@ -23,7 +34,7 @@ int main(int argc, char **argv)
             G->Loading_Droppedfile = true;
             ScanFolder(TempPath);
             G->loaded = false;
-            loaderthreadinputs Inputs = {TempPath, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
+            loaderthreadinputs Inputs = {TempPath, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], true};
             SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
             G->Droppedfile = false;
         }
@@ -51,7 +62,7 @@ int main(int argc, char **argv)
                 {
                     G->CurrentFileIndex++;
                     G->loaded = false;
-                    loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
+                    loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], false};
                     SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
                 }
             }
@@ -64,7 +75,7 @@ int main(int argc, char **argv)
                 {
                     G->CurrentFileIndex--;
                     G->loaded = false;
-                    loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
+                    loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], false};
                     SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
                 }
             }

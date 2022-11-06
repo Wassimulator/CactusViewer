@@ -3,6 +3,15 @@
 #include "structs.cpp"
 #include "events.cpp"
 
+// Creates a hover help marker to the ImGui item before it, set by a certain delay
+#define HELP_MARKER_GUI(x)                 \
+    {                                      \
+        {                                  \
+            static int timer = 0;          \
+            HelpMarkerPrev(&timer, x, 40); \
+        }                                  \
+    }
+
 char *VertexCode = R"###(
             #version 430 core
             smooth out vec2 UV;
@@ -171,6 +180,24 @@ static void HelpMarker(const char *desc)
         ImGui::EndTooltip();
     }
 }
+static void HelpMarkerPrev(int *hovertime, const char *desc, int delay)
+{
+    if (ImGui::IsItemHovered())
+    {
+        *hovertime = *hovertime + 1;
+        if (*hovertime > delay)
+        {
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+            ImGui::TextUnformatted(desc);
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+    }
+    else
+        *hovertime = 0;
+}
+
 static void InitLogoImage()
 {
     glGenTextures(1, &G->Graphics.LogoTextureID);
@@ -184,7 +211,9 @@ static void InitLogoImage()
 }
 static void SaveSettings()
 {
-    FILE *F = fopen("config", "wb");
+    char buffer[0x400];
+    snprintf(buffer, sizeof(buffer), "%s\\config", APPDATA_FOLDER);
+    FILE *F = fopen(buffer, "wb");
     if (F)
     {
         fwrite(&G->settings_resetpos, sizeof(int32_t), 1, F);
@@ -203,7 +232,9 @@ static void SaveSettings()
 }
 static void LoadSettings()
 {
-    FILE *F = fopen("config", "rb");
+    char buffer[0x400];
+    snprintf(buffer, sizeof(buffer), "%s\\config", APPDATA_FOLDER);
+    FILE *F = fopen(buffer, "rb");
     if (F)
     {
         fread(&G->settings_resetpos, sizeof(int32_t), 1, F);
@@ -295,6 +326,7 @@ struct loaderthreadinputs
     char *File;
     uint ID;
     int Type;
+    bool dropped;
 };
 
 static void resetToNoFolder()
@@ -314,7 +346,7 @@ static void SetToNoFile()
     G->signals.update_truescale = true;
 }
 
-static int LoadImage(char *File, uint ID)
+static int Load_Image(char *File, uint ID, bool dropped)
 {
     int w, h, n;
     int result = 0;
@@ -327,6 +359,8 @@ static int LoadImage(char *File, uint ID)
         G->files_Failed[G->CurrentFileIndex] = true;
         G->loaded = true;
         G->signals.UpdatePass = true;
+        if (dropped)
+            resetToNoFolder();
         SetToNoFile();
     }
     else
@@ -374,19 +408,23 @@ void SavePPM()
     (void)fclose(fp);
 }
 
-void UnLoadGIF()
+static void UnLoad_GIF()
 {
     G->GIF_frames = 0;
     free(G->GIF_buffer);
+    G->GIF_buffer = nullptr;
     free(G->GIF_FrameDelays);
+    G->GIF_FrameDelays = nullptr;
 }
 
-void LoadGIF(char *File, uint ID)
+static int Load_GIF(char *File, uint ID, bool dropped)
 {
-    UnLoadGIF();
     int w, h;
     int frames;
     int *delays;
+    int result = 0;
+
+    UnLoad_GIF();
 
     G->files_loading[ID] = true;
     unsigned char *data = stbi_xload_file(File, &w, &h, &frames, &delays);
@@ -404,18 +442,21 @@ void LoadGIF(char *File, uint ID)
         G->GIF_Play = G->settings_autoplayGIFs;
 
         if (ID != G->CurrentFileIndex)
-            UnLoadGIF();
+            UnLoad_GIF();
         else
             G->signals.Initstep2 = true;
+        result = 1;
     }
     else
     {
         PushError("Loading GIF file failed");
         G->files_Failed[G->CurrentFileIndex] = true;
         G->loaded = true;
-        resetToNoFolder();
+        if (dropped)
+            resetToNoFolder();
         SetToNoFile();
     }
+    return result;
 }
 
 struct reducedfrac
@@ -507,7 +548,7 @@ static void ApplySettings()
     }
 }
 
-static void LoadImage_post()
+static void Load_Image_post()
 {
     if (G->files_TYPE[G->CurrentFileIndex])
     {
@@ -557,9 +598,9 @@ static int LoaderThread(void *ptr)
     if (!G->files_loading[Inputs->ID])
     {
         if (Inputs->Type == 1)
-            LoadGIF(Inputs->File, Inputs->ID);
+            Load_GIF(Inputs->File, Inputs->ID, Inputs->dropped);
         else
-            LoadImage(Inputs->File, Inputs->ID);
+            Load_Image(Inputs->File, Inputs->ID, Inputs->dropped);
     }
     return 0;
 }
@@ -672,6 +713,13 @@ static void ScanFolder(char *Path)
         cf_file_t file_0;
         cf_read_file(&dir, &file_0);
 
+        if (file_0.is_dir)
+        {
+            cf_dir_next(&dir);
+            continue;
+        }
+        removechar(file_0.path, '/');
+
         if (!CheckValidExtention(file_0.ext))
         {
             cf_dir_next(&dir);
@@ -740,7 +788,7 @@ static void UpdateGUI()
     style.Colors[ImGuiCol_FrameBg] = ImVec4(0.2, 0.2, 0.2, 1);
     style.Colors[ImGuiCol_Button] = ImVec4(0.2, 0.2, 0.2, 1);
     style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.3, 0.3, 0.3, 1);
-    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.4, 0.4, 0.4, 1);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.4, 0.4, 0.3, 1);
     style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.3, 0.3, 0.3, 1);
     style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.4, 0.4, 0.4, 1);
     style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.3, 0.3, 0.3, 1);
@@ -825,7 +873,7 @@ static void UpdateGUI()
         FPS = MAX_FPS;
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight * 0.5f), 0, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(500, 500));
-        ImGui::Begin("settings", NULL,ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+        ImGui::Begin("settings", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Cactus Image Viewer ");
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "version %s", VERSION);
@@ -924,6 +972,7 @@ static void UpdateGUI()
             G->signals.UpdatePass = true;
             G->signals.update_truescale = true;
         }
+        HELP_MARKER_GUI("Zoom image to fit its width to the window width")
         if (ImGui::Button("fit H", ImVec2(50, 23)))
         {
             G->Position = v2(0, 0);
@@ -931,6 +980,7 @@ static void UpdateGUI()
             G->signals.UpdatePass = true;
             G->signals.update_truescale = true;
         }
+        HELP_MARKER_GUI("Zoom image to fit its height to the window height")
         if (ImGui::Button("1:1", ImVec2(50, 23)))
         {
             G->Position = v2(0, 0);
@@ -938,6 +988,8 @@ static void UpdateGUI()
             G->signals.UpdatePass = true;
             G->signals.update_truescale = true;
         }
+        HELP_MARKER_GUI("Zoom image to 100% scale, one image pixel matching one screen pixel")
+
         ImGui::End();
 
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f + 125, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -949,11 +1001,15 @@ static void UpdateGUI()
         {
             G->signals.update_filtering = true;
         }
+        HELP_MARKER_GUI("Toggle between nearest-neighbor and linear filtering")
+
         if (!G->nearest_filtering)
             ImGui::BeginDisabled();
         ImGui::Text(" Grid");
         ImGui::SetCursorPos(ImVec2(22, 65));
         ImGui::Checkbox("###", &G->pixelgrid);
+        HELP_MARKER_GUI("Show pixel grid")
+
         if (!G->nearest_filtering)
             ImGui::EndDisabled();
         ImGui::End();
@@ -961,13 +1017,17 @@ static void UpdateGUI()
         ImGui::SetNextWindowSize(ImVec2(65, 92));
         ImGui::Begin("rgbasetting", NULL, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollWithMouse);
         ImGui::SetCursorPosY(6);
-        ImGui::Checkbox(" R", (bool *)&RGBAflags[0]);
+        ImGui::Checkbox("  R", (bool *)&RGBAflags[0]);
+        HELP_MARKER_GUI("Toggle red channel")
         ImGui::SetCursorPosY(26 + 20 * 0);
-        ImGui::Checkbox(" G", (bool *)&RGBAflags[1]);
+        ImGui::Checkbox("  G", (bool *)&RGBAflags[1]);
+        HELP_MARKER_GUI("Toggle green channel")
         ImGui::SetCursorPosY(26 + 20 * 1);
-        ImGui::Checkbox(" B", (bool *)&RGBAflags[2]);
+        ImGui::Checkbox("  B", (bool *)&RGBAflags[2]);
+        HELP_MARKER_GUI("Toggle blue channel")
         ImGui::SetCursorPosY(26 + 20 * 2);
-        ImGui::Checkbox(" A", (bool *)&RGBAflags[3]);
+        ImGui::Checkbox("  A", (bool *)&RGBAflags[3]);
+        HELP_MARKER_GUI("Toggle between premultiplied alpha and straight RGB")
         ImGui::End();
         if (G->files_Failed[G->CurrentFileIndex])
             ImGui::EndDisabled();
@@ -980,7 +1040,7 @@ static void UpdateGUI()
         ImGui::SetItemAllowOverlap();
         ImGui::SetCursorPos(ImVec2(7, 7));
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(BGcolor[0], BGcolor[1], BGcolor[2], 0));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(BGcolor[0], BGcolor[1], BGcolor[2], 1));
         ImGui::SetItemAllowOverlap();
         open_popup |= ImGui::Button("##", ImVec2(50, 50));
         ImGui::PopStyleColor();
@@ -1003,6 +1063,7 @@ static void UpdateGUI()
             ImGui::EndDisabled();
         if (ImGui::Button("config", ImVec2(50, 23)))
             G->settings_visible = true;
+        HELP_MARKER_GUI("Open help and settings page");
         if (G->max_files == 0)
             ImGui::BeginDisabled();
         ImGui::End();
@@ -1010,7 +1071,6 @@ static void UpdateGUI()
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(173, 92));
         ImGui::Begin("NextPrev", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1, 0.1, 0.1, 1));
         if (!(G->CurrentFileIndex > 0))
             ImGui::BeginDisabled(true);
         if (ImGui::Button("<< Prev", ImVec2(75, 30)))
@@ -1026,11 +1086,22 @@ static void UpdateGUI()
         if (!(G->CurrentFileIndex < G->max_files - 1))
             ImGui::EndDisabled();
         int file = G->CurrentFileIndex;
-        ImGui::SetNextItemWidth(158);
+        if (ImGui::Button("Reload folder", ImVec2(157, 20)))
+        {
+            ScanFolder(G->files[G->CurrentFileIndex].path);
+        }
+        HELP_MARKER_GUI("Click to reload the folder and scan for any changes");
+        ImGui::SetCursorPosY(65);
+        ImGui::SetNextItemWidth(157);
         ImGui::BeginDisabled();
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(1, 1, 1, 0.2));
         ImGui::SliderInt(" ", &file, 0, G->max_files - 1, " ");
-        ImGui::EndDisabled();
         ImGui::PopStyleColor();
+        ImGui::PopStyleColor();
+        ImGui::EndDisabled();
+        ImGui::SetCursorPosY(65);
+
         ImGui::End();
 
         if (G->files_TYPE[G->CurrentFileIndex] == 1)
@@ -1235,7 +1306,6 @@ static void UpdateLogic()
 static void Render()
 {
 
-
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_SCISSOR_TEST);
     glEnable(GL_BLEND);
@@ -1246,7 +1316,7 @@ static void Render()
         glViewport(0, 0, WindowWidth, WindowHeight);
         if (G->signals.Initstep2)
         {
-            LoadImage_post();
+            Load_Image_post();
             G->signals.Initstep2 = false;
             G->signals.UpdatePass = true;
             G->loaded = true;

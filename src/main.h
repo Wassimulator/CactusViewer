@@ -20,6 +20,7 @@
 #include "imgui/imgui_impl_sdlrenderer.h"
 #endif
 
+
 #define _MAX_FPS 250;
 
 #define VERSION "1.0.0 - 11/2022"
@@ -45,3 +46,6 @@ int RGBAflags[4];
 SDL_Event Ev = {0};
 SDL_Event *Event = &Ev;
 char *TempPath;
+
+char *APPDATA_FOLDER;
+
