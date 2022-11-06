@@ -826,7 +826,7 @@ static void UpdateGUI()
         ImGui::Text("B:%i", b);
         ImGui::End();
 
-        if (G->Keys.MouseLeft_Click)
+        if (G->Keys.MouseRightOnce)
         {
             char hexcolor[10];
             sprintf(hexcolor, "%02X%02X%02X", r, g, b);
@@ -860,9 +860,9 @@ static void UpdateGUI()
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Shift:");
         ImGui::SameLine();
         ImGui::Text("Fine movement/zoom mode");
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Middle Mouse button / Alt(hold):");
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Middle Mouse button/ Alt(hold):");
         ImGui::SameLine();
-        ImGui::Text("Pixel inspector");
+        ImGui::Text("Pixel inspector (right click to copy)");
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Left/Right Arrow buttons:");
         ImGui::SameLine();
         ImGui::Text("Next/ previous image");

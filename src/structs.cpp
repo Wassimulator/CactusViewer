@@ -99,6 +99,7 @@ struct keys
     bool MouseLeftReleased = false;
     bool MouseLeftOnce = false;
     bool MouseLeft_Click = false;
+    bool MouseRight_Click = false;
 
     bool MouseRight = false;
     bool MouseRightUp = false;
