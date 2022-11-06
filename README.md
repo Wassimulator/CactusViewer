@@ -18,13 +18,13 @@ Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 - Keyboard controls to pan, zoom, flip through files and GIF controls.
 - Customizable settings to save each image's zoom and pan locations within a session, or to reset image zoom and pan upon file change.
 
-# Building:
-## Windows:
+## Building:
+### Windows:
 using a MSVC developer terminal:
 - run bgui.bat to compile ImGui to `imgui_all.obj`
 - run b.bat to build the project, output in `bin`
 
-# Remarks:
+## Remarks:
 - This project was written with portability in mind and uses no platform dependant libraries to ease said portability. I might port it to Linux or MacOS at some point if I find the time but it should be simple. 
 - Make sure you compile `imgui_all.cpp` to `imgui_all.obj` and place that in `\bin` first.
 - When compiling the main viewer make sure you link to `SDL2.lib SDL2main.lib shell32.lib imgui_all.obj`
