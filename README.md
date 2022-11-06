@@ -1,4 +1,4 @@
-![logo - Copy](https://user-images.githubusercontent.com/75145262/199360352-9d8ff4c9-9e87-4f97-ae20-68671e69f919.png)
+![logo-export](https://user-images.githubusercontent.com/75145262/200181192-35c8ea4d-e864-4ac7-89d0-8deda4901699.png)
 # Cactus Image Viewer
 #### by Wassim Alhajomar (@wassimulator)
 A small handmade image viewer written in C/C++.
