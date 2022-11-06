@@ -22,7 +22,7 @@ Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 ### Windows:
 using a MSVC developer terminal:
 - run `bgui.bat` to compile ImGui to `imgui_all.obj`
-- run `b.bat` to build the project, output in `bin`
+- run `b.bat` to build the project, output in `\bin`
 
 ## Remarks:
 - This project was written with portability in mind and uses no platform dependant libraries to ease said portability. I might port it to Linux or MacOS at some point if I find the time but it should be simple. 
