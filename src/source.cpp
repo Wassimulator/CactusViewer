@@ -24,7 +24,7 @@ char *VertexCode = R"###(
             {
                 uint x = gl_VertexID % 2;
                 uint y = gl_VertexID / 2;
-                UV = vec2(x, 1.0 - y);
+                UV = vec2(x, 1.0 - float(y));
                 vec2 P = vec2(x,y);
                 P = P * 2.0 - 1.0;
             
@@ -84,7 +84,7 @@ char *VertexBG = R"###(
             {
                 uint x = gl_VertexID % 2;
                 uint y = gl_VertexID / 2;
-                UV = vec2(x, 1.0 - y);
+                UV = vec2(x, 1.0 - float(y));
                 vec2 P = vec2(x,y);
                 P = P * 2.0 - 1.0;
             
