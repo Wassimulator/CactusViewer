@@ -3,116 +3,137 @@
 #include <emaths.h>
 using namespace Emaths;
 
+
+enum keys_
+{
+    Key_Right,
+    Key_Left,
+    Key_Up,
+    Key_Down,
+    Key_Enter,
+    Key_A,
+    Key_B,
+    Key_C,
+    Key_D,
+    Key_E,
+    Key_F,
+    Key_G,
+    Key_H,
+    Key_I,
+    Key_J,
+    Key_K,
+    Key_L,
+    Key_M,
+    Key_N,
+    Key_O,
+    Key_P,
+    Key_Q,
+    Key_R,
+    Key_S,
+    Key_T,
+    Key_U,
+    Key_V,
+    Key_W,
+    Key_X,
+    Key_Y,
+    Key_Z,
+    Key_0,
+    Key_1,
+    Key_2,
+    Key_3,
+    Key_4,
+    Key_5,
+    Key_6,
+    Key_7,
+    Key_8,
+    Key_9,
+    Key_num_0,
+    Key_num_1,
+    Key_num_2,
+    Key_num_3,
+    Key_num_4,
+    Key_num_5,
+    Key_num_6,
+    Key_num_7,
+    Key_num_8,
+    Key_num_9,
+    Key_LBracket,
+    Key_RBracket,
+    Key_Quote,
+    Key_Colon,
+    Key_Comma,
+    Key_Dot,
+    Key_FSlash,
+    Key_BSlash,
+    Key_Return,
+    Key_Minus,
+    Key_Plus,
+    Key_Multiply,
+    Key_Equals,
+    Key_Backspace,
+    Key_Delete,
+    Key_F1,
+    Key_F2,
+    Key_F3,
+    Key_F4,
+    Key_F5,
+    Key_F6,
+    Key_F7,
+    Key_F8,
+    Key_F9,
+    Key_F10,
+    Key_F11,
+    Key_F12,
+    Key_Esc,
+    Key_Backquote,
+    MouseL,
+    MouseR,
+    MouseM,
+    MouseX1,
+    MouseX2,
+    Key_Shift,
+    Key_LShift,
+    Key_RShift,
+    Key_Tab,
+    Key_Space,
+    Key_Ctrl,
+    Key_LCtrl,
+    Key_RCtrl,
+    Key_Alt,
+    Key_LAlt,
+    Key_RAlt,
+    Key_Pause,
+    Key_CapsLock,
+    Key_PgUp,
+    Key_PgDn,
+    Key_Home,
+    Key_End,
+    Key_Select,
+    Key_Print,
+    Key_Insert,
+    Key_LWIN,
+    Key_RWIN,
+    Key_NumLock,
+    Key_ScrollLock,
+
+    key_COUNT
+};
+
+struct key
+{
+    bool up;
+    bool dn;
+    bool on;
+};
+
+
 struct keys
 {
+    key K[key_COUNT];
     bool disconnect = false;
 
-    bool RightButton = false;
-    bool RightButtonUp = false;
-    bool LeftButton = false;
-    bool LeftButtonUp = false;
-    bool UpButton = false;
-    bool DownButton = false;
-
-    bool Enter = false;
-
-    bool A_Key = false;
-    bool B_Key = false;
-    bool C_Key = false;
-    bool D_Key = false;
-    bool E_Key = false;
-    bool F_Key = false;
-    bool G_Key = false;
-    bool H_Key = false;
-    bool I_Key = false;
-    bool J_Key = false;
-    bool K_Key = false;
-    bool L_Key = false;
-    bool M_Key = false;
-    bool N_Key = false;
-    bool O_Key = false;
-    bool P_Key = false;
-    bool Q_Key = false;
-    bool R_Key = false;
-    bool S_Key = false;
-    bool T_Key = false;
-    bool U_Key = false;
-    bool V_Key = false;
-    bool W_Key = false;
-    bool X_Key = false;
-    bool Y_Key = false;
-    bool Z_Key = false;
-
-    bool _0_Key = false;
-    bool _1_Key = false;
-    bool _2_Key = false;
-    bool _3_Key = false;
-    bool _4_Key = false;
-    bool _5_Key = false;
-    bool _6_Key = false;
-    bool _7_Key = false;
-    bool _8_Key = false;
-    bool _9_Key = false;
-
-    bool LBracket_Key = false;
-    bool RBracket_Key = false;
-
-    bool Quote_Key = false;
-    bool Colon_Key = false;
-    bool Comma_Key = false;
-    bool Dot_Key = false;
-    bool FSlash_Key = false;
-    bool BSlash_Key = false;
-    bool Return_Key = false;
-    bool Minus_Key = false;
-    bool Plus_Key = false;
-    bool Equals_Key = false;
-    bool Backspace_Key = false;
-    bool Delete_Key = false;
-
-    bool F1_Key = false;
-    bool F2_Key = false;
-    bool F3_Key = false;
-    bool F4_Key = false;
-    bool F5_Key = false;
-    bool F6_Key = false;
-    bool F7_Key = false;
-    bool F8_Key = false;
-    bool F9_Key = false;
-    bool F10_Key = false;
-    bool F11_Key = false;
-    bool F12_Key = false;
-
-    bool Esc_Key = false;
-
-    bool Backquote_Key = false;
-
-    bool Shift = false;
-    bool Tab_Key = false;
-    bool Space_Key = false;
-    bool Ctrl_Key = false;
-    bool Alt_Key = false;
-
-    bool MouseLeft = false;
-    bool MouseLeftUp = false;
-    bool MouseLeftAlready = false;
-    bool MouseLeftReleased = false;
-    bool MouseLeftOnce = false;
-    bool MouseLeft_Click = false;
-    bool MouseRight_Click = false;
-
-    bool MouseRight = false;
-    bool MouseRightUp = false;
-    bool MouseRightAlready = false;
-    bool MouseRightOnce = false;
-
-    bool MouseMiddle = false;
-    bool MouseMiddleOnce = false;
-
-    SDL_Point Mouse;
-    SDL_Point Logical_Mouse;
-    int xrel;
-    int yrel;
+    v2 Mouse;
+    v2 Mouse_rel;
     int ScrollY = 0;
     int ScrollYdiff = 0;
 };
@@ -205,10 +226,11 @@ struct global
     uint allocated_files;
     uint max_files;
     uint CurrentFileIndex;
-    SDL_mutex *Mutex;
+    CRITICAL_SECTION Mutex;
     signals signals;
     error Error;
 
+    bool keep_menu = false;
     bool loaded = false;
     float scale = 1;
     float truescale = 1;
@@ -229,7 +251,6 @@ struct global
     bool settings_visible;
     bool Droppedfile;
     bool Loading_Droppedfile;
-    bool SDL_inited;
 
     int32_t settings_resetpos;
     int32_t settings_resetzoom;

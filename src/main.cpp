@@ -19,14 +19,12 @@ int main(int argc, char **argv)
     if (argc > 1)
     {
         loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
-        SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
+        CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
     }
 
     while (Running)
     {
         MouseDetection = WindowHeight - 320;
-        const int frameDelay = 1000 / FPS;
-        Uint32 frameStart = SDL_GetTicks();
         PollEvents();
 
         if (G->Droppedfile)
@@ -35,15 +33,14 @@ int main(int argc, char **argv)
             ScanFolder(TempPath);
             G->loaded = false;
             loaderthreadinputs Inputs = {TempPath, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], true};
-            SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
+            CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
             G->Droppedfile = false;
         }
 
-        ImGui_ImplSDL2_NewFrame(Window);
         ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-
-        SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+        GetWindowSize();
 
         if (G->signals.UpdatePass)
             G->signals.UpdatePass = false;
@@ -53,9 +50,8 @@ int main(int argc, char **argv)
 
         if (G->max_files > 0)
         {
-            if (G->Keys.RightButtonUp || G->signals.nextimage)
+            if (keyup(Key_Right) || G->signals.nextimage)
             {
-                G->Keys.RightButtonUp = false;
                 G->signals.nextimage = false;
 
                 if (G->CurrentFileIndex < G->max_files - 1)
@@ -63,12 +59,11 @@ int main(int argc, char **argv)
                     G->CurrentFileIndex++;
                     G->loaded = false;
                     loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], false};
-                    SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
+                    CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
                 }
             }
-            if (G->Keys.LeftButtonUp || G->signals.previmage)
+            if (keyup(Key_Left)|| G->signals.previmage)
             {
-                G->Keys.LeftButtonUp = false;
                 G->signals.previmage = false;
 
                 if (G->CurrentFileIndex > 0)
@@ -76,20 +71,18 @@ int main(int argc, char **argv)
                     G->CurrentFileIndex--;
                     G->loaded = false;
                     loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], false};
-                    SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
+                    CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
                 }
             }
         }
-
-        {
-            int frameEnd = SDL_GetTicks();
-            int frameTime = frameEnd - frameStart;
-            if (frameTime < frameDelay)
-            {
-                SDL_Delay(frameDelay - frameTime);
-            }
-        }
+        ResetInputs();
     }
     SaveSettings();
     return 0;
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
+    int result = main(__argc, __argv);
+    return result;
 }

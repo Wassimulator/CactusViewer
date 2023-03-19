@@ -252,17 +252,86 @@ static void LoadSettings()
     }
 }
 
+static uint32_t GetTicks()
+{
+    static LARGE_INTEGER frequency;
+    static bool n = QueryPerformanceFrequency(&frequency);
+    LARGE_INTEGER  result;
+    QueryPerformanceCounter(&result);
+    return 1000 * result.QuadPart / frequency.QuadPart;
+}
+
+static void CenterWindow()
+{
+    v2 DisplaySize = v2(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+    RECT rect;
+    GetClientRect (hwnd, &rect);
+    int w = rect.right - rect.left;
+    int h = rect.bottom - rect.top;
+    int x = (DisplaySize.x - w) / 2;
+    int y = (DisplaySize.y - h) / 2;
+    SetWindowPos(hwnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 static void Main_Init()
 {
-    SDL_Init(SDL_INIT_EVENTS);
+    WindowWidth  = 500;
+    WindowHeight = 500;
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    Window = SDL_CreateWindow("CactusViewer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              500, 500, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-    GLContext = SDL_GL_CreateContext(Window);
+    HINSTANCE hInstance = GetModuleHandle(NULL);
+    const char* szTitle = "CactusViewer";
+   
+    WNDCLASSEX wcex;
+    wcex.cbSize = sizeof(WNDCLASSEX);
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = WndProc;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    HBRUSH hBrush = CreateSolidBrush(RGB(15, 15, 15));
+    wcex.hbrBackground = hBrush;
+    wcex.lpszMenuName = nullptr;
+    wcex.lpszClassName = "CactusViewer" ;
+    wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
+    RegisterClassEx(&wcex);
+    RECT rc = { 0, 0,  WindowWidth, WindowHeight };
+    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, 0);
+    hwnd = CreateWindowEx(WS_EX_APPWINDOW, "CactusViewer", "CactusViewer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
+    hdc = GetDC(hwnd);
+    CenterWindow();
+    PIXELFORMATDESCRIPTOR pfd;
+    ZeroMemory(&pfd, sizeof(PIXELFORMATDESCRIPTOR));
+    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 32;
+    pfd.cDepthBits = 24;
+    pfd.cStencilBits = 8;
+    int iPixelFormat = ChoosePixelFormat(hdc, &pfd);
+    SetPixelFormat(hdc, iPixelFormat, &pfd);
+    HGLRC tempContext = wglCreateContext(hdc);
+    wglMakeCurrent(hdc, tempContext);
+    int attribs[] = {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB, 
+        0 
+    };
+    PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+    HGLRC glContext = wglCreateContextAttribsARB(hdc, NULL, attribs);
+    wglMakeCurrent(NULL, NULL);
+    wglDeleteContext(tempContext);
+    wglMakeCurrent(hdc, glContext);
+    PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+    wglSwapIntervalEXT(1);
+    DragAcceptFiles(hwnd, TRUE);
+    ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
+
     gladLoadGL();
 
     G->Graphics.MainImage.TextureID = 0;
@@ -271,7 +340,7 @@ static void Main_Init()
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &MAX_GPU);
     G->Graphics.MAX_GPU = MAX_GPU;
 
-    G->Mutex = SDL_CreateMutex();
+    InitializeCriticalSection(&G->Mutex);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -279,7 +348,7 @@ static void Main_Init()
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::StyleColorsDark();
-    ImGui_ImplSDL2_InitForOpenGL(Window, GLContext);
+    ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplOpenGL3_Init();
 
     glGenVertexArrays(1, &G->Graphics.VAO);
@@ -371,7 +440,7 @@ static int Load_Image(char *File, uint ID, bool dropped)
         }
         else
         {
-            SDL_LockMutex(G->Mutex);
+            EnterCriticalSection(&G->Mutex);
             if (ID == G->CurrentFileIndex)
             {
                 G->Graphics.MainImage.w = w;
@@ -384,7 +453,7 @@ static int Load_Image(char *File, uint ID, bool dropped)
             {
                 free(data);
             }
-            SDL_UnlockMutex(G->Mutex);
+            LeaveCriticalSection(&G->Mutex);
             result = 1;
         }
     }
@@ -488,24 +557,41 @@ reducedfrac ReduceFraction(int n1, int n2)
     return Result;
 }
 
+
+
+static void SetWindowSize(v2 DisplaySize, int w, int h)
+{
+    RECT rc = { 0, 0,  w, h };
+    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, 0);
+    int x = (DisplaySize.x - w) / 2;
+    int y = (DisplaySize.y - h) / 2;
+    SetWindowPos(hwnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+static void GetWindowSize()
+{
+    RECT rect;
+    GetClientRect (hwnd, &rect);
+    WindowWidth = rect.right - rect.left;
+    WindowHeight = rect.bottom - rect.top;
+}
+
 static void refreshdisplay()
 {
-    SDL_DisplayMode Display;
-    SDL_GetCurrentDisplayMode(0, &Display);
+    v2 DisplaySize = v2(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
     float aspect = (float)G->Graphics.MainImage.w / G->Graphics.MainImage.h;
-    printf("%i %i", Display.w, Display.h);
-    if (G->Graphics.MainImage.w > Display.w * 0.85 || G->Graphics.MainImage.h > Display.h* 0.85)
+    // printf("%i %i", Display.w, Display.h);
+    if (G->Graphics.MainImage.w > DisplaySize.x * 0.85 || G->Graphics.MainImage.h > DisplaySize.y* 0.85)
     {
         if (aspect < 1)
-            SDL_SetWindowSize(Window, Display.h * 0.85 * aspect, Display.h * 0.85);
+            SetWindowSize(DisplaySize, DisplaySize.y * 0.85 * aspect, DisplaySize.y * 0.85);
         else
-            SDL_SetWindowSize(Window, Display.w * 0.85, Display.h * 0.85);
+            SetWindowSize(DisplaySize, DisplaySize.x * 0.85, DisplaySize.y * 0.85);
     }
     else
-        SDL_SetWindowSize(Window, max(G->Graphics.MainImage.w, 500), max(G->Graphics.MainImage.h, 500));
+        SetWindowSize(DisplaySize, max(G->Graphics.MainImage.w, 500), max(G->Graphics.MainImage.h, 500));
 
-    SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+    GetWindowSize();
 }
 static void ApplySettings()
 {
@@ -598,9 +684,9 @@ static void Load_Image_post()
     ApplySettings();
 }
 
-static int LoaderThread(void *ptr)
+DWORD WINAPI LoaderThread(LPVOID lpParam)
 {
-    loaderthreadinputs *Inputs = (loaderthreadinputs *)ptr;
+    loaderthreadinputs *Inputs = (loaderthreadinputs *)lpParam;
     if (!G->files_loading[Inputs->ID])
     {
         if (Inputs->Type == 1)
@@ -614,7 +700,7 @@ static void BeginLoad(char *File)
 {
     G->loaded = false;
     loaderthreadinputs Inputs = {File, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
-    SDL_CreateThread(LoaderThread, "LoaderThread", (void *)&Inputs);
+    CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
 }
 static bool CheckValidExtention(char *EXT)
 {
@@ -848,7 +934,7 @@ static void UpdateGUI()
         ImGui::End();
     }
 
-    if (G->Keys.Alt_Key || G->Keys.MouseMiddle)
+    if (keypress(Key_Alt) || keypress(MouseM))
     {
         ImGui::SetNextWindowPos(ImVec2(G->Keys.Mouse.x, G->Keys.Mouse.y));
         float colors[4];
@@ -866,11 +952,11 @@ static void UpdateGUI()
         ImGui::Text("B:%i", b);
         ImGui::End();
 
-        if (G->Keys.MouseRightOnce)
+        if (keyup(MouseR))
         {
             char hexcolor[10];
             sprintf(hexcolor, "%02X%02X%02X", r, g, b);
-            SDL_SetClipboardText(hexcolor);
+            ImGui::SetClipboardText(hexcolor);
         }
     }
 
@@ -963,7 +1049,7 @@ static void UpdateGUI()
     }
     if (G->max_files == 0)
         ImGui::BeginDisabled();
-    if (G->Keys.Mouse.y > MouseDetection && !G->settings_visible)
+    if (G->keep_menu || (G->Keys.Mouse.y > MouseDetection && !G->settings_visible))
     {
         if (G->files_Failed[G->CurrentFileIndex])
             ImGui::BeginDisabled();
@@ -1059,6 +1145,11 @@ static void UpdateGUI()
             ImGui::SliderFloat("##", &Checkerboard_size, WindowWidth * 0.01, WindowWidth * 0.5, "Checkerboard size");
             ImGui::ColorPicker4("##picker", (float *)&BGcolor, ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview | ImGuiColorEditFlags_AlphaBar);
             ImGui::EndPopup();
+            G->keep_menu = true;
+        }
+        else
+        {
+            G->keep_menu = false;
         }
         ImGui::SetCursorPos(ImVec2(25, 15));
         ImGui::Text("bg");
@@ -1140,7 +1231,7 @@ static void UpdateGUI()
 
             if (G->GIF_Play || G->GIF_index == G->GIF_frames - 1)
                 ImGui::BeginDisabled(true);
-            if (ImGui::Button(">>", ImVec2(33, 30)) || G->Keys.UpButton)
+            if (ImGui::Button(">>", ImVec2(33, 30)) || keypress(Key_Up))
                 reqindex++;
             if (G->GIF_Play || G->GIF_index == G->GIF_frames - 1)
                 ImGui::EndDisabled();
@@ -1172,25 +1263,25 @@ static void UpdateLogic()
     if (G->Error.timer == 50)
         G->Error.timer = 0;
 
-    if (G->Keys.F_Key)
+    if (keypress(Key_F))
     {
         G->signals.update_filtering = true;
         G->nearest_filtering = !G->nearest_filtering;
     }
-    if (G->Keys.G_Key)
+    if (keypress(Key_G))
     {
         G->pixelgrid = !G->pixelgrid;
     }
     ImGuiIO &io = ImGui::GetIO();
 
-    if (G->Keys.MouseLeft && !io.WantCaptureMouse)
+    if (keypress(MouseL) && !io.WantCaptureMouse)
     {
-        G->Position += v2(G->Keys.xrel, G->Keys.yrel);
+        G->Position += G->Keys.Mouse_rel;
     }
 
     {
-        v2 diff = v2(G->Keys.D_Key - G->Keys.A_Key, G->Keys.S_Key - G->Keys.W_Key) *
-                  G->settings_movementmag / (1 + G->settings_shiftslowmag * G->Keys.Shift);
+        v2 diff = v2(keypress(Key_D) - keypress(Key_A), keypress(Key_S) - keypress(Key_W)) *
+                  G->settings_movementmag / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
         if (G->settings_movementinvert)
             diff = -diff;
         G->Position += diff;
@@ -1198,19 +1289,19 @@ static void UpdateLogic()
     if (G->files_TYPE[G->CurrentFileIndex] == 1)
     {
         int reqindex = G->GIF_index;
-        if (G->Keys.UpButton)
+        if (keypress(Key_Up))
         {
             reqindex--;
-            G->Keys.UpButton = false;
+            keyrelease(Key_Up);
         }
-        if (G->Keys.DownButton)
+        if (keypress(Key_Down))
         {
             reqindex++;
-            G->Keys.DownButton = false;
+            keyrelease(Key_Down);
         }
-        if (G->Keys.Space_Key)
+        if (keypress(Key_Space))
         {
-            G->Keys.Space_Key = false;
+            keyrelease(Key_Space);
             G->GIF_Play = !G->GIF_Play;
         }
         G->GIF_index = clamp(reqindex, 0, G->GIF_frames - 1);
@@ -1225,7 +1316,7 @@ static void UpdateLogic()
     if (G->max_files > 0)
     {
         if (!io.WantCaptureMouse)
-            G->scale *= 1 + G->Keys.ScrollYdiff * 0.1 / (1 + G->settings_shiftslowmag * G->Keys.Shift);
+            G->scale *= 1 + G->Keys.ScrollYdiff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
         if (!G->files_Failed[G->CurrentFileIndex])
         {
             G->files_pos[G->CurrentFileIndex] = G->Position;
@@ -1243,13 +1334,13 @@ static void UpdateLogic()
         {
             G->truescale = (float)WindowWidth / G->Graphics.MainImage.w * G->scale;
         }
-        v2 M = v2(G->Keys.Mouse.x, G->Keys.Mouse.y);
+        v2 M = G->Keys.Mouse;
         G->PixelMouse = (M - (v2(WindowWidth, WindowHeight) - v2(G->Graphics.MainImage.w, G->Graphics.MainImage.h) * G->truescale) * 0.5 - G->Position) / G->truescale;
     }
     {
-        v2 Mouse = v2(G->Keys.Mouse.x, G->Keys.Mouse.y) - v2(WindowWidth, WindowHeight) / 2;
+        v2 Mouse = G->Keys.Mouse - v2(WindowWidth, WindowHeight) / 2;
 
-        v2 M = v2(G->Keys.Mouse.x, G->Keys.Mouse.y);
+        v2 M = G->Keys.Mouse;
 
         float TS = G->truescale;
 
@@ -1258,7 +1349,7 @@ static void UpdateLogic()
             G->Position *= G->scale / prev_scale;
             G->Position += Mouse;
         }
-        if (G->Keys.Mouse.y > MouseDetection && !G->settings_visible)
+        if (G->keep_menu || (G->Keys.Mouse.y > MouseDetection && !G->settings_visible))
         {
             ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(ImVec2(173, 92));
@@ -1278,14 +1369,14 @@ static void UpdateLogic()
         }
         if (G->max_files > 0)
         {
-            if (G->Keys.Q_Key)
+            if (keypress(Key_Q))
             {
-                TS *= 1 + 0.05 / (1 + G->settings_shiftslowmag * G->Keys.Shift);
+                TS *= 1 + 0.05 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
                 updatescalebar = true;
             }
-            if (G->Keys.E_Key)
+            if (keypress(Key_E))
             {
-                TS *= 1 - 0.05 / (1 + G->settings_shiftslowmag * G->Keys.Shift);
+                TS *= 1 - 0.05 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
                 updatescalebar = true;
             }
         }
@@ -1340,7 +1431,7 @@ static void Render()
                 glBindTexture(GL_TEXTURE_2D, G->GIFTextureID);
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
                 static uint32_t time = 0;
-                uint32_t delta = SDL_GetTicks() - time;
+                uint32_t delta =GetTicks() - time;
                 if (delta >= G->GIF_FrameDelays[G->GIF_index] && G->GIF_Play)
                 {
                     G->GIF_index++;
@@ -1348,7 +1439,7 @@ static void Render()
                     {
                         G->GIF_index = 0;
                     }
-                    time = SDL_GetTicks();
+                    time = GetTicks();
                 }
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, G->Graphics.MainImage.w, G->Graphics.MainImage.h, GL_RGBA, GL_UNSIGNED_BYTE,
                                 G->GIF_buffer + G->GIF_index * G->Graphics.MainImage.w * G->Graphics.MainImage.h * 4); // indexing into the relevant gif frame
@@ -1406,12 +1497,12 @@ static void Render()
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    if (G->Keys.Alt_Key || G->Keys.MouseMiddle)
+    if (keypress(Key_Alt) || keypress(MouseM))
     {
         glReadPixels(G->Keys.Mouse.x, WindowHeight - G->Keys.Mouse.y, 1, 1, GL_RGBA, GL_FLOAT, &G->InspectColors);
     }
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    SDL_GL_SwapWindow(Window);
+    SwapBuffers(hdc);
 }

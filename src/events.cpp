@@ -2,564 +2,234 @@
 #include "main.h"
 #include "structs.cpp"
 
+
+void ResetInputs()
+{
+    keys *K = &G->Keys;
+    for (int i = 0; i < key_COUNT; i++)
+    {
+        K->K[i].up = false;
+        K->K[i].dn = false;
+    }
+    K->ScrollYdiff = 0;
+}
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    keys *K = &G->Keys;
+
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
+    switch (message)
+    {
+    case WM_DESTROY:    PostQuitMessage(0); Running = false; break;
+    case WM_DROPFILES: 
+    {
+        if (!G->Loading_Droppedfile)
+        {
+            UINT length = DragQueryFile((HDROP)wParam, /*only first one is handled*/ 0, NULL, 0);
+            TempPath = (char *)malloc(length + 1);
+            DragQueryFile((HDROP)wParam, /*only first one is handled*/ 0, TempPath, length + 1);
+        }
+        G->Droppedfile = true;
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        int xPos = LOWORD(lParam);
+        int yPos = HIWORD(lParam);
+        K->Mouse.x  = xPos; K->Mouse.y  = yPos;
+        break;
+    }
+    case WM_MOUSEWHEEL:
+    {
+        int scrollValue = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
+        K->ScrollYdiff = scrollValue;
+        K->ScrollY    += scrollValue;
+        break;
+    }
+    case WM_LBUTTONDOWN:    { K->K[MouseL].dn = true; K->K[MouseL].on = true;  break; }
+    case WM_RBUTTONDOWN:    { K->K[MouseR].dn = true; K->K[MouseR].on = true;  break; }                                                                
+    case WM_MBUTTONDOWN:    { K->K[MouseM].dn = true; K->K[MouseM].on = true;  break; }                                                            
+    case WM_LBUTTONUP:      { K->K[MouseL].up = true; K->K[MouseL].on = false; break; }
+    case WM_RBUTTONUP:      { K->K[MouseR].up = true; K->K[MouseR].on = false; break; }                                                                  
+    case WM_MBUTTONUP:      { K->K[MouseM].up = true; K->K[MouseM].on = false; break; }   
+    case WM_KEYUP:
+    case WM_KEYDOWN:
+    {
+        int i = 0;
+        switch(wParam)
+        {
+            // case VK_LBUTTON: i =  Key_Left;          // 	Left mouse button
+            // case VK_RBUTTON: i = Key_Right;          // 	Right mouse button
+            case VK_XBUTTON1:   i = MouseX1;        break; // 	X1 mouse button
+            case VK_XBUTTON2:   i = MouseX2;        break; // 	X2 mouse button
+            case VK_BACK:       i = Key_Backspace;  break; // 	BACKSPACE key
+            case VK_TAB:        i = Key_Tab;        break; // 	TAB key
+            case VK_RETURN:     i = Key_Enter;      break; // 	ENTER key
+            case VK_SHIFT:      i = Key_Shift;      break; // 	SHIFT key
+            case VK_CONTROL:    i = Key_Ctrl;       break; // 	CTRL key
+            case VK_MENU:       i = Key_Alt;        break; // 	ALT key
+            case VK_PAUSE:      i = Key_Pause;      break; // 	PAUSE key
+            case VK_CAPITAL:    i = Key_CapsLock;   break; // 	CAPS LOCK key
+            case VK_ESCAPE:     i = Key_Esc;        break; // 	ESC key
+            case VK_SPACE:      i = Key_Space;      break; // 	SPACEBAR
+            case VK_PRIOR:      i = Key_PgUp;       break; // 	PAGE UP key
+            case VK_NEXT:       i = Key_PgDn;       break; // 	PAGE DOWN key
+            case VK_END:        i = Key_End;        break; // 	END key
+            case VK_HOME:       i = Key_Home;       break; // 	HOME key
+            case VK_LEFT:       i = Key_Left;       break; // 	LEFT ARROW key
+            case VK_UP:         i = Key_Up;         break; // 	UP ARROW key
+            case VK_RIGHT:      i = Key_Right;      break; // 	RIGHT ARROW key
+            case VK_DOWN:       i = Key_Down;       break; // 	DOWN ARROW key
+            case VK_SELECT:     i = Key_Select;     break; // 	SELECT key
+            case VK_PRINT:      i = Key_Print;      break; // 	PRINT key
+            case VK_EXECUTE:    i = Key_Enter;      break; // 	EXECUTE key
+            case VK_SNAPSHOT:   i = Key_Print;      break; // 	PRINT SCREEN key
+            case VK_INSERT:     i = Key_Insert;     break; // 	INS key
+            case VK_DELETE:     i = Key_Delete;     break; // 	DEL key
+            case '0':           i = Key_0;          break; // 	0 key
+            case '1':           i = Key_1;          break; // 	1 key
+            case '2':           i = Key_2;          break; // 	2 key
+            case '3':           i = Key_3;          break; // 	3 key
+            case '4':           i = Key_4;          break; // 	4 key
+            case '5':           i = Key_5;          break; // 	5 key
+            case '6':           i = Key_6;          break; // 	6 key
+            case '7':           i = Key_7;          break; // 	7 key
+            case '8':           i = Key_8;          break; // 	8 key
+            case '9':           i = Key_9;          break; // 	9 key
+            case 'A':           i = Key_A;          break; // 	A key
+            case 'B':           i = Key_B;          break; // 	B key
+            case 'C':           i = Key_C;          break; // 	C key
+            case 'D':           i = Key_D;          break; // 	D key
+            case 'E':           i = Key_E;          break; // 	E key
+            case 'F':           i = Key_F;          break; // 	F key
+            case 'G':           i = Key_G;          break; // 	G key
+            case 'H':           i = Key_H;          break; // 	H key
+            case 'I':           i = Key_I;          break; // 	I key
+            case 'J':           i = Key_J;          break; // 	J key
+            case 'K':           i = Key_K;          break; // 	K key
+            case 'L':           i = Key_L;          break; // 	L key
+            case 'M':           i = Key_M;          break; // 	M key
+            case 'N':           i = Key_N;          break; // 	N key
+            case 'O':           i = Key_O;          break; // 	O key
+            case 'P':           i = Key_P;          break; // 	P key
+            case 'Q':           i = Key_Q;          break; // 	Q key
+            case 'R':           i = Key_R;          break; // 	R key
+            case 'S':           i = Key_S;          break; // 	S key
+            case 'T':           i = Key_T;          break; // 	T key
+            case 'U':           i = Key_U;          break; // 	U key
+            case 'V':           i = Key_V;          break; // 	V key
+            case 'W':           i = Key_W;          break; // 	W key
+            case 'X':           i = Key_X;          break; // 	X key
+            case 'Y':           i = Key_Y;          break; // 	Y key
+            case 'Z':           i = Key_Z;          break; // 	Z key
+            case VK_LWIN:       i = Key_LWIN;       break; // 	Left Windows key (Natural keyboard)
+            case VK_RWIN:       i = Key_RWIN;       break; // 	Right Windows key (Natural keyboard)
+            case VK_NUMPAD0:    i = Key_num_0;      break; // 	Numeric keypad 0 key
+            case VK_NUMPAD1:    i = Key_num_1;      break; // 	Numeric keypad 1 key
+            case VK_NUMPAD2:    i = Key_num_2;      break; // 	Numeric keypad 2 key
+            case VK_NUMPAD3:    i = Key_num_3;      break; // 	Numeric keypad 3 key
+            case VK_NUMPAD4:    i = Key_num_4;      break; // 	Numeric keypad 4 key
+            case VK_NUMPAD5:    i = Key_num_5;      break; // 	Numeric keypad 5 key
+            case VK_NUMPAD6:    i = Key_num_6;      break; // 	Numeric keypad 6 key
+            case VK_NUMPAD7:    i = Key_num_7;      break; // 	Numeric keypad 7 key
+            case VK_NUMPAD8:    i = Key_num_8;      break; // 	Numeric keypad 8 key
+            case VK_NUMPAD9:    i = Key_num_9;      break; // 	Numeric keypad 9 key
+            case VK_MULTIPLY:   i = Key_Multiply;   break; // 	Multiply key
+            case VK_ADD:        i = Key_Plus;       break; // 	Add key
+            case VK_SEPARATOR:  i = Key_BSlash;     break; // 	Separator key
+            case VK_SUBTRACT:   i = Key_Minus;      break; // 	Subtract key
+            case VK_DECIMAL:    i = Key_Comma;      break; // 	Decimal key
+            case VK_DIVIDE:     i = Key_FSlash;     break; // 	Divide key
+            case VK_F1:         i = Key_F1;         break; // 	F1 key
+            case VK_F2:         i = Key_F2;         break; // 	F2 key
+            case VK_F3:         i = Key_F3;         break; // 	F3 key
+            case VK_F4:         i = Key_F4;         break; // 	F4 key
+            case VK_F5:         i = Key_F5;         break; // 	F5 key
+            case VK_F6:         i = Key_F6;         break; // 	F6 key
+            case VK_F7:         i = Key_F7;         break; // 	F7 key
+            case VK_F8:         i = Key_F8;         break; // 	F8 key
+            case VK_F9:         i = Key_F9;         break; // 	F9 key
+            case VK_F10:        i = Key_F10;        break; // 	F10 key
+            case VK_F11:        i = Key_F11;        break; // 	F11 key
+            case VK_F12:        i = Key_F12;        break; // 	F12 key
+            case VK_NUMLOCK:    i = Key_NumLock;    break; // 	NUM LOCK key
+            case VK_SCROLL:     i = Key_ScrollLock; break; // 	SCROLL LOCK key
+            case VK_LSHIFT:     i = Key_LShift;     break; // 	Left SHIFT key
+            case VK_RSHIFT:     i = Key_RShift;     break; // 	Right SHIFT key
+            case VK_LCONTROL:   i = Key_LCtrl;      break; // 	Left CONTROL key
+            case VK_RCONTROL:   i = Key_RCtrl;      break; // 	Right CONTROL key
+            case VK_LMENU:      i = Key_LAlt;       break; // 	Left ALT key
+            case VK_RMENU:      i = Key_RAlt;       break; // 	Right ALT key
+            case VK_OEM_PLUS:   i = Key_Plus;       break; // 	For any country/region, the '+' key
+            case VK_OEM_COMMA:  i = Key_Comma;      break; // 	For any country/region, the ',' key
+            case VK_OEM_MINUS:  i = Key_Minus;      break; // 	For any country/region, the '-' key
+            case VK_OEM_PERIOD: i = Key_Dot;        break; // 	For any country/region, the '.' key
+            case VK_OEM_2:      i = Key_FSlash;     break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?' key
+            case VK_OEM_3:      i = Key_Backquote;  break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '`~' key
+            case VK_OEM_4:      i = Key_LBracket;   break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '[{' key
+            case VK_OEM_5:      i = Key_BSlash;     break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '\|' key
+            case VK_OEM_6:      i = Key_RBracket;   break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the ']}' key
+            case VK_OEM_7:      i = Key_Colon;      break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
+            // case VK_OEM_102:                         // 	The <> keys on the US standard keyboard, or the \\| key on the non-US 102-key keyboard
+        }
+        if (message == WM_KEYDOWN) { K->K[i].dn = true; K->K[i].on = true; }
+        else                       { K->K[i].up = true; K->K[i].on = false;}
+        if (wParam == VK_LCONTROL || wParam == VK_RCONTROL) K->K[Key_Ctrl]  = K->K[i];
+        if (wParam == VK_LSHIFT   || wParam == VK_RSHIFT)   K->K[Key_Shift] = K->K[i];
+        if (wParam == VK_LMENU    || wParam == VK_RMENU)    K->K[Key_Alt]   = K->K[i];
+        break;
+    }                                                          
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+
+    return 0;
+}
+
+void WIN_DPI_Point(LONG *xOut, LONG *yOut)
+{
+    *xOut = (*xOut * 96) / GetDpiForWindow(hwnd);
+    *yOut = (*yOut * 96) / GetDpiForWindow(hwnd);
+}
+
 static void PollEvents()
 {
-    keys *Keys = &G->Keys;
-
-    Keys->MouseRightOnce = false;
-    Keys->MouseLeftOnce = false;
-    Keys->MouseLeftUp = false;
-    Keys->MouseRightUp = false;
-    Keys->MouseMiddleOnce = false;
-    Keys->ScrollYdiff = 0;
-    Keys->MouseLeft_Click = false;
-    Keys->F1_Key = false;
-    Keys->F2_Key = false;
-    Keys->F3_Key = false;
-    Keys->F4_Key = false;
-    Keys->F5_Key = false;
-    Keys->F6_Key = false;
-    Keys->F7_Key = false;
-    Keys->F8_Key = false;
-    Keys->F9_Key = false;
-    Keys->F10_Key = false;
-    Keys->F11_Key = false;
-    Keys->F12_Key = false;
-    Keys->Backquote_Key = false;
-
-    // Keys->UpButton = false;
-    // Keys->DownButton = false;
-    // Keys->LeftButton = false;
-    // Keys->RightButton = false;
-
-    // Keys->A_Key = false;
-    // Keys->S_Key = false;
-    // Keys->D_Key = false;
-    // Keys->W_Key = false;
-
-    Keys->B_Key = false;
-    Keys->C_Key = false;
-    // Keys->E_Key = false;
-    Keys->F_Key = false;
-    Keys->G_Key = false;
-    Keys->H_Key = false;
-    Keys->I_Key = false;
-    Keys->J_Key = false;
-    Keys->K_Key = false;
-    Keys->L_Key = false;
-    Keys->M_Key = false;
-    Keys->N_Key = false;
-    Keys->O_Key = false;
-    Keys->P_Key = false;
-    // Keys->Q_Key = false;
-    Keys->R_Key = false;
-    Keys->T_Key = false;
-    Keys->U_Key = false;
-    Keys->V_Key = false;
-    Keys->X_Key = false;
-    Keys->Y_Key = false;
-    Keys->Z_Key = false;
-    Keys->_0_Key = false;
-    Keys->_1_Key = false;
-    Keys->_2_Key = false;
-    Keys->_3_Key = false;
-    Keys->_4_Key = false;
-    Keys->_5_Key = false;
-    Keys->_6_Key = false;
-    Keys->_7_Key = false;
-    Keys->_8_Key = false;
-    Keys->_9_Key = false;
-    Keys->Quote_Key = false;
-    Keys->Colon_Key = false;
-    Keys->Comma_Key = false;
-    Keys->Dot_Key = false;
-    Keys->FSlash_Key = false;
-    Keys->BSlash_Key = false;
-    Keys->Return_Key = false;
-    Keys->Minus_Key = false;
-    Keys->Plus_Key = false;
-    Keys->Equals_Key = false;
-    Keys->Backspace_Key = false;
-    // Keys->Space_Key = false;
-    Keys->LBracket_Key = false;
-    Keys->RBracket_Key = false;
-    Keys->Delete_Key = false;
-    Keys->Esc_Key = false;
-    Keys->Enter = false;
-
-    if (Keys->MouseLeft)
+    static MSG msg = {};
+    keys *K = &G->Keys;
+    while (PeekMessage(&msg, hwnd, 0, 0, PM_NOREMOVE))
     {
-        Keys->MouseLeftAlready = true;
+        GetMessage(&msg, nullptr, 0, 0);
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+        if (msg.message == WM_QUIT) Running = false;
     }
-    if (Keys->MouseRight)
-    {
-        Keys->MouseRightAlready = true;
-    }
-    // cout << Keys->MouseLeftAlready << " ";
-    SDL_GetRelativeMouseState(&Keys->xrel, &Keys->yrel);
 
-    static int arrowsrefractory = 0;
+    static POINT prevMousePos = {0};
+    POINT p;
+    GetCursorPos(&p);
+    ScreenToClient(hwnd, &p);
+    K->Mouse.x  = p.x; K->Mouse.y  = p.y;
+    K->Mouse_rel.x = p.x - prevMousePos.x; 
+    K->Mouse_rel.y = p.y - prevMousePos.y; 
+    prevMousePos.x = p.x; prevMousePos.y = p.y;
+}
 
-    while (SDL_PollEvent(Event))
-    {
-        if (FPS == MAX_FPS)
-        {
-            int i = 0;
-        }
-        if (G->files_TYPE[G->CurrentFileIndex] == filetype_GIF || (!G->loaded && G->max_files > 0) || G->signals.UpdatePass || G->signals.nextimage)
-            FPS = MAX_FPS;
-        else
-            FPS = 10;
-
-        // if (G->files_TYPE[G->CurrentFileIndex] == filetype_GIF || !G->loaded || G->signals.UpdatePass || G->signals.nextimage)
-        // {
-        //     if (!SDL_PollEvent(Event))
-        //         break;
-        // }
-        // else if (!SDL_WaitEvent(Event))
-        //     break;
-
-        bool should_update =
-            ImGui_ImplSDL2_ProcessEvent(Event);
-        if (G->files_TYPE[G->CurrentFileIndex])
-            should_update = true;
-
-        // SDL_GetMouseState(&Keys->Mouse.x, &Keys->Mouse.y);
-        SDL_GetMouseState(&Keys->Mouse.x, &Keys->Mouse.y);
-        SDL_GetRelativeMouseState(&G->Keys.xrel, &G->Keys.yrel);
-
-        if (Event->type == SDL_KEYDOWN)
-        {
-            if (Event->key.keysym.sym == SDLK_SPACE && Event->key.repeat == false)
-            {
-                Keys->Space_Key = true;
-            }
-            if (Event->key.keysym.sym == SDLK_TAB && Event->key.repeat == false)
-            {
-                Keys->Tab_Key = true;
-            }
-        }
-        if (Event->type == SDL_KEYUP)
-        {
-            if (Event->key.keysym.sym == SDLK_SPACE)
-            {
-                Keys->Space_Key = false;
-            }
-            if (Event->key.keysym.sym == SDLK_LEFT)
-            {
-                Keys->LeftButtonUp = true;
-            }
-            if (Event->key.keysym.sym == SDLK_RIGHT)
-            {
-                Keys->RightButtonUp = true;
-            }
-
-        }
-
-        if (Event->type == SDL_QUIT)
-        {
-            Running = false;
-        }
-        should_update |= Event->type == SDL_KEYDOWN;
-        should_update |= Event->type == SDL_KEYUP;
-        should_update |= Event->type == SDL_QUIT;
-        should_update |= Event->type == SDL_DROPFILE;
-
-        if (Event->type == SDL_DROPFILE)
-        {
-            if (!G->Loading_Droppedfile)
-            {
-                int l = strlen(Event->drop.file);
-                TempPath = (char *)malloc(l + 1);
-                strcpy(TempPath, Event->drop.file);
-                SDL_free(Event->drop.file);
-            }
-            G->Droppedfile = true;
-        }
-
-        // Mouse Events:
-        {
-            should_update |= G->Keys.MouseLeft;
-            should_update |= G->Keys.MouseRight;
-            should_update |= G->Keys.MouseMiddle;
-            should_update |= Event->type == SDL_MOUSEMOTION;
-            should_update |= Event->type == SDL_MOUSEBUTTONDOWN;
-            should_update |= Event->type == SDL_MOUSEBUTTONUP;
-            should_update |= Event->type == SDL_MOUSEWHEEL;
-
-            if (Event->button.clicks == 1)
-            {
-                Keys->MouseLeft_Click = true;
-            }
-            if (Event->type == SDL_MOUSEBUTTONDOWN)
-            {
-                if (Event->button.button == SDL_BUTTON_RIGHT && Event->button.state == SDL_PRESSED)
-                {
-
-                    Keys->MouseRight = true;
-                    Keys->MouseRightOnce = true;
-                }
-            }
-            if (Event->type == SDL_MOUSEBUTTONUP && Event->button.button == SDL_BUTTON_RIGHT)
-            {
-                Keys->MouseRight = false;
-                Keys->MouseRightUp = true;
-                Keys->MouseRightAlready = false;
-            }
-            if (Event->type == SDL_MOUSEBUTTONDOWN)
-            {
-                if (Event->button.button == SDL_BUTTON_LEFT && Event->button.state == SDL_PRESSED)
-                {
-
-                    Keys->MouseLeft = true;
-                    Keys->MouseLeftReleased = false;
-                    Keys->MouseLeftOnce = true;
-                }
-            }
-            if (Event->type == SDL_MOUSEBUTTONUP && Event->button.button == SDL_BUTTON_LEFT)
-            {
-                Keys->MouseLeft = false;
-                Keys->MouseLeftUp = true;
-                Keys->MouseLeftReleased = true;
-                Keys->MouseLeftAlready = false;
-            }
-            if (Event->type == SDL_MOUSEBUTTONDOWN)
-            {
-                if (Event->button.button == SDL_BUTTON_MIDDLE && Event->button.state == SDL_PRESSED)
-                {
-
-                    Keys->MouseMiddle = true;
-                    Keys->MouseMiddleOnce = true;
-                }
-            }
-            if (Event->type == SDL_MOUSEBUTTONUP && Event->button.button == SDL_BUTTON_MIDDLE)
-            {
-                Keys->MouseMiddle = false;
-            }
-
-            if (Event->type == SDL_MOUSEWHEEL)
-            {
-                if (Event->wheel.y > 0) // scroll up
-                {
-                    Keys->ScrollY++;
-                    Keys->ScrollYdiff++;
-                }
-                else if (Event->wheel.y < 0) // scroll down
-                {
-                    Keys->ScrollY--;
-                    Keys->ScrollYdiff--;
-                }
-            }
-        }
-
-        if (Event->type == SDL_KEYDOWN)
-        {
-            if (Event->key.repeat == false)
-                switch (Event->key.keysym.sym) // press and hold once only
-                {
-                case SDLK_ESCAPE:
-                    Keys->Esc_Key = true;
-                    break;
-                case SDLK_RETURN:
-                    Keys->Enter = true;
-                    break;
-                case SDLK_KP_ENTER:
-                    Keys->Enter = true;
-                    break;
-                case SDLK_F1:
-                    Keys->F1_Key = true;
-                    break;
-                case SDLK_F2:
-                    Keys->F2_Key = true;
-                    break;
-                case SDLK_F3:
-                    Keys->F3_Key = true;
-                    break;
-                case SDLK_F4:
-                    Keys->F4_Key = true;
-                    break;
-                case SDLK_F5:
-                    Keys->F5_Key = true;
-                    break;
-                case SDLK_F6:
-                    Keys->F6_Key = true;
-                    break;
-                case SDLK_F7:
-                    Keys->F7_Key = true;
-                    break;
-                case SDLK_F8:
-                    Keys->F8_Key = true;
-                    break;
-                case SDLK_F9:
-                    Keys->F9_Key = true;
-                    break;
-                case SDLK_F10:
-                    Keys->F10_Key = true;
-                    break;
-                case SDLK_F11:
-                    Keys->F11_Key = true;
-                    break;
-                case SDLK_F12:
-                    Keys->F12_Key = true;
-                    break;
-                case SDLK_BACKQUOTE:
-                    Keys->Backquote_Key = true;
-                    break;
-                }
-            bool KeyState = Event->type == SDL_KEYDOWN ? true : false;
-            switch (Event->key.keysym.sym) // press and hold type style, continues after a period
-            {
-            case SDLK_BACKSPACE:
-                Keys->Backspace_Key = true;
-                break;
-            case SDLK_DELETE:
-                Keys->Delete_Key = KeyState;
-                break;
-            case SDLK_a:
-                Keys->A_Key = KeyState;
-                break;
-            case SDLK_b:
-                Keys->B_Key = KeyState;
-                break;
-            case SDLK_c:
-                Keys->C_Key = KeyState;
-                break;
-            case SDLK_d:
-                Keys->D_Key = KeyState;
-                break;
-            case SDLK_e:
-                Keys->E_Key = KeyState;
-                break;
-            case SDLK_f:
-                Keys->F_Key = KeyState;
-                break;
-            case SDLK_g:
-                Keys->G_Key = KeyState;
-                break;
-            case SDLK_h:
-                Keys->H_Key = KeyState;
-                break;
-            case SDLK_i:
-                Keys->I_Key = KeyState;
-                break;
-            case SDLK_j:
-                Keys->J_Key = KeyState;
-                break;
-            case SDLK_k:
-                Keys->K_Key = KeyState;
-                break;
-            case SDLK_l:
-                Keys->L_Key = KeyState;
-                break;
-            case SDLK_m:
-                Keys->M_Key = KeyState;
-                break;
-            case SDLK_n:
-                Keys->N_Key = KeyState;
-                break;
-            case SDLK_o:
-                Keys->O_Key = KeyState;
-                break;
-            case SDLK_p:
-                Keys->P_Key = KeyState;
-                break;
-            case SDLK_q:
-                Keys->Q_Key = KeyState;
-                break;
-            case SDLK_r:
-                Keys->R_Key = KeyState;
-                break;
-            case SDLK_s:
-                Keys->S_Key = KeyState;
-                break;
-            case SDLK_t:
-                Keys->T_Key = KeyState;
-                break;
-            case SDLK_u:
-                Keys->U_Key = KeyState;
-                break;
-            case SDLK_v:
-                Keys->V_Key = KeyState;
-                break;
-            case SDLK_w:
-                Keys->W_Key = KeyState;
-                break;
-            case SDLK_x:
-                Keys->X_Key = KeyState;
-                break;
-            case SDLK_y:
-                Keys->Y_Key = KeyState;
-                break;
-            case SDLK_z:
-                Keys->Z_Key = KeyState;
-                break;
-            case SDLK_0:
-                Keys->_0_Key = KeyState;
-                break;
-            case SDLK_1:
-                Keys->_1_Key = KeyState;
-                break;
-            case SDLK_2:
-                Keys->_2_Key = KeyState;
-                break;
-            case SDLK_3:
-                Keys->_3_Key = KeyState;
-                break;
-            case SDLK_4:
-                Keys->_4_Key = KeyState;
-                break;
-            case SDLK_5:
-                Keys->_5_Key = KeyState;
-                break;
-            case SDLK_6:
-                Keys->_6_Key = KeyState;
-                break;
-            case SDLK_7:
-                Keys->_7_Key = KeyState;
-                break;
-            case SDLK_8:
-                Keys->_8_Key = KeyState;
-                break;
-            case SDLK_9:
-                Keys->_9_Key = KeyState;
-                break;
-            case SDLK_KP_0:
-                Keys->_0_Key = KeyState;
-                break;
-            case SDLK_KP_1:
-                Keys->_1_Key = KeyState;
-                break;
-            case SDLK_KP_2:
-                Keys->_2_Key = KeyState;
-                break;
-            case SDLK_KP_3:
-                Keys->_3_Key = KeyState;
-                break;
-            case SDLK_KP_4:
-                Keys->_4_Key = KeyState;
-                break;
-            case SDLK_KP_5:
-                Keys->_5_Key = KeyState;
-                break;
-            case SDLK_KP_6:
-                Keys->_6_Key = KeyState;
-                break;
-            case SDLK_KP_7:
-                Keys->_7_Key = KeyState;
-                break;
-            case SDLK_KP_8:
-                Keys->_8_Key = KeyState;
-                break;
-            case SDLK_KP_9:
-                Keys->_9_Key = KeyState;
-                break;
-            case SDLK_QUOTE:
-                Keys->Quote_Key = KeyState;
-                break;
-            case SDLK_COLON:
-                Keys->Colon_Key = KeyState;
-                break;
-            case SDLK_COMMA:
-                Keys->Comma_Key = KeyState;
-                break;
-            case SDLK_PERIOD:
-                Keys->Dot_Key = KeyState;
-                break;
-            case SDLK_SLASH:
-                Keys->FSlash_Key = KeyState;
-                break;
-            case SDLK_BACKSLASH:
-                Keys->BSlash_Key = KeyState;
-                break;
-            case SDLK_RETURN:
-                Keys->Return_Key = KeyState;
-                break;
-            case SDLK_KP_ENTER:
-                Keys->Return_Key = KeyState;
-                break;
-            case SDLK_MINUS:
-                Keys->Minus_Key = KeyState;
-                break;
-            case SDLK_KP_MINUS:
-                Keys->Minus_Key = KeyState;
-                break;
-            case SDLK_KP_PLUS:
-                Keys->Plus_Key = KeyState;
-                break;
-            case SDLK_EQUALS:
-                Keys->Equals_Key = KeyState;
-                break;
-            case SDLK_LEFTBRACKET:
-                Keys->LBracket_Key = KeyState;
-                break;
-            case SDLK_RIGHTBRACKET:
-                Keys->RBracket_Key = KeyState;
-                break;
-            }
-        }
-        if (Event->type == SDL_KEYDOWN || Event->type == SDL_KEYUP)
-        {
-            bool KeyState = Event->type == SDL_KEYDOWN ? true : false;
-
-            switch (Event->key.keysym.sym)
-            {
-            case SDLK_UP:
-                Keys->UpButton = KeyState;
-                break;
-            case SDLK_DOWN:
-                Keys->DownButton = KeyState;
-                break;
-            case SDLK_LEFT:
-                Keys->LeftButton = KeyState;
-                break;
-            case SDLK_RIGHT:
-                Keys->RightButton = KeyState;
-                break;
-            case SDLK_LSHIFT:
-                Keys->Shift = KeyState;
-                break;
-            case SDLK_RSHIFT:
-                Keys->Shift = KeyState;
-                break;
-            case SDLK_LCTRL:
-                Keys->Ctrl_Key = KeyState;
-                break;
-            case SDLK_RCTRL:
-                Keys->Ctrl_Key = KeyState;
-                break;
-            case SDLK_LALT:
-                Keys->Alt_Key = KeyState;
-                break;
-            case SDLK_RALT:
-                Keys->Alt_Key = KeyState;
-                break;
-            case SDLK_h:
-                Keys->H_Key = KeyState;
-                break;
-            case SDLK_w:
-                Keys->W_Key = KeyState;
-                break;
-            case SDLK_a:
-                Keys->A_Key = KeyState;
-                break;
-            case SDLK_s:
-                Keys->S_Key = KeyState;
-                break;
-            case SDLK_d:
-                Keys->D_Key = KeyState;
-                break;
-            case SDLK_q:
-                Keys->Q_Key = KeyState;
-                break;
-            case SDLK_e:
-                Keys->E_Key = KeyState;
-                break;
-            default:
-                break;
-            }
-        }
-
-        if (should_update)
-            FPS = MAX_FPS;
-    }
+inline bool keypress(int i)
+{
+    return G->Keys.K[i].on;
+}
+inline bool keyup(int i)
+{
+    return G->Keys.K[i].up;
+}
+inline bool keydn(int i)
+{
+    return G->Keys.K[i].dn;
+}
+inline void keyrelease(int i)
+{
+    G->Keys.K[i].on = false;
 }
