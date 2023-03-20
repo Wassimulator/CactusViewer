@@ -4,6 +4,8 @@
 #include <iostream>
 #include "stb.c"
 #include <windows.h>
+#include <shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
 #include <stb_truetype.h>
 #define CUTE_FILES_IMPLEMENTATION
 #include <cute_files.h>

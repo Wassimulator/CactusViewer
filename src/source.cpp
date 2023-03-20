@@ -290,8 +290,7 @@ static void Main_Init()
     wcex.hInstance = hInstance;
     wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    HBRUSH hBrush = CreateSolidBrush(RGB(15, 15, 15));
-    wcex.hbrBackground = hBrush;
+    wcex.hbrBackground = NULL;
     wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = "CactusViewer" ;
     wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
@@ -381,6 +380,12 @@ static void Main_Init()
     G->settings_autoplayGIFs = true;
     G->settings_movementmag = 2;
     G->settings_shiftslowmag = 9;
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FrameRounding = 5;
+    style.FrameBorderSize = 1;
+    style.WindowRounding = 10;
+
     LoadSettings();
 }
 
@@ -757,16 +762,37 @@ static void removechar(char *str, char ch)
         }
     }
 }
+
+bool isValidWindowsPath(char* path) 
+{
+    bool isValid = false;
+    
+    if (PathFileExistsA(path)) {
+        if (PathIsRelativeA(path) == FALSE) {
+            char drive[3];
+            strncpy(drive, path, 2);
+            drive[2] = '\0';
+            UINT driveType = GetDriveTypeA(drive);
+            if (driveType == DRIVE_FIXED || driveType == DRIVE_CDROM || driveType == DRIVE_RAMDISK ||
+                driveType == DRIVE_REMOTE || driveType == DRIVE_REMOVABLE) {
+                isValid = true;
+            }
+        }
+    }
+    
+    return isValid;
+}
+
 static void ScanFolder(char *Path)
 {
-    if (Path == nullptr)
+    if (Path == nullptr || !isValidWindowsPath(Path))
     {
-        G->files = (cf_file_t *)realloc(G->files, sizeof(cf_file_t) * (1));
-        G->files_loading = (bool *)realloc(G->files_loading, sizeof(bool) * (1));
-        G->files_TYPE = (int *)realloc(G->files_TYPE, sizeof(int) * (1));
-        G->files_Failed = (bool *)realloc(G->files_Failed, sizeof(bool) * (1));
-        G->files_pos = (v2 *)realloc(G->files_pos, sizeof(v2) * (1));
-        G->files_scale = (float *)realloc(G->files_scale, sizeof(float) * (1));
+        G->files =          (cf_file_t *)realloc(G->files,          sizeof(cf_file_t) * (1));
+        G->files_loading =  (bool *     )realloc(G->files_loading,  sizeof(bool) * (1));
+        G->files_TYPE =     (int *      )realloc(G->files_TYPE,     sizeof(int) * (1));
+        G->files_Failed =   (bool *     )realloc(G->files_Failed,   sizeof(bool) * (1));
+        G->files_pos =      (v2 *       )realloc(G->files_pos,      sizeof(v2) * (1));
+        G->files_scale =    (float *    )realloc(G->files_scale,    sizeof(float) * (1));
         G->files_TYPE[0] = 0;
         G->files_loading[0] = 0;
 
@@ -820,12 +846,12 @@ static void ScanFolder(char *Path)
 
         if (G->max_files <= G->allocated_files)
         {
-            G->files = (cf_file_t *)realloc(G->files, sizeof(cf_file_t) * (G->allocated_files + 1));
-            G->files_loading = (bool *)realloc(G->files_loading, sizeof(bool) * (G->allocated_files + 1));
-            G->files_TYPE = (int *)realloc(G->files_TYPE, sizeof(int) * (G->allocated_files + 1));
-            G->files_Failed = (bool *)realloc(G->files_Failed, sizeof(bool) * (G->allocated_files + 1));
-            G->files_pos = (v2 *)realloc(G->files_pos, sizeof(v2) * (G->allocated_files + 1));
-            G->files_scale = (float *)realloc(G->files_scale, sizeof(float) * (G->allocated_files + 1));
+            G->files =          (cf_file_t *)realloc(G->files,          sizeof(cf_file_t) * (G->allocated_files + 1));
+            G->files_loading =  (bool *     )realloc(G->files_loading,  sizeof(bool) *      (G->allocated_files + 1));
+            G->files_TYPE =     (int *      )realloc(G->files_TYPE,     sizeof(int) *       (G->allocated_files + 1));
+            G->files_Failed =   (bool *     )realloc(G->files_Failed,   sizeof(bool) *      (G->allocated_files + 1));
+            G->files_pos =      (v2 *       )realloc(G->files_pos,      sizeof(v2) *        (G->allocated_files + 1));
+            G->files_scale =    (float *    )realloc(G->files_scale,    sizeof(float) *     (G->allocated_files + 1));
 
             G->allocated_files++;
         }
@@ -850,6 +876,8 @@ static void ScanFolder(char *Path)
         G->files_loading[i] = false;
         G->files_Failed[i] = false;
     }
+    free(BasePath);    
+    free(FileName);
 }
 
 unsigned long createRGB(int r, int g, int b)
@@ -888,6 +916,9 @@ static void UpdateGUI()
     G->signals.update_filtering = true;
     ImGui::SetNextWindowPos(ImVec2(0, WindowHeight - 30));
     ImGui::SetNextWindowSize(ImVec2(WindowWidth, 30));
+    style.FrameRounding = 0;
+    style.FrameBorderSize = 1;
+    style.WindowRounding = 0;
     if (G->Error.timer > 0)
     {
         ImGui::Begin("Status", NULL, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
@@ -924,6 +955,9 @@ static void UpdateGUI()
             ImGui::End();
         }
     }
+    style.FrameRounding = 5;
+    style.FrameBorderSize = 1;
+    style.WindowRounding = 10;
 
     if (!G->loaded && G->max_files > 0)
     {
