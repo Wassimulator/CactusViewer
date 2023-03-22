@@ -3,8 +3,16 @@
 #include <stdio.h>
 #include <iostream>
 #include "stb.c"
-#include <windows.h>
+#include <windows.h> 
+#include <windowsx.h> 
+#include <commctrl.h> 
+#include <shellscalingapi.h>
+#include <stdint.h>
 #include <shlwapi.h>
+#include <shlobj.h>
+#include <exdisp.h>
+#include <GdiPlus.h>
+#include <shobjidl_core.h>
 #pragma comment(lib, "shlwapi.lib")
 #include <stb_truetype.h>
 #define CUTE_FILES_IMPLEMENTATION
@@ -13,6 +21,8 @@
 #include "glad.c"
 #define WGL_WGLEXT_PROTOTYPES
 #include <wglext.h>
+#include <dynarray.h>
+
 
 #define IMGUI 1
 

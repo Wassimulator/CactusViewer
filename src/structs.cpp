@@ -213,25 +213,31 @@ struct signals
     bool update_truescale = false;
 };
 
+struct file_data
+{
+    cf_file_t file;
+    bool loading = false;
+    int type = 0;
+    bool failed = false;
+    v2 pos = v2();
+    float scale = 0;
+    int index;
+};
+
 struct global
 {
     graphics Graphics;
     keys Keys;
-    cf_file_t *files = nullptr;
-    bool *files_loading = nullptr;
-    int *files_TYPE = nullptr;
-    bool *files_Failed = nullptr;
-    v2 *files_pos = nullptr;
-    float *files_scale = nullptr;
-    uint allocated_files;
-    uint max_files;
+    dynarray <file_data> Files;
     uint CurrentFileIndex;
     CRITICAL_SECTION Mutex;
+    CRITICAL_SECTION SortMutex;
     signals signals;
     error Error;
 
     bool keep_menu = false;
     bool loaded = false;
+    bool sorting = false;
     float scale = 1;
     float truescale = 1;
     float req_truescale = 1;
@@ -258,6 +264,7 @@ struct global
     float settings_shiftslowmag;
     bool settings_movementinvert;
     bool settings_autoplayGIFs;
+    bool settings_Sort = false;
     bool nearest_filtering = false;
     bool pixelgrid = false;
 };

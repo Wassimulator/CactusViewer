@@ -7,8 +7,9 @@ A small single file handmade image viewer written in C/C++.
 Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 
 ## Features:
-- Standalone executable
+- Standalone executable.
 - Scans folder of opened image and allows flipping through supported images within folder.
+- Supports loading image files in the sorted order of the folder, can be optionally disabled to default to alphabetic.
 - Multithreaded file loading.
 - image pan and zoom with fitting modes; to width or height.
 - Pixel color inspector and a quick copy of HEX value to clipboad.

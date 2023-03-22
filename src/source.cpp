@@ -3,6 +3,7 @@
 #include "structs.cpp"
 #include "events.cpp"
 
+
 // Creates a hover help marker to the ImGui item before it, set by a certain delay
 #define HELP_MARKER_GUI(x)                 \
     {                                      \
@@ -11,6 +12,19 @@
             HelpMarkerPrev(&timer, x, 40); \
         }                                  \
     }
+#define  HELP_MARKER_GUI_SIGN(desc)                                 \
+{                                                                   \
+    ImGui::SameLine();                                              \
+    ImGui::TextDisabled("(?)");                                     \
+    if (ImGui::IsItemHovered())                                     \
+    {                                                               \
+        ImGui::BeginTooltip();                                      \
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);       \
+        ImGui::TextUnformatted(desc);                               \
+        ImGui::PopTextWrapPos();                                    \
+        ImGui::EndTooltip();                                        \
+    }                                                               \
+}
 
 char *VertexCode = R"###(
             #version 430 core
@@ -227,6 +241,7 @@ static void SaveSettings()
         fwrite(&G->settings_movementinvert, sizeof(bool), 1, F);
         fwrite(&G->nearest_filtering, sizeof(bool), 1, F);
         fwrite(&G->pixelgrid, sizeof(bool), 1, F);
+        fwrite(&G->settings_Sort, sizeof(bool), 1, F);
         fclose(F);
     }
 }
@@ -248,6 +263,7 @@ static void LoadSettings()
         fread(&G->settings_movementinvert, sizeof(bool), 1, F);
         fread(&G->nearest_filtering, sizeof(bool), 1, F);
         fread(&G->pixelgrid, sizeof(bool), 1, F);
+        fread(&G->settings_Sort, sizeof(bool), 1, F);
         fclose(F);
     }
 }
@@ -340,6 +356,7 @@ static void Main_Init()
     G->Graphics.MAX_GPU = MAX_GPU;
 
     InitializeCriticalSection(&G->Mutex);
+    InitializeCriticalSection(&G->SortMutex);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -382,7 +399,7 @@ static void Main_Init()
     G->settings_shiftslowmag = 9;
 
     ImGuiStyle& style = ImGui::GetStyle();
-    style.FrameRounding = 5;
+    style.FrameRounding = style.GrabRounding = 5;
     style.FrameBorderSize = 1;
     style.WindowRounding = 10;
 
@@ -407,7 +424,7 @@ static void resetToNoFolder()
 {
     if (G->Loading_Droppedfile)
         G->Loading_Droppedfile = false;
-    G->max_files = 0;
+    G->Files.reset_count();
 }
 
 static void SetToNoFile()
@@ -424,13 +441,13 @@ static int Load_Image(char *File, uint ID, bool dropped)
 {
     int w, h, n;
     int result = 0;
-    G->files_loading[ID] = true;
+    G->Files[ID].loading = true;
     unsigned char *data = stbi_load(File, &w, &h, &n, 4);
-    G->files_loading[ID] = false;
+    G->Files[ID].loading = false;
     if (data == nullptr)
     {
         PushError("Loading the file failed");
-        G->files_Failed[G->CurrentFileIndex] = true;
+        G->Files[G->CurrentFileIndex].failed = true;
         G->loaded = true;
         G->signals.UpdatePass = true;
         if (dropped)
@@ -500,9 +517,9 @@ static int Load_GIF(char *File, uint ID, bool dropped)
 
     UnLoad_GIF();
 
-    G->files_loading[ID] = true;
+    G->Files[ID].loading = true;
     unsigned char *data = stbi_xload_file(File, &w, &h, &frames, &delays);
-    G->files_loading[ID] = false;
+    G->Files[ID].loading = false;
 
     if (data != nullptr)
     {
@@ -524,7 +541,7 @@ static int Load_GIF(char *File, uint ID, bool dropped)
     else
     {
         PushError("Loading GIF file failed");
-        G->files_Failed[G->CurrentFileIndex] = true;
+        G->Files[G->CurrentFileIndex].failed = true;
         G->loaded = true;
         if (dropped)
             resetToNoFolder();
@@ -605,7 +622,7 @@ static void ApplySettings()
     case 0: // Do not reset zoom
         break;
     case 1: // Save zoom for each file
-        G->req_truescale = G->files_scale[G->CurrentFileIndex];
+        G->req_truescale = G->Files[G->CurrentFileIndex].scale;
         G->signals.update_truescale = true;
         break;
     case 2: // Fit Width
@@ -635,7 +652,7 @@ static void ApplySettings()
 
         break;
     case 1: // Save position for each file
-        G->Position = G->files_pos[G->CurrentFileIndex];
+        G->Position = G->Files[G->CurrentFileIndex].pos;
         break;
     case 2: // Reset to center
         G->Position = v2(0, 0);
@@ -647,7 +664,7 @@ static void ApplySettings()
 
 static void Load_Image_post()
 {
-    if (G->files_TYPE[G->CurrentFileIndex])
+    if (G->Files[G->CurrentFileIndex].type == 1)
     {
         if (G->GIFTextureID != 0)
             glDeleteTextures(1, &G->GIFTextureID);
@@ -692,7 +709,7 @@ static void Load_Image_post()
 DWORD WINAPI LoaderThread(LPVOID lpParam)
 {
     loaderthreadinputs *Inputs = (loaderthreadinputs *)lpParam;
-    if (!G->files_loading[Inputs->ID])
+    if (!G->Files[Inputs->ID].loading)
     {
         if (Inputs->Type == 1)
             Load_GIF(Inputs->File, Inputs->ID, Inputs->dropped);
@@ -704,7 +721,7 @@ DWORD WINAPI LoaderThread(LPVOID lpParam)
 static void BeginLoad(char *File)
 {
     G->loaded = false;
-    loaderthreadinputs Inputs = {File, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
+    loaderthreadinputs Inputs = {File, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
     CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
 }
 static bool CheckValidExtention(char *EXT)
@@ -730,6 +747,7 @@ static bool CheckValidExtention(char *EXT)
     free(ext);
     return result;
 }
+#define TYPE_GIF 1
 static int CheckOddExtention(char *EXT)
 {
     const int length = strlen(EXT);
@@ -740,7 +758,7 @@ static int CheckOddExtention(char *EXT)
 
     int result = 0;
     if (strcmp(ext, ".gif") == 0)
-        result = 1;
+        result = TYPE_GIF;
 
     free(ext);
     return result;
@@ -783,20 +801,202 @@ bool isValidWindowsPath(char* path)
     return isValid;
 }
 
+struct FolderEntry 
+{ 
+    wchar_t wpath[MAX_PATH];
+    char *path;
+};
+FolderEntry *filesInFolder;
+
+bool StringEqual(const wchar_t *a, const wchar_t *b) {
+	while (true) {
+		if (*a != *b) return false;
+		if (*a == 0) return true;
+		a++, b++;
+	}
+}
+
+void StringCopy(wchar_t *d, const wchar_t *s) {
+	while (true) {
+		wchar_t c = *s++;
+		*d++ = c;
+		if (!c) break;
+	}
+}
+
+void StringAppend(wchar_t *d, const wchar_t *s) {
+	while (*d) d++;
+	StringCopy(d, s);
+}
+wchar_t *GetWC(char *c)
+{
+    const size_t cSize = strlen(c) + 1;
+    wchar_t* wc = new wchar_t[cSize];
+    mbstowcs(wc, c, cSize);
+
+    return wc;
+}
+char* GetC(wchar_t* wc)
+{
+    const size_t wcSize = wcslen(wc) + 1;
+    char* c = new char[wcSize];
+    wcstombs(c, wc, wcSize);
+
+    return c;
+}
+int itemsInFolder;
+
+int cmp(const void* a, const void* b) 
+{
+    file_data* A = (file_data*)a;
+    file_data* B = (file_data*)b;
+    if      (A->index > B->index)  return  1; 
+    else if (A->index < B->index)  return -1; 
+    else                           return  0; 
+}
+
+static void sortfolder()
+{
+    for (int i =0; i < G->Files.Count; i++)
+        for (int j =0; j < itemsInFolder; j++)
+            if (strcmp(G->Files[i].file.path, filesInFolder[j].path) == 0)
+            {
+                G->Files[i].index = j;
+                break;
+            }
+    qsort(G->Files.Data, G->Files.Count, sizeof(file_data), cmp);
+}
+
+struct FolderSortThread_data
+{
+    wchar_t *path;
+    char *FileName;
+};
+
+DWORD WINAPI FolderSortThread(LPVOID lpParam)
+{
+    EnterCriticalSection(&G->SortMutex);
+    
+    FolderSortThread_data *Data = (FolderSortThread_data *)lpParam;
+
+    wchar_t *filePath = Data->path;
+    char *FileName = Data->FileName;
+	wchar_t pathBuffer[MAX_PATH + 4];
+    static int indexInFolder;
+
+    G->sorting = true;
+    
+	IShellWindows *shellWindows = NULL;
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	if (S_OK != CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **) &shellWindows)) return 0;
+	
+	IDispatch *dispatch = NULL;
+	VARIANT v = {};
+	V_VT(&v) = VT_I4;
+	
+	for (V_I4(&v) = 0; S_OK == shellWindows->Item(v, &dispatch); V_I4(&v)++) 
+    {
+		bool success = false;
+		
+		IFolderView *folderView = NULL;	
+		IWebBrowserApp *webBrowserApp = NULL;
+		IServiceProvider *serviceProvider = NULL;
+		IShellBrowser *shellBrowser = NULL;
+		IShellView *shellView = NULL;
+		IPersistFolder2 *persistFolder = NULL;
+		ITEMIDLIST *folderPIDL = NULL;
+		ITEMIDLIST *itemPIDL = NULL;
+		PIDLIST_ABSOLUTE fullPIDL = NULL;
+		
+		int itemCount = 0, focusedItem = 0;
+		pathBuffer[0] = 0;
+		
+		if (S_OK != dispatch->QueryInterface(IID_IWebBrowserApp, (void **) &webBrowserApp)) goto error;
+		if (S_OK != webBrowserApp->QueryInterface(IID_IServiceProvider, (void **) &serviceProvider)) goto error;
+		if (S_OK != serviceProvider->QueryService(SID_STopLevelBrowser, IID_IShellBrowser, (void **) &shellBrowser)) goto error;
+		if (S_OK != shellBrowser->QueryActiveShellView(&shellView)) goto error;
+		if (S_OK != shellView->QueryInterface(IID_IFolderView, (void **) &folderView)) goto error;
+		if (S_OK != folderView->GetFolder(IID_IPersistFolder2, (void **) &persistFolder)) goto error;
+		if (S_OK != persistFolder->GetCurFolder(&folderPIDL)) goto error;
+		if (S_OK != folderView->GetFocusedItem(&focusedItem)) goto error;
+		if (S_OK != folderView->Item(focusedItem, &itemPIDL)) goto error;
+		fullPIDL = ILCombine(folderPIDL, itemPIDL);
+		if (!SHGetPathFromIDListW(fullPIDL, pathBuffer)) goto error;
+		if (!StringEqual(filePath, pathBuffer)) goto error;
+		if (S_OK != folderView->ItemCount(SVGIO_ALLVIEW, &itemCount)) goto error;
+        for(int i = 0; i < itemsInFolder; i++)
+            free(filesInFolder[i].path);
+        free(filesInFolder);
+		if (!(filesInFolder = (FolderEntry *) malloc(itemCount * sizeof(FolderEntry)))) goto error;
+		
+		for (int i = 0; i < itemCount; i++) 
+        {
+			filesInFolder[i].wpath[0] = 0;
+			ITEMIDLIST *itemPIDL = NULL;
+			if (S_OK != folderView->Item(i, &itemPIDL)) continue;
+			PIDLIST_ABSOLUTE fullPIDL = ILCombine(folderPIDL, itemPIDL);
+			SHGetPathFromIDListW(fullPIDL, filesInFolder[i].wpath);
+			CoTaskMemFree(fullPIDL);
+			CoTaskMemFree(itemPIDL);
+		}
+		
+		itemsInFolder = itemCount;
+		indexInFolder = focusedItem;
+	
+		success = true;
+		error:;
+		
+		if (fullPIDL) CoTaskMemFree(fullPIDL);
+		if (folderPIDL) CoTaskMemFree(folderPIDL);
+		if (itemPIDL) CoTaskMemFree(itemPIDL);
+		if (persistFolder) persistFolder->Release();
+		if (folderView) folderView->Release();
+		if (shellView) shellView->Release();
+		if (shellBrowser) shellBrowser->Release();
+		if (serviceProvider) serviceProvider->Release();
+		if (webBrowserApp) webBrowserApp->Release();
+		if (dispatch) dispatch->Release();
+		
+		if (success) break;
+	}
+	
+	shellWindows->Release();
+
+	if (filesInFolder)
+    {
+    
+        for(int i = 0; i < itemsInFolder; i++)
+        {
+            filesInFolder[i].path = GetC(filesInFolder[i].wpath);
+        }
+
+        sortfolder();
+
+        for (int i = 0; i < G->Files.Count; i++)
+        {
+            if (strcmp(FileName, G->Files[i].file.name) == 0)
+            {
+                G->CurrentFileIndex = i;
+            }
+            G->Files[i].loading = false;
+            G->Files[i].failed = false;
+        }
+    } 
+
+    free(Data->FileName);
+    free(Data->path);
+    LeaveCriticalSection(&G->SortMutex);
+    G->sorting = false;
+    return 0;
+}
+
+FolderSortThread_data SortData;
+
 static void ScanFolder(char *Path)
 {
     if (Path == nullptr || !isValidWindowsPath(Path))
     {
-        G->files =          (cf_file_t *)realloc(G->files,          sizeof(cf_file_t) * (1));
-        G->files_loading =  (bool *     )realloc(G->files_loading,  sizeof(bool) * (1));
-        G->files_TYPE =     (int *      )realloc(G->files_TYPE,     sizeof(int) * (1));
-        G->files_Failed =   (bool *     )realloc(G->files_Failed,   sizeof(bool) * (1));
-        G->files_pos =      (v2 *       )realloc(G->files_pos,      sizeof(v2) * (1));
-        G->files_scale =    (float *    )realloc(G->files_scale,    sizeof(float) * (1));
-        G->files_TYPE[0] = 0;
-        G->files_loading[0] = 0;
-
-        G->max_files = 0;
+        G->Files.reset_count();
         return;
     }
     int len = strlen(Path);
@@ -825,7 +1025,8 @@ static void ScanFolder(char *Path)
     cf_dir_t dir;
     cf_dir_open(&dir, BasePath);
 
-    G->max_files = 0;
+    G->Files.reset_count();
+
     while (dir.has_next)
     {
         cf_file_t file_0;
@@ -844,40 +1045,33 @@ static void ScanFolder(char *Path)
             continue;
         }
 
-        if (G->max_files <= G->allocated_files)
-        {
-            G->files =          (cf_file_t *)realloc(G->files,          sizeof(cf_file_t) * (G->allocated_files + 1));
-            G->files_loading =  (bool *     )realloc(G->files_loading,  sizeof(bool) *      (G->allocated_files + 1));
-            G->files_TYPE =     (int *      )realloc(G->files_TYPE,     sizeof(int) *       (G->allocated_files + 1));
-            G->files_Failed =   (bool *     )realloc(G->files_Failed,   sizeof(bool) *      (G->allocated_files + 1));
-            G->files_pos =      (v2 *       )realloc(G->files_pos,      sizeof(v2) *        (G->allocated_files + 1));
-            G->files_scale =    (float *    )realloc(G->files_scale,    sizeof(float) *     (G->allocated_files + 1));
+        G->Files.push_back(*new file_data);
 
-            G->allocated_files++;
-        }
+        G->Files.back().type = CheckOddExtention(file_0.ext);
 
-        G->files_TYPE[G->max_files] = CheckOddExtention(file_0.ext);
-
-        cf_file_t *file = &G->files[G->max_files];
+        cf_file_t *file = &G->Files.back().file;
         *file = file_0;
-        G->max_files++;
 
         printf("%s\n", file->name);
         cf_dir_next(&dir);
     }
     cf_dir_close(&dir);
 
-    for (int i = 0; i < G->max_files; i++)
+    SortData.FileName = FileName;
+    SortData.path = GetWC(Path);
+    if (G->settings_Sort)
+        CreateThread(NULL, 0, FolderSortThread, (LPVOID)&SortData, 0, NULL);
+
+    for (int i = 0; i < G->Files.Count; i++)
     {
-        if (strcmp(FileName, G->files[i].name) == 0)
+        if (strcmp(FileName, G->Files[i].file.name) == 0)
         {
             G->CurrentFileIndex = i;
         }
-        G->files_loading[i] = false;
-        G->files_Failed[i] = false;
+        G->Files[i].loading = false;
+        G->Files[i].failed = false;
     }
     free(BasePath);    
-    free(FileName);
 }
 
 unsigned long createRGB(int r, int g, int b)
@@ -899,6 +1093,53 @@ static void GUIHelpMarker(const char *desc)
     }
 }
 
+void BasicFileOpen()
+{
+    IFileOpenDialog *pFileOpen;
+
+    // Create the FileOpenDialog object.
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, 
+            IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+    COMDLG_FILTERSPEC rgSpec[] =
+    { 
+        { L"Images", L"*.jpg;*.jpeg;*.png;*.bmp;*.gif" },
+    };
+    pFileOpen->SetFileTypes(1, rgSpec);
+
+    if (SUCCEEDED(hr))
+    {
+        // Show the Open dialog box.
+        hr = pFileOpen->Show(NULL);
+
+        // Get the file name from the dialog box.
+        if (SUCCEEDED(hr))
+        {
+            IShellItem *pItem;
+            hr = pFileOpen->GetResult(&pItem);
+            if (SUCCEEDED(hr))
+            {
+                PWSTR pszFilePath;
+                hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+                // Display the file name to the user.
+                if (SUCCEEDED(hr))
+                {
+                    if (!G->Loading_Droppedfile)
+                    {
+                        int l = wcslen(pszFilePath);
+                        TempPath = (char *)malloc(l + 1);
+                        wcstombs(TempPath, pszFilePath, l);
+                        TempPath[l] = 0;
+                    }
+                    G->Droppedfile = true;
+                }
+                pItem->Release();
+            }
+        }
+        pFileOpen->Release();
+    }
+    CoUninitialize();
+}
+
 static void UpdateGUI()
 {
     using namespace ImGui;
@@ -916,7 +1157,7 @@ static void UpdateGUI()
     G->signals.update_filtering = true;
     ImGui::SetNextWindowPos(ImVec2(0, WindowHeight - 30));
     ImGui::SetNextWindowSize(ImVec2(WindowWidth, 30));
-    style.FrameRounding = 0;
+    style.FrameRounding = style.GrabRounding = 0;
     style.FrameBorderSize = 1;
     style.WindowRounding = 0;
     if (G->Error.timer > 0)
@@ -929,13 +1170,13 @@ static void UpdateGUI()
     }
     else
     {
-        if (G->max_files > 0)
+        if (G->Files.Count > 0)
         {
             ImGui::Begin("Status", NULL, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
             {
-                ImGui::Text("%i / %i | %s -", G->CurrentFileIndex + 1, G->max_files, G->files[G->CurrentFileIndex]);
+                ImGui::Text("%i / %i | %s -", G->CurrentFileIndex + 1, G->Files.Count, G->Files[G->CurrentFileIndex].file.name);
                 ImGui::SameLine();
-                if (G->files_TYPE[G->CurrentFileIndex])
+                if (G->Files[G->CurrentFileIndex].type == TYPE_GIF)
                     ImGui::Text("%d x %d - frames: %i -", G->Graphics.MainImage.w, G->Graphics.MainImage.h, G->GIF_frames);
                 else
                     ImGui::Text("%d x %d -", G->Graphics.MainImage.w, G->Graphics.MainImage.h);
@@ -955,11 +1196,11 @@ static void UpdateGUI()
             ImGui::End();
         }
     }
-    style.FrameRounding = 5;
+    style.FrameRounding = style.GrabRounding = 5;
     style.FrameBorderSize = 1;
     style.WindowRounding = 10;
 
-    if (!G->loaded && G->max_files > 0)
+    if (!G->loaded && G->Files.Count > 0)
     {
 
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -998,7 +1239,7 @@ static void UpdateGUI()
     {
         FPS = MAX_FPS;
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight * 0.5f), 0, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(500, 500));
+        ImGui::SetNextWindowSize(ImVec2(500, 525));
         ImGui::Begin("settings", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Cactus Image Viewer ");
         ImGui::SameLine();
@@ -1050,6 +1291,11 @@ static void UpdateGUI()
         ImGui::SetNextItemWidth(300);
         ImGui::Combo("image position", &G->settings_resetpos, resetpos_options, IM_ARRAYSIZE(resetpos_options));
         ImGui::Checkbox("Autoplay GIFs", &G->settings_autoplayGIFs);
+        ImGui::Checkbox("Sort according to folder", &G->settings_Sort);
+        HELP_MARKER_GUI_SIGN("Sorts images in the folder according to how the window has them sorted, " 
+                                "this might be slow for large folders and it blocks the 'next' and " 
+                                "'previous' controls until it sorts, so it is optional")
+
         ImGui::ColorEdit3("Checkerboard color 1", (float *)&Checkerboard_color1, ImGuiColorEditFlags_NoInputs);
         ImGui::SameLine();
         if (ImGui::Button("reset##1"))
@@ -1081,11 +1327,11 @@ static void UpdateGUI()
             G->settings_visible = false;
         ImGui::End();
     }
-    if (G->max_files == 0)
+    if (G->Files.Count == 0)
         ImGui::BeginDisabled();
     if (G->keep_menu || (G->Keys.Mouse.y > MouseDetection && !G->settings_visible))
     {
-        if (G->files_Failed[G->CurrentFileIndex])
+        if (G->Files.Count && G->Files[G->CurrentFileIndex].failed)
             ImGui::BeginDisabled();
 
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f - 125, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -1155,7 +1401,7 @@ static void UpdateGUI()
         ImGui::Checkbox("  A", (bool *)&RGBAflags[3]);
         HELP_MARKER_GUI("Toggle between premultiplied alpha and straight RGB")
         ImGui::End();
-        if (G->files_Failed[G->CurrentFileIndex])
+        if (G->Files.Count && G->Files[G->CurrentFileIndex].failed)
             ImGui::EndDisabled();
 
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f + 190, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -1164,11 +1410,11 @@ static void UpdateGUI()
         ImGui::SetNextItemWidth(100);
         bool open_popup = false;
         ImGui::SetItemAllowOverlap();
-        ImGui::SetCursorPos(ImVec2(7, 7));
+        ImGui::SetCursorPosY(7);
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(BGcolor[0], BGcolor[1], BGcolor[2], 1));
         ImGui::SetItemAllowOverlap();
-        open_popup |= ImGui::Button("##", ImVec2(50, 50));
+        open_popup |= ImGui::Button("bg", ImVec2(50, 25));
         ImGui::PopStyleColor();
         if (open_popup)
         {
@@ -1185,49 +1431,51 @@ static void UpdateGUI()
         {
             G->keep_menu = false;
         }
-        ImGui::SetCursorPos(ImVec2(25, 15));
-        ImGui::Text("bg");
-        ImGui::SetCursorPos(ImVec2(15, 33));
-        ImGui::Text("color");
+        ImGui::SetCursorPosY(35);
+        if (G->Files.Count == 0) ImGui::EndDisabled();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(5.0/225, 70.0/225, 5.0/255, 1));
+        if(ImGui::Button("open", ImVec2(50, 25))) BasicFileOpen();
+        ImGui::PopStyleColor();
+        if (G->Files.Count == 0) ImGui::BeginDisabled();
+        // ImGui::SetCursorPos(ImVec2(25, 15));
+        // ImGui::Text("bg");
+        // ImGui::SetCursorPos(ImVec2(15, 33));
+        // ImGui::Text("color");
         ImGui::SetCursorPosY(63);
-        if (G->max_files == 0)
+        if (G->Files.Count == 0)
             ImGui::EndDisabled();
         if (ImGui::Button("config", ImVec2(50, 23)))
             G->settings_visible = true;
         HELP_MARKER_GUI("Open help and settings page");
-        if (G->max_files == 0)
+        if (G->Files.Count == 0)
             ImGui::BeginDisabled();
         ImGui::End();
 
         ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(173, 92));
         ImGui::Begin("NextPrev", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
-        if (!(G->CurrentFileIndex > 0))
-            ImGui::BeginDisabled(true);
-        if (ImGui::Button("<< Prev", ImVec2(75, 30)))
-            G->signals.previmage = true;
-        if (!(G->CurrentFileIndex > 0))
-            ImGui::EndDisabled();
+        if (G->sorting || !(G->CurrentFileIndex > 0)) ImGui::BeginDisabled(true);
+        if (ImGui::Button("<< Prev", ImVec2(75, 30))) G->signals.previmage = true;
+        if (G->sorting || !(G->CurrentFileIndex > 0)) ImGui::EndDisabled();
         ImGui::SameLine();
 
-        if (!(G->CurrentFileIndex < G->max_files - 1))
-            ImGui::BeginDisabled(true);
-        if (ImGui::Button("Next >>", ImVec2(75, 30)))
-            G->signals.nextimage = true;
-        if (!(G->CurrentFileIndex < G->max_files - 1))
-            ImGui::EndDisabled();
+        if (G->sorting || !(G->CurrentFileIndex < G->Files.Count - 1)) ImGui::BeginDisabled(true);
+        if (ImGui::Button("Next >>", ImVec2(75, 30))) G->signals.nextimage = true;
+        if (G->sorting || !(G->CurrentFileIndex < G->Files.Count - 1)) ImGui::EndDisabled();
         int file = G->CurrentFileIndex;
+        if (G->sorting) ImGui::BeginDisabled(true);
         if (ImGui::Button("Reload folder", ImVec2(157, 20)))
         {
-            ScanFolder(G->files[G->CurrentFileIndex].path);
+            ScanFolder(G->Files[G->CurrentFileIndex].file.path);
         }
+        if (G->sorting) ImGui::EndDisabled();
         HELP_MARKER_GUI("Click to reload the folder and scan for any changes");
         ImGui::SetCursorPosY(65);
         ImGui::SetNextItemWidth(157);
         ImGui::BeginDisabled();
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(1, 1, 1, 0.2));
-        ImGui::SliderInt(" ", &file, 0, G->max_files - 1, " ");
+        ImGui::SliderInt(" ", &file, 0, G->Files.Count - 1, " ");
         ImGui::PopStyleColor();
         ImGui::PopStyleColor();
         ImGui::EndDisabled();
@@ -1235,7 +1483,7 @@ static void UpdateGUI()
 
         ImGui::End();
 
-        if (G->files_TYPE[G->CurrentFileIndex] == 1)
+        if (G->Files.Count && G->Files[G->CurrentFileIndex].type == TYPE_GIF)
         {
             ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight - 158), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(ImVec2(173, 68));
@@ -1285,7 +1533,7 @@ static void UpdateGUI()
             ImGui::End();
         }
     }
-    if (G->max_files == 0)
+    if (G->Files.Count == 0)
         ImGui::EndDisabled();
 }
 
@@ -1297,12 +1545,12 @@ static void UpdateLogic()
     if (G->Error.timer == 50)
         G->Error.timer = 0;
 
-    if (keypress(Key_F))
+    if (keydn(Key_F))
     {
         G->signals.update_filtering = true;
         G->nearest_filtering = !G->nearest_filtering;
     }
-    if (keypress(Key_G))
+    if (keydn(Key_G))
     {
         G->pixelgrid = !G->pixelgrid;
     }
@@ -1320,7 +1568,7 @@ static void UpdateLogic()
             diff = -diff;
         G->Position += diff;
     }
-    if (G->files_TYPE[G->CurrentFileIndex] == 1)
+    if (G->Files.Count > 0 && G->Files[G->CurrentFileIndex].type == TYPE_GIF)
     {
         int reqindex = G->GIF_index;
         if (keypress(Key_Up))
@@ -1347,14 +1595,14 @@ static void UpdateLogic()
     float prev_scale = G->scale;
     v2 prev_Position = G->Position;
     bool updatescalebar = false;
-    if (G->max_files > 0)
+    if (G->Files.Count > 0)
     {
         if (!io.WantCaptureMouse)
             G->scale *= 1 + G->Keys.ScrollYdiff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
-        if (!G->files_Failed[G->CurrentFileIndex])
+        if (G->Files[G->CurrentFileIndex].type != 1)
         {
-            G->files_pos[G->CurrentFileIndex] = G->Position;
-            G->files_scale[G->CurrentFileIndex] = G->truescale;
+            G->Files[G->CurrentFileIndex].pos = G->Position;
+            G->Files[G->CurrentFileIndex].scale = G->truescale;
         }
     }
 
@@ -1388,8 +1636,7 @@ static void UpdateLogic()
             ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(ImVec2(173, 92));
             ImGui::Begin("NextPrev", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
-            if (G->max_files == 0 || G->files_Failed[G->CurrentFileIndex])
-                ImGui::BeginDisabled();
+            if (G->Files.Count == 0 || G->Files[G->CurrentFileIndex].failed) ImGui::BeginDisabled();
             ImGui::SetNextItemWidth(158);
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2, 0.2, 0.2, 1));
             if (ImGui::SliderFloat("  ", &TS, 0.1, 500, "zoom", ImGuiSliderFlags_Logarithmic) || G->signals.update_truescale) // the second and third check imposes the clamp on the scale when max or min zoom
@@ -1397,11 +1644,10 @@ static void UpdateLogic()
                 updatescalebar = true;
             }
             ImGui::PopStyleColor();
-            if (G->max_files == 0 || G->files_Failed[G->CurrentFileIndex])
-                ImGui::EndDisabled();
+            if (G->Files.Count == 0 || G->Files[G->CurrentFileIndex].failed) ImGui::EndDisabled();
             ImGui::End();
         }
-        if (G->max_files > 0)
+        if (G->Files.Count > 0)
         {
             if (keypress(Key_Q))
             {
@@ -1441,7 +1687,7 @@ static void Render()
     glDisable(GL_SCISSOR_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    if (G->signals.Initstep2 || G->loaded || G->max_files == 0)
+    if (G->signals.Initstep2 || G->loaded || G->Files.Count == 0)
     {
 
         glViewport(0, 0, WindowWidth, WindowHeight);
@@ -1458,9 +1704,9 @@ static void Render()
             }
         }
 
-        if (G->max_files > 0 && !G->files_Failed[G->CurrentFileIndex]) // check if we have a folder open and no failed to load image
+        if (G->Files.Count > 0 && !G->Files[G->CurrentFileIndex].failed) // check if we have a folder open and no failed to load image
         {
-            if (G->files_TYPE[G->CurrentFileIndex])
+            if (G->Files[G->CurrentFileIndex].failed)
             {
                 glBindTexture(GL_TEXTURE_2D, G->GIFTextureID);
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);

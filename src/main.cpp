@@ -18,13 +18,13 @@ int main(int argc, char **argv)
     ScanFolder(argv[1]);
     if (argc > 1)
     {
-        loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex]};
+        loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
         CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
     }
 
     while (Running)
     {
-        MouseDetection = WindowHeight - 320;
+        MouseDetection = WindowHeight - 140;
         PollEvents();
 
         if (G->Droppedfile)
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
             G->Loading_Droppedfile = true;
             ScanFolder(TempPath);
             G->loaded = false;
-            loaderthreadinputs Inputs = {TempPath, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], true};
+            loaderthreadinputs Inputs = {TempPath, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, true};
             CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
             G->Droppedfile = false;
         }
@@ -48,21 +48,21 @@ int main(int argc, char **argv)
         UpdateGUI();
         Render();
 
-        if (G->max_files > 0)
+        if (G->Files.Count > 0)
         {
-            if (keyup(Key_Right) || G->signals.nextimage)
+            if ((!G->sorting && keyup(Key_Right)) || G->signals.nextimage)
             {
                 G->signals.nextimage = false;
 
-                if (G->CurrentFileIndex < G->max_files - 1)
+                if (G->CurrentFileIndex < G->Files.Count - 1)
                 {
                     G->CurrentFileIndex++;
                     G->loaded = false;
-                    loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], false};
+                    loaderthreadinputs Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
                     CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
                 }
             }
-            if (keyup(Key_Left)|| G->signals.previmage)
+            if ((!G->sorting && keyup(Key_Left))|| G->signals.previmage)
             {
                 G->signals.previmage = false;
 
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
                 {
                     G->CurrentFileIndex--;
                     G->loaded = false;
-                    loaderthreadinputs Inputs = {G->files[G->CurrentFileIndex].path, G->CurrentFileIndex, G->files_TYPE[G->CurrentFileIndex], false};
+                    loaderthreadinputs Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
                     CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
                 }
             }
