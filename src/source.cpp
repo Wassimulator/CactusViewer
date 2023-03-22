@@ -876,7 +876,8 @@ struct FolderSortThread_data
 DWORD WINAPI FolderSortThread(LPVOID lpParam)
 {
     EnterCriticalSection(&G->SortMutex);
-    
+    G->sorting = true;
+
     FolderSortThread_data *Data = (FolderSortThread_data *)lpParam;
 
     wchar_t *filePath = Data->path;
@@ -884,7 +885,6 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
 	wchar_t pathBuffer[MAX_PATH + 4];
     static int indexInFolder;
 
-    G->sorting = true;
     
 	IShellWindows *shellWindows = NULL;
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -985,8 +985,8 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
 
     free(Data->FileName);
     free(Data->path);
-    LeaveCriticalSection(&G->SortMutex);
     G->sorting = false;
+    LeaveCriticalSection(&G->SortMutex);
     return 0;
 }
 
@@ -1057,10 +1057,13 @@ static void ScanFolder(char *Path)
     }
     cf_dir_close(&dir);
 
-    SortData.FileName = FileName;
-    SortData.path = GetWC(Path);
-    if (G->settings_Sort)
+    if (!G->sorting && G->settings_Sort)
+    {   
+        SortData.FileName = (char*)malloc(strlen(FileName) + 1);
+        memcpy(SortData.FileName, FileName, strlen(FileName) + 1);
+        SortData.path = GetWC(Path);
         CreateThread(NULL, 0, FolderSortThread, (LPVOID)&SortData, 0, NULL);
+    }
 
     for (int i = 0; i < G->Files.Count; i++)
     {
@@ -1072,6 +1075,7 @@ static void ScanFolder(char *Path)
         G->Files[i].failed = false;
     }
     free(BasePath);    
+    free(FileName);    
 }
 
 unsigned long createRGB(int r, int g, int b)
