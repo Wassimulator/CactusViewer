@@ -211,6 +211,7 @@ struct signals
     bool nextimage = false;
     bool previmage = false;
     bool update_truescale = false;
+    bool setting_applied = false;
 };
 
 struct file_data
@@ -238,6 +239,7 @@ struct global
     bool keep_menu = false;
     bool loaded = false;
     bool sorting = false;
+    bool settings_applied = false;
     float scale = 1;
     float truescale = 1;
     float req_truescale = 1;

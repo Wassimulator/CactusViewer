@@ -288,7 +288,6 @@ static void CenterWindow()
     int y = (DisplaySize.y - h) / 2;
     SetWindowPos(hwnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
 }
-
 static void Main_Init()
 {
     WindowWidth  = 500;
@@ -304,12 +303,12 @@ static void Main_Init()
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = hInstance;
-    wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
-    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = NULL;
     wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = "CactusViewer" ;
-    wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(1));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     RegisterClassEx(&wcex);
     RECT rc = { 0, 0,  WindowWidth, WindowHeight };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, 0);
@@ -346,6 +345,8 @@ static void Main_Init()
     DragAcceptFiles(hwnd, TRUE);
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
+    SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wcex.hIcon);
+    SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)wcex.hIcon);
 
     gladLoadGL();
 
@@ -660,6 +661,7 @@ static void ApplySettings()
     default:
         break;
     }
+    G->signals.setting_applied = true;
 }
 
 static void Load_Image_post()
@@ -1437,7 +1439,10 @@ static void UpdateGUI()
         }
         ImGui::SetCursorPosY(35);
         if (G->Files.Count == 0) ImGui::EndDisabled();
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(5.0/225, 70.0/225, 5.0/255, 1));
+        if (G->Files.Count == 0)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(5.0/225, 120.0/225, 5.0/255, 1));
+        else
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(5.0/225, 70.0/225, 5.0/255, 1));
         if(ImGui::Button("open", ImVec2(50, 25))) BasicFileOpen();
         ImGui::PopStyleColor();
         if (G->Files.Count == 0) ImGui::BeginDisabled();
@@ -1543,7 +1548,6 @@ static void UpdateGUI()
 
 static void UpdateLogic()
 {
-
     if (G->Error.timer > 0)
         G->Error.timer++;
     if (G->Error.timer == 50)
@@ -1599,7 +1603,8 @@ static void UpdateLogic()
     float prev_scale = G->scale;
     v2 prev_Position = G->Position;
     bool updatescalebar = false;
-    if (G->Files.Count > 0)
+
+    if (G->loaded && G->Files.Count > 0)
     {
         if (!io.WantCaptureMouse)
             G->scale *= 1 + G->Keys.ScrollYdiff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
@@ -1609,7 +1614,7 @@ static void UpdateLogic()
             G->Files[G->CurrentFileIndex].scale = G->truescale;
         }
     }
-
+    
     if (G->Graphics.MainImage.w > 0)
     {
         if (G->Graphics.aspect_img < G->Graphics.aspect_wnd)
@@ -1629,7 +1634,7 @@ static void UpdateLogic()
         v2 M = G->Keys.Mouse;
 
         float TS = G->truescale;
-
+        if (!G->signals.setting_applied)
         {
             G->Position -= Mouse;
             G->Position *= G->scale / prev_scale;
@@ -1679,9 +1684,10 @@ static void UpdateLogic()
             else
                 G->scale = TS * (float)G->Graphics.MainImage.w / WindowWidth;
 
-            G->Position *= G->scale / prev_scale;
+            if (!G->signals.setting_applied) G->Position *= G->scale / prev_scale;
         }
     }
+    G->signals.setting_applied = false;
 }
 
 static void Render()
