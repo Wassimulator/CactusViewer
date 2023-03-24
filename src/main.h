@@ -1,4 +1,5 @@
 #pragma once
+#define UNICODE
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>

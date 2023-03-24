@@ -2,7 +2,7 @@
 #include "main.h"
 #include "structs.cpp"
 #include "events.cpp"
-#include "font.cpp"
+// #include "font.cpp"
 
 
 // Creates a hover help marker to the ImGui item before it, set by a certain delay
@@ -277,19 +277,21 @@ static uint32_t GetTicks()
     QueryPerformanceCounter(&result);
     return 1000 * result.QuadPart / frequency.QuadPart;
 }
-const ImWchar glyphranges[] = { 0x20, 0xFFFF, 0 }; 
-ImFont *FONT;
-DWORD WINAPI FontLoadThread(LPVOID lpParam)
-{
-    G->unicode_font_loaded = false;
-    ImGuiIO &io = ImGui::GetIO();
-    ImFontConfig config;
-    config.GlyphRanges = glyphranges;
-    FONT = io.Fonts->AddFontFromMemoryCompressedTTF(juliamono_compressed_data, juliamono_compressed_size, 13, &config, glyphranges);
-    io.Fonts->Build();
-    G->unicode_font_loaded = true;
-    return 0;
-}
+// const ImWchar glyphranges[] = { 0x20, 0xFFFF, 0 }; 
+// ImFont *FONT;
+// DWORD WINAPI FontLoadThread(LPVOID lpParam)
+// {
+//     G->unicode_font_loaded = false;
+//     ImGuiIO &io = ImGui::GetIO();
+//     ImFontConfig config;
+//     config.GlyphRanges = glyphranges;
+//     config.FontDataOwnedByAtlas = false;
+//     FONT = io.Fonts->AddFontFromMemoryCompressedTTF(juliamono_compressed_data, juliamono_compressed_size, 13, &config, glyphranges);
+//     // FONT = io.Fonts->AddFontFromFileTTF("JuliaMono-Regular.ttf", 13, &config, glyphranges);
+//     io.Fonts->Build();
+//     G->unicode_font_loaded = true;
+//     return 0;
+// }
 static void CenterWindow()
 {
     v2 DisplaySize = v2(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
@@ -303,8 +305,8 @@ static void CenterWindow()
 }
 static void Main_Init()
 {
-    WindowWidth  = 500;
-    WindowHeight = 500;
+    WindowWidth  = 600;
+    WindowHeight = 600;
 
     HINSTANCE hInstance = GetModuleHandle(NULL);
     const char* szTitle = "CactusViewer";
@@ -318,14 +320,14 @@ static void Main_Init()
     wcex.hInstance = hInstance;
     wcex.hbrBackground = NULL;
     wcex.lpszMenuName = nullptr;
-    wcex.lpszClassName = "CactusViewer" ;
+    wcex.lpszClassName = L"CactusViewer" ;
     wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(1));
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     RegisterClassEx(&wcex);
     RECT rc = { 0, 0,  WindowWidth, WindowHeight };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, 0);
-    hwnd = CreateWindowEx(WS_EX_APPWINDOW, "CactusViewer", "CactusViewer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
+    hwnd = CreateWindowEx(WS_EX_APPWINDOW, L"CactusViewer", L"CactusViewer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
     hdc = GetDC(hwnd);
     CenterWindow();
     PIXELFORMATDESCRIPTOR pfd;
@@ -360,6 +362,11 @@ static void Main_Init()
     UpdateWindow(hwnd);
     SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wcex.hIcon);
     SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)wcex.hIcon);
+    HFONT font = CreateFontW(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                         DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    // SetWindowLongPtr(hwnd, -4, (LONG_PTR)DefWindowProcW);
+    SendMessage(hwnd, WM_SETFONT, (WPARAM)font, MAKELPARAM(TRUE, 0));
 
     gladLoadGL();
 
@@ -417,7 +424,7 @@ static void Main_Init()
     style.FrameBorderSize = 1;
     style.WindowRounding = 10;
 
-    CreateThread(NULL, 0, FontLoadThread, NULL, 0, NULL);
+    // CreateThread(NULL, 0, FontLoadThread, NULL, 0, NULL);
 
     LoadSettings();
 }
@@ -722,6 +729,10 @@ static void Load_Image_post()
     G->Graphics.MainImage.frac1 = frac.n1;
     G->Graphics.MainImage.frac2 = frac.n2;
     G->Graphics.MainImage.aspectratio = (float)frac.n1 / frac.n2;
+
+    wchar_t title[512];
+    swprintf(title, L"CactusViewer - %ws", G->Files[G->CurrentFileIndex].file.name);
+    SetWindowTextW(hwnd, title);
 
     ApplySettings();
 }
@@ -1199,12 +1210,12 @@ static void UpdateGUI()
             {
 
                 ImGui::Text("%i / %i | ", G->CurrentFileIndex + 1, G->Files.Count, G->Files[G->CurrentFileIndex].file.name_utf8);
-                if (G->unicode_font_loaded)
-                {
-                    ImGui::PushFont(FONT);
-                    ImGui::SameLine(); ImGui::Text(u8"%s -", G->Files[G->CurrentFileIndex].file.name_utf8);
-                    ImGui::PopFont();
-                }
+                // if (G->unicode_font_loaded)
+                // {
+                //     ImGui::PushFont(FONT);
+                //     ImGui::SameLine(); ImGui::Text(u8"%s -", G->Files[G->CurrentFileIndex].file.name_utf8);
+                //     ImGui::PopFont();
+                // }
                 ImGui::SameLine();
                 if (G->Files[G->CurrentFileIndex].type == TYPE_GIF)
                     ImGui::Text("%d x %d - frames: %i -", G->Graphics.MainImage.w, G->Graphics.MainImage.h, G->GIF_frames);
@@ -1221,7 +1232,7 @@ static void UpdateGUI()
         {
             ImGui::Begin("Status", NULL, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
             {
-                ImGui::Text("No file open. Drag and drop an image file to view it.");
+                ImGui::Text("No file open. Click \"Open\" or drag and drop an image file to view it.");
             }
             ImGui::End();
         }
