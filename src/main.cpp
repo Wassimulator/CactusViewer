@@ -24,7 +24,9 @@ int wmain(int argc, wchar_t **argv)
 
     while (Running)
     {
-        MouseDetection = WindowHeight - 140;
+        bool gifmode = false;
+        if (G->Files.Count > 0) gifmode = G->Files[G->CurrentFileIndex].type == 1;
+        MouseDetection = WindowHeight - 140 - 60 * (gifmode);
         PollEvents();
         G->ShowUI = ShouldShowUI();
 
@@ -85,6 +87,12 @@ int wmain(int argc, wchar_t **argv)
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
+    if(AttachConsole (ATTACH_PARENT_PROCESS) != 0) {
+        FILE *  fpstdin = stdin, *fpstdout = stdout, *fpstderr = stderr;  
+        freopen_s (&fpstdin,  "CONIN$",  "r", stdin);  
+        freopen_s (&fpstdout, "CONOUT$", "w", stdout);  
+        freopen_s (&fpstderr, "CONOUT$", "w", stderr);  
+    } 
     int argc;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLine(), &argc);
     int result = wmain(argc, argv);

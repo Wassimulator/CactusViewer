@@ -125,8 +125,6 @@ char *FragmentBG = R"###(
                            color = vec4(mix(color1, bg.rgb, bg.a),1);
                         else
                            color = vec4(mix(color2, bg.rgb, bg.a),1);
-
-  
                 }
   )###";
 
@@ -1759,7 +1757,7 @@ static void Render()
 
         if (G->Files.Count > 0 && !G->Files[G->CurrentFileIndex].failed) // check if we have a folder open and no failed to load image
         {
-            if (G->Files[G->CurrentFileIndex].failed)
+            if (G->Files[G->CurrentFileIndex].type == 1)
             {
                 glBindTexture(GL_TEXTURE_2D, G->GIFTextureID);
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
