@@ -243,6 +243,8 @@ struct global
     bool settings_applied = false;
     bool unicode_font_loaded = false;
     bool imgui_in_frame = false;
+    bool ShowUI = false;
+
     float scale = 1;
     float truescale = 1;
     float req_truescale = 1;

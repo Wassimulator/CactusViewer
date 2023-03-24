@@ -1172,7 +1172,14 @@ void BasicFileOpen()
     }
     CoUninitialize();
 }
-
+bool ShouldShowUI()
+{
+    POINT cursorPos;
+    GetCursorPos(&cursorPos);
+    HWND hWnd = WindowFromPoint(cursorPos);
+    bool insidewindow = !(hWnd == NULL || hWnd != hwnd);
+    return (G->keep_menu || (G->Keys.Mouse.y > MouseDetection && insidewindow && !G->settings_visible));
+}
 static void UpdateGUI()
 {
     using namespace ImGui;
@@ -1370,7 +1377,7 @@ static void UpdateGUI()
     }
     if (G->Files.Count == 0)
         ImGui::BeginDisabled();
-    if (G->keep_menu || (G->Keys.Mouse.y > MouseDetection && !G->settings_visible))
+    if (G->ShowUI)
     {
         if (G->Files.Count && G->Files[G->CurrentFileIndex].failed)
             ImGui::BeginDisabled();
@@ -1676,7 +1683,7 @@ static void UpdateLogic()
             G->Position *= G->scale / prev_scale;
             G->Position += Mouse;
         }
-        if (G->keep_menu || (G->Keys.Mouse.y > MouseDetection && !G->settings_visible))
+        if (G->ShowUI)
         {
             ImGui::SetNextWindowPos(ImVec2(WindowWidth * 0.5f, WindowHeight - 78), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(ImVec2(173, 92));

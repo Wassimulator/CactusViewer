@@ -26,6 +26,7 @@ int wmain(int argc, wchar_t **argv)
     {
         MouseDetection = WindowHeight - 140;
         PollEvents();
+        G->ShowUI = ShouldShowUI();
 
         if (G->Droppedfile)
         {
