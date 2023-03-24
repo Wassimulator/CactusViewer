@@ -15,10 +15,10 @@ int wmain(int argc, wchar_t **argv)
 #endif
 
     Main_Init();
-    ScanFolder(argv[0]);
-    if (argc > 0)
+    ScanFolder(argv[1]);
+    if (argc > 1)
     {
-        loaderthreadinputs Inputs = {argv[0], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
+        loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
         CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
     }
 
@@ -41,6 +41,7 @@ int wmain(int argc, wchar_t **argv)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+
         GetWindowSize();
 
         if (G->signals.UpdatePass)
@@ -85,7 +86,7 @@ int wmain(int argc, wchar_t **argv)
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
     int argc;
-    LPWSTR* argv = CommandLineToArgvW(lpCmdLine, &argc);
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLine(), &argc);
     int result = wmain(argc, argv);
     return result;
 }
