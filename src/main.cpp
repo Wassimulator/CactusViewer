@@ -15,10 +15,10 @@ int wmain(int argc, wchar_t **argv)
 #endif
 
     Main_Init();
-    ScanFolder(argv[1]);
-    if (argc > 1)
+    ScanFolder(argv[0]);
+    if (argc > 0)
     {
-        loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
+        loaderthreadinputs Inputs = {argv[0], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
         CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
     }
 
