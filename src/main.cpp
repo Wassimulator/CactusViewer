@@ -15,12 +15,14 @@ int main(int argc, char **argv)
 #endif
 
     Main_Init();
-    ScanFolder(argv[1]);
+    wchar_t *argv_1 = argv[1] == nullptr ? nullptr : GetWC(argv[1]);
+    ScanFolder(argv_1);
     if (argc > 1)
     {
-        loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
+        loaderthreadinputs Inputs = {argv_1, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
         CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
     }
+    free(argv_1);
 
     while (Running)
     {
@@ -39,6 +41,7 @@ int main(int argc, char **argv)
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplWin32_NewFrame();
+        G->imgui_in_frame = true;
         ImGui::NewFrame();
         GetWindowSize();
 

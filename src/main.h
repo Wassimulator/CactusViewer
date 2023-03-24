@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
+#define STBI_WINDOWS_UTF8
 #include "stb.c"
 #include <windows.h> 
 #include <windowsx.h> 
@@ -54,7 +55,7 @@ float Checkerboard_color1[3];
 float Checkerboard_color2[3];
 float Checkerboard_size;
 int RGBAflags[4];
-char *TempPath;
+wchar_t *TempPath;
 
 HWND hwnd;
 HGLRC hRC;

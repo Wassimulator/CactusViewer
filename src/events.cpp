@@ -29,8 +29,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (!G->Loading_Droppedfile)
         {
             UINT length = DragQueryFile((HDROP)wParam, /*only first one is handled*/ 0, NULL, 0);
-            TempPath = (char *)malloc(length + 1);
-            DragQueryFile((HDROP)wParam, /*only first one is handled*/ 0, TempPath, length + 1);
+            TempPath = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
+            DragQueryFileW((HDROP)wParam, /*only first one is handled*/ 0, TempPath, length + 1);
+            int i = 0;
         }
         G->Droppedfile = true;
         break;

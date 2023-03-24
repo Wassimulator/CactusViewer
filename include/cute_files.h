@@ -29,7 +29,7 @@
 		{
 			cf_file_t file;
 			cf_read_file(&dir, &file);
-			printf("%s\n", file.name);
+			printf("%ws\n", file.name);
 			cf_dir_next(&dir);
 		}
 
@@ -85,11 +85,11 @@ typedef void (cf_callback_t)(cf_file_t* file, void* udata);
 
 // Stores the file extension in cf_file_t::ext, and returns a pointer to
 // cf_file_t::ext
-const char* cf_get_ext(cf_file_t* file);
+const wchar_t* cf_get_ext(cf_file_t* file);
 
 // Applies a function (cb) to all files in a directory. Will recursively visit
 // all subdirectories. Useful for asset management, file searching, indexing, etc.
-void cf_traverse(const char* path, cf_callback_t* cb, void* udata);
+void cf_traverse(const wchar_t* path, cf_callback_t* cb, void* udata);
 
 // Fills out a cf_file_t struct with file information. Does not actually open the
 // file contents, and instead performs more lightweight OS-specific calls.
@@ -103,25 +103,25 @@ void cf_dir_next(cf_dir_t* dir);
 void cf_dir_close(cf_dir_t* dir);
 
 // Performs lightweight OS-specific call to open a file handle on a directory.
-int cf_dir_open(cf_dir_t* dir, const char* path);
+int cf_dir_open(cf_dir_t* dir, const wchar_t* path);
 
 // Compares file last write times. -1 if file at path_a was modified earlier than path_b.
 // 0 if they are equal. 1 if file at path_b was modified earlier than path_a.
-int cf_compare_file_times_by_path(const char* path_a, const char* path_b);
+int cf_compare_file_times_by_path(const wchar_t* path_a, const wchar_t* path_b);
 
 // Retrieves time file was last modified, returns 0 upon failure
-int cf_get_file_time(const char* path, cf_time_t* time);
+int cf_get_file_time(const wchar_t* path, cf_time_t* time);
 
 // Compares file last write times. -1 if time_a was modified earlier than path_b.
 // 0 if they are equal. 1 if time_b was modified earlier than path_a.
 int cf_compare_file_times(cf_time_t* time_a, cf_time_t* time_b);
 
 // Returns 1 of file exists, otherwise returns 0.
-int cf_file_exists(const char* path);
+int cf_file_exists(const wchar_t* path);
 
 // Returns 1 if the file's extension matches the string in ext
 // Returns 0 otherwise
-int cf_match_ext(cf_file_t* file, const char* ext);
+int cf_match_ext(cf_file_t* file, const wchar_t* ext);
 
 // Prints detected errors to stdout
 void cf_do_unit_tests();
@@ -135,9 +135,10 @@ void cf_do_unit_tests();
 
 	struct cf_file_t
 	{
-		char path[CUTE_FILES_MAX_PATH];
-		char name[CUTE_FILES_MAX_FILENAME];
-		char ext[CUTE_FILES_MAX_EXT];
+		wchar_t path[CUTE_FILES_MAX_PATH];
+		wchar_t name[CUTE_FILES_MAX_FILENAME];
+		char 	name_utf8[CUTE_FILES_MAX_FILENAME];
+		wchar_t ext[CUTE_FILES_MAX_EXT];
 		int is_dir;
 		int is_reg;
 		size_t size;
@@ -145,10 +146,10 @@ void cf_do_unit_tests();
 
 	struct cf_dir_t
 	{
-		char path[CUTE_FILES_MAX_PATH];
+		wchar_t path[CUTE_FILES_MAX_PATH];
 		int has_next;
 		HANDLE handle;
-		WIN32_FIND_DATAA fdata;
+		WIN32_FIND_DATAW fdata;
 	};
 
 	struct cf_time_t
@@ -165,9 +166,9 @@ void cf_do_unit_tests();
 
 	struct cf_file_t
 	{
-		char path[CUTE_FILES_MAX_PATH];
-		char name[CUTE_FILES_MAX_FILENAME];
-		char ext[CUTE_FILES_MAX_EXT];
+		wchar_t path[CUTE_FILES_MAX_PATH];
+		wchar_t name[CUTE_FILES_MAX_FILENAME];
+		wchar_t ext[CUTE_FILES_MAX_EXT];
 		int is_dir;
 		int is_reg;
 		int size;
@@ -176,7 +177,7 @@ void cf_do_unit_tests();
 
 	struct cf_dir_t
 	{
-		char path[CUTE_FILES_MAX_PATH];
+		wchar_t path[CUTE_FILES_MAX_PATH];
 		int has_next;
 		DIR* dir;
 		struct dirent* entry;
@@ -196,18 +197,22 @@ void cf_do_unit_tests();
 #ifndef CUTE_FILES_IMPLEMENTATION_ONCE
 #define CUTE_FILES_IMPLEMENTATION_ONCE
 
-#define cf_safe_strcpy(dst, src, n, max) cf_safe_strcpy_internal(dst, src, n, max, __FILE__, __LINE__)
-static int cf_safe_strcpy_internal(char* dst, const char* src, int n, int max, const char* file, int line)
+#define WIDE2(x) L##x
+#define WIDE1(x) WIDE2(x)
+#define WFILE WIDE1(__FILE__)
+
+#define cf_safe_strcpy(dst, src, n, max) cf_safe_strcpy_internal(dst, src, n, max, WFILE, __LINE__)
+static int cf_safe_strcpy_internal(wchar_t* dst, const wchar_t* src, int n, int max, const wchar_t* file, int line)
 {
 	int c;
-	const char* original = src;
+	const wchar_t* original = src;
 
 	do
 	{
 		if (n >= max)
 		{
 			if (!CUTE_FILES_DEBUG_CHECKS) break;
-			printf("ERROR: String \"%s\" too long to copy on line %d in file %s (max length of %d).\n"
+			printf("ERROR: String \"%ws\" too long to copy on line %d in file %ws (max length of %d).\n"
 				, original
 				, line
 				, file
@@ -223,17 +228,17 @@ static int cf_safe_strcpy_internal(char* dst, const char* src, int n, int max, c
 	return n;
 }
 
-const char* cf_get_ext(cf_file_t* file)
+const wchar_t* cf_get_ext(cf_file_t* file)
 {
-	char* name = file->name;
-	char* period = NULL;
+	wchar_t* name = file->name;
+	wchar_t* period = NULL;
 	while (*name++) if (*name == '.') period = name;
 	if (period) cf_safe_strcpy(file->ext, period, 0, CUTE_FILES_MAX_EXT);
 	else file->ext[0] = 0;
 	return file->ext;
 }
 
-void cf_traverse(const char* path, cf_callback_t* cb, void* udata)
+void cf_traverse(const wchar_t* path, cf_callback_t* cb, void* udata)
 {
 	cf_dir_t dir;
 	cf_dir_open(&dir, path);
@@ -250,9 +255,9 @@ void cf_traverse(const char* path, cf_callback_t* cb, void* udata)
 
 		if (file.is_dir && file.name[0] != '.')
 		{
-			char path2[CUTE_FILES_MAX_PATH];
+			wchar_t path2[CUTE_FILES_MAX_PATH];
 			int n = cf_safe_strcpy(path2, path, 0, CUTE_FILES_MAX_PATH);
-			n = cf_safe_strcpy(path2, "/", n - 1, CUTE_FILES_MAX_PATH);
+			n = cf_safe_strcpy(path2, L"/", n - 1, CUTE_FILES_MAX_PATH);
 			cf_safe_strcpy(path2, file.name, n -1, CUTE_FILES_MAX_PATH);
 			cf_traverse(path2, cb, udata);
 		}
@@ -264,9 +269,9 @@ void cf_traverse(const char* path, cf_callback_t* cb, void* udata)
 	cf_dir_close(&dir);
 }
 
-int cf_match_ext(cf_file_t* file, const char* ext)
+int cf_match_ext(cf_file_t* file, const wchar_t* ext)
 {
-	return !strcmp(file->ext, ext);
+	return !wcscmp(file->ext, ext);
 }
 
 #if CUTE_FILES_PLATFORM == CUTE_FILES_WINDOWS
@@ -276,14 +281,14 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 		CUTE_FILES_ASSERT(dir->handle != INVALID_HANDLE_VALUE);
 
 		int n = 0;
-		char* fpath = file->path;
-		char* dpath = dir->path;
+		wchar_t* fpath = file->path;
+		wchar_t* dpath = dir->path;
 
 		n = cf_safe_strcpy(fpath, dpath, 0, CUTE_FILES_MAX_PATH);
-		n = cf_safe_strcpy(fpath, "/", n - 1, CUTE_FILES_MAX_PATH);
+		n = cf_safe_strcpy(fpath, L"/", n - 1, CUTE_FILES_MAX_PATH);
 
-		char* dname = dir->fdata.cFileName;
-		char* fname = file->name;
+		wchar_t* dname = dir->fdata.cFileName;
+		wchar_t* fname = file->name;
 
 		cf_safe_strcpy(fname, dname, 0, CUTE_FILES_MAX_FILENAME);
 		cf_safe_strcpy(fpath, fname, n - 1, CUTE_FILES_MAX_PATH);
@@ -303,7 +308,7 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 	{
 		CUTE_FILES_ASSERT(dir->has_next);
 
-		if (!FindNextFileA(dir->handle, &dir->fdata))
+		if (!FindNextFileW(dir->handle, &dir->fdata))
 		{
 			dir->has_next = 0;
 			DWORD err = GetLastError();
@@ -318,16 +323,16 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 		if (dir->handle != INVALID_HANDLE_VALUE) FindClose(dir->handle);
 	}
 
-	int cf_dir_open(cf_dir_t* dir, const char* path)
+	int cf_dir_open(cf_dir_t* dir, const wchar_t* path)
 	{
 		int n = cf_safe_strcpy(dir->path, path, 0, CUTE_FILES_MAX_PATH);
-		n = cf_safe_strcpy(dir->path, "\\*", n - 1, CUTE_FILES_MAX_PATH);
-		dir->handle = FindFirstFileA(dir->path, &dir->fdata);
+		n = cf_safe_strcpy(dir->path, L"\\*", n - 1, CUTE_FILES_MAX_PATH);
+		dir->handle = FindFirstFileW(dir->path, &dir->fdata);
 		dir->path[n - 3] = 0;
 
 		if (dir->handle == INVALID_HANDLE_VALUE)
 		{
-			printf("ERROR: Failed to open directory (%s): %s.\n", path, strerror(errno));
+			printf("ERROR: Failed to open directory (%ws): %s.\n", path, strerror(errno));
 			cf_dir_close(dir);
 			CUTE_FILES_ASSERT(0);
 			return 0;
@@ -338,23 +343,23 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 		return 1;
 	}
 
-	int cf_compare_file_times_by_path(const char* path_a, const char* path_b)
+	int cf_compare_file_times_by_path(const wchar_t* path_a, const wchar_t* path_b)
 	{
 		FILETIME time_a = { 0 };
 		FILETIME time_b = { 0 };
 		WIN32_FILE_ATTRIBUTE_DATA data;
 
-		if (GetFileAttributesExA(path_a, GetFileExInfoStandard, &data)) time_a = data.ftLastWriteTime;
-		if (GetFileAttributesExA(path_b, GetFileExInfoStandard, &data)) time_b = data.ftLastWriteTime;
+		if (GetFileAttributesExW(path_a, GetFileExInfoStandard, &data)) time_a = data.ftLastWriteTime;
+		if (GetFileAttributesExW(path_b, GetFileExInfoStandard, &data)) time_b = data.ftLastWriteTime;
 		return CompareFileTime(&time_a, &time_b);
 	}
 
-	int cf_get_file_time(const char* path, cf_time_t* time)
+	int cf_get_file_time(const wchar_t* path, cf_time_t* time)
 	{
 		FILETIME initialized_to_zero = { 0 };
 		time->time = initialized_to_zero;
 		WIN32_FILE_ATTRIBUTE_DATA data;
-		if (GetFileAttributesExA(path, GetFileExInfoStandard, &data))
+		if (GetFileAttributesExW(path, GetFileExInfoStandard, &data))
 		{
 			time->time = data.ftLastWriteTime;
 			return 1;
@@ -367,10 +372,10 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 		return CompareFileTime(&time_a->time, &time_b->time);
 	}
 
-	int cf_file_exists(const char* path)
+	int cf_file_exists(const wchar_t* path)
 	{
 		WIN32_FILE_ATTRIBUTE_DATA unused;
-		return GetFileAttributesExA(path, GetFileExInfoStandard, &unused);
+		return GetFileAttributesExW(path, GetFileExInfoStandard, &unused);
 	}
 
 #elif CUTE_FILES_PLATFORM == CUTE_FILES_MAC || CUTE_FILES_PLATFORM == CUTE_FILES_UNIX
@@ -380,14 +385,14 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 		CUTE_FILES_ASSERT(dir->entry);
 
 		int n = 0;
-		char* fpath = file->path;
-		char* dpath = dir->path;
+		wchar_t* fpath = file->path;
+		wchar_t* dpath = dir->path;
 
 		n = cf_safe_strcpy(fpath, dpath, 0, CUTE_FILES_MAX_PATH);
 		n = cf_safe_strcpy(fpath, "/", n - 1, CUTE_FILES_MAX_PATH);
 
-		char* dname = dir->entry->d_name;
-		char* fname = file->name;
+		wchar_t* dname = dir->entry->d_name;
+		wchar_t* fname = file->name;
 
 		cf_safe_strcpy(fname, dname, 0, CUTE_FILES_MAX_FILENAME);
 		cf_safe_strcpy(fpath, fname, n - 1, CUTE_FILES_MAX_PATH);
@@ -420,14 +425,14 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 		dir->entry = 0;
 	}
 
-	int cf_dir_open(cf_dir_t* dir, const char* path)
+	int cf_dir_open(cf_dir_t* dir, const wchar_t* path)
 	{
 		cf_safe_strcpy(dir->path, path, 0, CUTE_FILES_MAX_PATH);
 		dir->dir = opendir(path);
 
 		if (!dir->dir)
 		{
-			printf("ERROR: Failed to open directory (%s): %s.\n", path, strerror(errno));
+			printf("ERROR: Failed to open directory (%ws): %ws.\n", path, strerror(errno));
 			cf_dir_close(dir);
 			CUTE_FILES_ASSERT(0);
 			return 0;
@@ -441,7 +446,7 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 	}
 
 	// Warning : untested code! (let me know if it breaks)
-	int cf_compare_file_times_by_path(const char* path_a, const char* path_b)
+	int cf_compare_file_times_by_path(const wchar_t* path_a, const wchar_t* path_b)
 	{
 		time_t time_a;
 		time_t time_b;
@@ -454,7 +459,7 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 	}
 
 	// Warning : untested code! (let me know if it breaks)
-	int cf_get_file_time(const char* path, cf_time_t* time)
+	int cf_get_file_time(const wchar_t* path, cf_time_t* time)
 	{
 		struct stat info;
 		if (stat(path, &info)) return 0;
@@ -469,7 +474,7 @@ int cf_match_ext(cf_file_t* file, const char* ext)
 	}
 
 	// Warning : untested code! (let me know if it breaks)
-	int cf_file_exists(const char* path)
+	int cf_file_exists(const wchar_t* path)
 	{
 		return access(path, F_OK) != -1;
 	}

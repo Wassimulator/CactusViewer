@@ -2,6 +2,7 @@
 #include "main.h"
 #include "structs.cpp"
 #include "events.cpp"
+#include "font.cpp"
 
 
 // Creates a hover help marker to the ImGui item before it, set by a certain delay
@@ -276,7 +277,19 @@ static uint32_t GetTicks()
     QueryPerformanceCounter(&result);
     return 1000 * result.QuadPart / frequency.QuadPart;
 }
-
+const ImWchar glyphranges[] = { 0x20, 0xFFFF, 0 }; 
+ImFont *FONT;
+DWORD WINAPI FontLoadThread(LPVOID lpParam)
+{
+    G->unicode_font_loaded = false;
+    ImGuiIO &io = ImGui::GetIO();
+    ImFontConfig config;
+    config.GlyphRanges = glyphranges;
+    FONT = io.Fonts->AddFontFromMemoryCompressedTTF(juliamono_compressed_data, juliamono_compressed_size, 13, &config, glyphranges);
+    io.Fonts->Build();
+    G->unicode_font_loaded = true;
+    return 0;
+}
 static void CenterWindow()
 {
     v2 DisplaySize = v2(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
@@ -404,6 +417,8 @@ static void Main_Init()
     style.FrameBorderSize = 1;
     style.WindowRounding = 10;
 
+    CreateThread(NULL, 0, FontLoadThread, NULL, 0, NULL);
+
     LoadSettings();
 }
 
@@ -415,7 +430,7 @@ static void PushError(char *string)
 };
 struct loaderthreadinputs
 {
-    char *File;
+    wchar_t *File;
     uint ID;
     int Type;
     bool dropped;
@@ -438,12 +453,15 @@ static void SetToNoFile()
     G->signals.update_truescale = true;
 }
 
-static int Load_Image(char *File, uint ID, bool dropped)
+static int Load_Image(wchar_t *File, uint ID, bool dropped)
 {
     int w, h, n;
     int result = 0;
     G->Files[ID].loading = true;
-    unsigned char *data = stbi_load(File, &w, &h, &n, 4);
+    int size = stbi_convert_wchar_to_utf8(0, 0, File);
+	char *filename_utf8 = (char *)malloc(size);
+	stbi_convert_wchar_to_utf8(filename_utf8, size, File);
+    unsigned char *data = stbi_load(filename_utf8, &w, &h, &n, 4);
     G->Files[ID].loading = false;
     if (data == nullptr)
     {
@@ -509,7 +527,7 @@ static void UnLoad_GIF()
     G->GIF_FrameDelays = nullptr;
 }
 
-static int Load_GIF(char *File, uint ID, bool dropped)
+static int Load_GIF(wchar_t *File, uint ID, bool dropped)
 {
     int w, h;
     int frames;
@@ -720,54 +738,50 @@ DWORD WINAPI LoaderThread(LPVOID lpParam)
     }
     return 0;
 }
-static void BeginLoad(char *File)
+
+static bool CheckValidExtention(wchar_t *EXT)
 {
-    G->loaded = false;
-    loaderthreadinputs Inputs = {File, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
-    CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
-}
-static bool CheckValidExtention(char *EXT)
-{
-    const int length = strlen(EXT);
-    char *ext = (char *)malloc(length + 1);
+    const int length = wcslen(EXT);
+    wchar_t *ext = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
     ext[0] = '.';
     for (int i = 1; i < length + 1; i++)
         ext[i] = tolower(EXT[i]);
 
     bool result = false;
-    if (strcmp(ext, ".png") == 0)
+    if      (wcscmp(ext, L".png") == 0)
         result = true;
-    else if (strcmp(ext, ".jpg") == 0)
+    else if (wcscmp(ext, L".jpg") == 0)
         result = true;
-    else if (strcmp(ext, ".gif") == 0)
+    else if (wcscmp(ext, L".gif") == 0)
         result = true;
-    else if (strcmp(ext, ".jpeg") == 0)
+    else if (wcscmp(ext, L".jpeg") == 0)
         result = true;
-    else if (strcmp(ext, ".bmp") == 0)
+    else if (wcscmp(ext, L".bmp") == 0)
         result = true;
 
     free(ext);
     return result;
 }
 #define TYPE_GIF 1
-static int CheckOddExtention(char *EXT)
+static int CheckOddExtention(wchar_t *EXT)
 {
-    const int length = strlen(EXT);
-    char *ext = (char *)malloc(length + 1);
+    const int length = wcslen(EXT);
+    wchar_t *ext = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
     ext[0] = '.';
     for (int i = 1; i < length + 1; i++)
         ext[i] = tolower(EXT[i]);
 
     int result = 0;
-    if (strcmp(ext, ".gif") == 0)
+
+    if (wcscmp(ext, L".gif") == 0)
         result = TYPE_GIF;
 
     free(ext);
     return result;
 }
-static void removechar(char *str, char ch)
+static void removechar(wchar_t *str, wchar_t ch)
 {
-    int len = strlen(str);
+    int len = wcslen(str);
 
     for (int i = 0; i < len; i++)
     {
@@ -783,16 +797,16 @@ static void removechar(char *str, char ch)
     }
 }
 
-bool isValidWindowsPath(char* path) 
+bool isValidWindowsPath(wchar_t* path) 
 {
     bool isValid = false;
     
-    if (PathFileExistsA(path)) {
-        if (PathIsRelativeA(path) == FALSE) {
-            char drive[3];
-            strncpy(drive, path, 2);
+    if (PathFileExistsW(path)) {
+        if (PathIsRelativeW(path) == FALSE) {
+            wchar_t drive[3];
+            wcsncpy(drive, path, 2);
             drive[2] = '\0';
-            UINT driveType = GetDriveTypeA(drive);
+            UINT driveType = GetDriveTypeW(drive);
             if (driveType == DRIVE_FIXED || driveType == DRIVE_CDROM || driveType == DRIVE_RAMDISK ||
                 driveType == DRIVE_REMOTE || driveType == DRIVE_REMOVABLE) {
                 isValid = true;
@@ -861,7 +875,7 @@ static void sortfolder()
 {
     for (int i =0; i < G->Files.Count; i++)
         for (int j =0; j < itemsInFolder; j++)
-            if (strcmp(G->Files[i].file.path, filesInFolder[j].path) == 0)
+            if (wcscmp(G->Files[i].file.path, filesInFolder[j].wpath) == 0)
             {
                 G->Files[i].index = j;
                 break;
@@ -872,7 +886,7 @@ static void sortfolder()
 struct FolderSortThread_data
 {
     wchar_t *path;
-    char *FileName;
+    wchar_t *FileName;
 };
 
 DWORD WINAPI FolderSortThread(LPVOID lpParam)
@@ -883,7 +897,7 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
     FolderSortThread_data *Data = (FolderSortThread_data *)lpParam;
 
     wchar_t *filePath = Data->path;
-    char *FileName = Data->FileName;
+    wchar_t *FileName = Data->FileName;
 	wchar_t pathBuffer[MAX_PATH + 4];
     static int indexInFolder;
 
@@ -976,7 +990,7 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
 
         for (int i = 0; i < G->Files.Count; i++)
         {
-            if (strcmp(FileName, G->Files[i].file.name) == 0)
+            if (wcscmp(FileName, G->Files[i].file.name) == 0)
             {
                 G->CurrentFileIndex = i;
             }
@@ -994,16 +1008,16 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
 
 FolderSortThread_data SortData;
 
-static void ScanFolder(char *Path)
+static void ScanFolder(wchar_t *Path)
 {
     if (Path == nullptr || !isValidWindowsPath(Path))
     {
         G->Files.reset_count();
         return;
     }
-    int len = strlen(Path);
-    char *BasePath = nullptr;
-    char *FileName = nullptr;
+    int len = wcslen(Path);
+    wchar_t *BasePath = nullptr;
+    wchar_t *FileName = nullptr;
     int newlen = len;
 
     removechar(Path, '/"');
@@ -1017,10 +1031,10 @@ static void ScanFolder(char *Path)
         }
     }
 
-    BasePath = (char *)malloc(newlen + 1);
-    FileName = (char *)malloc(len - newlen + 1);
-    memcpy(FileName, &Path[newlen], len - newlen);
-    memcpy(BasePath, Path, newlen);
+    BasePath = (wchar_t *)malloc((newlen + 1      ) * sizeof(wchar_t));
+    FileName = (wchar_t *)malloc((len - newlen + 1) * sizeof(wchar_t));
+    memcpy(FileName, &Path[newlen], (len - newlen) * sizeof(wchar_t));
+    memcpy(BasePath, Path, newlen * sizeof(wchar_t));
     BasePath[newlen] = '\0';
     FileName[len - newlen] = '\0';
 
@@ -1053,23 +1067,25 @@ static void ScanFolder(char *Path)
 
         cf_file_t *file = &G->Files.back().file;
         *file = file_0;
+	    stbi_convert_wchar_to_utf8(file->name_utf8, 1024, file->name);
 
-        printf("%s\n", file->name);
+        //printf("%ws\n", file->name);
         cf_dir_next(&dir);
     }
     cf_dir_close(&dir);
 
     if (!G->sorting && G->settings_Sort)
     {   
-        SortData.FileName = (char*)malloc(strlen(FileName) + 1);
-        memcpy(SortData.FileName, FileName, strlen(FileName) + 1);
-        SortData.path = GetWC(Path);
+        SortData.FileName = (wchar_t*)malloc((wcslen(FileName) + 1) * sizeof(wchar_t));
+        memcpy(SortData.FileName, FileName,  (wcslen(FileName) + 1) * sizeof(wchar_t));
+        SortData.path =     (wchar_t*)malloc((wcslen(Path) + 1)     * sizeof(wchar_t));
+        memcpy(SortData.path, Path,          (wcslen(Path) + 1)     * sizeof(wchar_t));
         CreateThread(NULL, 0, FolderSortThread, (LPVOID)&SortData, 0, NULL);
     }
 
     for (int i = 0; i < G->Files.Count; i++)
     {
-        if (strcmp(FileName, G->Files[i].file.name) == 0)
+        if (wcscmp(FileName, G->Files[i].file.name) == 0)
         {
             G->CurrentFileIndex = i;
         }
@@ -1132,8 +1148,8 @@ void BasicFileOpen()
                     if (!G->Loading_Droppedfile)
                     {
                         int l = wcslen(pszFilePath);
-                        TempPath = (char *)malloc(l + 1);
-                        wcstombs(TempPath, pszFilePath, l);
+                        TempPath = (wchar_t *)malloc((l + 1) * sizeof(wchar_t));
+                        memcpy(TempPath, pszFilePath, (l + 1) * sizeof(wchar_t));
                         TempPath[l] = 0;
                     }
                     G->Droppedfile = true;
@@ -1166,6 +1182,7 @@ static void UpdateGUI()
     style.FrameRounding = style.GrabRounding = 0;
     style.FrameBorderSize = 1;
     style.WindowRounding = 0;
+    
     if (G->Error.timer > 0)
     {
         ImGui::Begin("Status", NULL, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
@@ -1180,7 +1197,14 @@ static void UpdateGUI()
         {
             ImGui::Begin("Status", NULL, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
             {
-                ImGui::Text("%i / %i | %s -", G->CurrentFileIndex + 1, G->Files.Count, G->Files[G->CurrentFileIndex].file.name);
+
+                ImGui::Text("%i / %i | ", G->CurrentFileIndex + 1, G->Files.Count, G->Files[G->CurrentFileIndex].file.name_utf8);
+                if (G->unicode_font_loaded)
+                {
+                    ImGui::PushFont(FONT);
+                    ImGui::SameLine(); ImGui::Text(u8"%s -", G->Files[G->CurrentFileIndex].file.name_utf8);
+                    ImGui::PopFont();
+                }
                 ImGui::SameLine();
                 if (G->Files[G->CurrentFileIndex].type == TYPE_GIF)
                     ImGui::Text("%d x %d - frames: %i -", G->Graphics.MainImage.w, G->Graphics.MainImage.h, G->GIF_frames);
@@ -1548,6 +1572,8 @@ static void UpdateGUI()
 
 static void UpdateLogic()
 {
+    ImGuiIO &io = ImGui::GetIO();
+
     if (G->Error.timer > 0)
         G->Error.timer++;
     if (G->Error.timer == 50)
@@ -1562,7 +1588,6 @@ static void UpdateLogic()
     {
         G->pixelgrid = !G->pixelgrid;
     }
-    ImGuiIO &io = ImGui::GetIO();
 
     if (keypress(MouseL) && !io.WantCaptureMouse)
     {
@@ -1793,6 +1818,7 @@ static void Render()
     }
 
     ImGui::Render();
+    G->imgui_in_frame = false;
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SwapBuffers(hdc);
 }
