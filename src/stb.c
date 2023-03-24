@@ -20,7 +20,7 @@ extern "C" {
 
 static unsigned char *stbi_xload(stbi__context *s, int *x, int *y, int *frames, int **delays);
 static unsigned char *stbi_xload_mem(unsigned char *buffer, int len, int *x, int *y, int *frames, int **delays);
-static unsigned char *stbi_xload_file(char const *filename, int *x, int *y, int *frames, int **delays);
+static unsigned char *stbi_xload_file(wchar_t const *filename, int *x, int *y, int *frames, int **delays);
 
 static unsigned char *stbi_xload_mem(unsigned char *buffer, int len, int *x, int *y, int *frames, int **delays)
 {
@@ -29,18 +29,22 @@ static unsigned char *stbi_xload_mem(unsigned char *buffer, int len, int *x, int
 	return stbi_xload(&s, x, y, frames, delays);
 }
 
-static unsigned char *stbi_xload_file(char const *filename, int *x, int *y, int *frames, int **delays)
+static unsigned char *stbi_xload_file(wchar_t const *filename, int *x, int *y, int *frames, int **delays)
 {
 	FILE *f;
 	stbi__context s;
 	unsigned char *result = 0;
+	int size = stbi_convert_wchar_to_utf8(0, 0, filename);
+	char *filename_utf8 = (char *)malloc(size);
+	stbi_convert_wchar_to_utf8(filename_utf8, size, filename);
 
-	if (!(f = stbi__fopen(filename, "rb")))
+	if (!(f = stbi__fopen(filename_utf8, "rb")))
 		return stbi__errpuc("can't fopen", "Unable to open file");
 
 	stbi__start_file(&s, f);
 	result = stbi_xload(&s, x, y, frames, delays);
 	fclose(f);
+	free(filename_utf8);
 
 	return result;
 }

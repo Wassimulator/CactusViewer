@@ -233,6 +233,7 @@ struct global
     uint CurrentFileIndex;
     CRITICAL_SECTION Mutex;
     CRITICAL_SECTION SortMutex;
+    CRITICAL_SECTION ImGuiMutex;
     signals signals;
     error Error;
 
@@ -240,6 +241,8 @@ struct global
     bool loaded = false;
     bool sorting = false;
     bool settings_applied = false;
+    bool unicode_font_loaded = false;
+    bool imgui_in_frame = false;
     float scale = 1;
     float truescale = 1;
     float req_truescale = 1;
