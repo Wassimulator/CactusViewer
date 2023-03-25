@@ -67,15 +67,6 @@ char *FragmentCode = R"###(
             layout(location = 7 ) uniform vec2 Window;
             layout(location = 8 ) uniform vec4 RGBAflags;
 
-            vec4 texture2DAA(sampler2D tex, vec2 uv) {
-                vec2 texsize = vec2(textureSize(tex,0));
-                vec2 uv_texspace = uv*texsize;
-                vec2 seam = floor(uv_texspace+1.5);
-                uv_texspace = (uv_texspace-seam)/fwidth(uv_texspace)+seam;
-                uv_texspace = clamp(uv_texspace, seam-1.5, seam+1.5);
-                return texture(tex, uv_texspace/texsize);
-            }
-
             void main()
             {   
                 if (PixelGrid == 1)
@@ -92,7 +83,7 @@ char *FragmentCode = R"###(
                 }
                 else
 				{
-                    color = texture2DAA(TextureInput, UV) * vec4(RGBAflags.rgb, 1);
+                    color = texture(TextureInput, UV) * vec4(RGBAflags.rgb, 1);
                     if (RGBAflags.a == 0.0)
                         color.a = 1.0;
                 }
@@ -727,6 +718,7 @@ static void Load_Image_post()
         // SavePPM();
         free(G->Graphics.MainImage.data);
     }
+    glGenerateMipmap(GL_TEXTURE_2D);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -1802,7 +1794,7 @@ static void Render()
 
         if (G->signals.update_filtering)
         {
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, G->nearest_filtering ? GL_NEAREST : GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, G->nearest_filtering ? GL_NEAREST_MIPMAP_LINEAR  : GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, G->nearest_filtering ? GL_NEAREST : GL_LINEAR);
             G->signals.update_filtering = false;
         }
