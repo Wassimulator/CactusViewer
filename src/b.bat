@@ -7,6 +7,6 @@ set OUT=           /OUT:CactusViewer.exe
 set Libs=          /LIBPATH:..\lib shell32.lib imgui_all.obj gdi32.lib opengl32.lib glu32.lib ole32.lib /LIBPATH:..\src res.res
 
 
-cl /nologo ..\src\main.cpp  /EHsc /Zi /O2 /utf-8 /D DEBUG_MODE=1 /I ..\include  /link %OUT% /debug /subsystem:Windows %Libs%
+cl /nologo ..\src\main.cpp  /EHsc /Zi /Od /utf-8 /D DEBUG_MODE=1 /I ..\include  /link %OUT% /debug /subsystem:Windows %Libs%
 cd ..
 cd src
