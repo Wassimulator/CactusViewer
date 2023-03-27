@@ -4,6 +4,8 @@
 #include "events.cpp"
 // #include "font.cpp"
 
+#define handle_signal(signal) for(int _i_ = (signal); _i_; _i_ = 0, (signal = false))
+#define send_signal(signal) signal = true
 
 // Creates a hover help marker to the ImGui item before it, set by a certain delay
 #define HELP_MARKER_GUI(x)                 \
@@ -455,7 +457,7 @@ static void SetToNoFile()
     G->req_truescale = 4;
     G->Position.x = 0;
     G->Position.y = 0;
-    G->signals.update_truescale = true;
+    send_signal(G->signals.update_truescale);
 }
 
 static int Load_Image(wchar_t *File, uint ID, bool dropped)
@@ -473,7 +475,7 @@ static int Load_Image(wchar_t *File, uint ID, bool dropped)
         PushError("Loading the file failed");
         G->Files[G->CurrentFileIndex].failed = true;
         G->loaded = true;
-        G->signals.UpdatePass = true;
+        send_signal(G->signals.UpdatePass);
         if (dropped)
             resetToNoFolder();
         SetToNoFile();
@@ -493,7 +495,7 @@ static int Load_Image(wchar_t *File, uint ID, bool dropped)
                 G->Graphics.MainImage.h = h;
                 G->Graphics.MainImage.n = n;
                 G->Graphics.MainImage.data = data;
-                G->signals.Initstep2 = true;
+                send_signal(G->signals.Initstep2);
             }
             else
             {
@@ -559,7 +561,7 @@ static int Load_GIF(wchar_t *File, uint ID, bool dropped)
         if (ID != G->CurrentFileIndex)
             UnLoad_GIF();
         else
-            G->signals.Initstep2 = true;
+            send_signal(G->signals.Initstep2);
         result = 1;
     }
     else
@@ -647,25 +649,25 @@ static void ApplySettings()
         break;
     case 1: // Save zoom for each file
         G->req_truescale = G->Files[G->CurrentFileIndex].scale;
-        G->signals.update_truescale = true;
+        send_signal(G->signals.update_truescale);
         break;
     case 2: // Fit Width
         G->Position = v2(0, 0);
         G->req_truescale = (float)WindowWidth / G->Graphics.MainImage.w;
-        G->signals.UpdatePass = true;
-        G->signals.update_truescale = true;
+        send_signal(G->signals.UpdatePass);
+        send_signal(G->signals.update_truescale);
         break;
     case 3: // Fit Height
         G->Position = v2(0, 0);
         G->req_truescale = (float)WindowHeight / G->Graphics.MainImage.h;
-        G->signals.UpdatePass = true;
-        G->signals.update_truescale = true;
+        send_signal(G->signals.UpdatePass);
+        send_signal(G->signals.update_truescale);
         break;
     case 4: // Zoom to 1:1
         G->Position = v2(0, 0);
         G->req_truescale = 1;
-        G->signals.UpdatePass = true;
-        G->signals.update_truescale = true;
+        send_signal(G->signals.UpdatePass);
+        send_signal(G->signals.update_truescale);
         break;
     default:
         break;
@@ -684,7 +686,7 @@ static void ApplySettings()
     default:
         break;
     }
-    G->signals.setting_applied = true;
+    send_signal(G->signals.setting_applied);
 }
 
 static void Load_Image_post()
@@ -713,7 +715,6 @@ static void Load_Image_post()
 
         glGenTextures(1, &G->Graphics.MainImage.TextureID);
         glBindTexture(GL_TEXTURE_2D, G->Graphics.MainImage.TextureID);
-        glGenerateMipmap(G->Graphics.MainImage.TextureID);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, G->Graphics.MainImage.w, G->Graphics.MainImage.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, G->Graphics.MainImage.data);
         // SavePPM();
         free(G->Graphics.MainImage.data);
@@ -731,7 +732,7 @@ static void Load_Image_post()
     G->Graphics.MainImage.aspectratio = (float)frac.n1 / frac.n2;
 
     wchar_t title[512];
-    swprintf(title, L"CactusViewer - %ws", G->Files[G->CurrentFileIndex].file.name);
+    swprintf(title, L"CactusViewer %hs - %ws", VERSION, G->Files[G->CurrentFileIndex].file.name);
     SetWindowTextW(hwnd, title);
 
     ApplySettings();
@@ -1194,7 +1195,7 @@ static void UpdateGUI()
     style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.4, 0.4, 0.4, 1);
     style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.3, 0.3, 0.3, 1);
     style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.4, 0.4, 0.4, 1);
-    G->signals.update_filtering = true;
+    send_signal(G->signals.update_filtering);
     ImGui::SetNextWindowPos(ImVec2(0, WindowHeight - 30));
     ImGui::SetNextWindowSize(ImVec2(WindowWidth, 30));
     style.FrameRounding = style.GrabRounding = 0;
@@ -1389,24 +1390,24 @@ static void UpdateGUI()
         {
             G->Position = v2(0, 0);
             G->req_truescale = (float)WindowWidth / G->Graphics.MainImage.w;
-            G->signals.UpdatePass = true;
-            G->signals.update_truescale = true;
+            send_signal(G->signals.UpdatePass);
+            send_signal(G->signals.update_truescale);
         }
         HELP_MARKER_GUI("Zoom image to fit its width to the window width")
         if (ImGui::Button("fit H", ImVec2(50, 23)))
         {
             G->Position = v2(0, 0);
             G->req_truescale = (float)WindowHeight / G->Graphics.MainImage.h;
-            G->signals.UpdatePass = true;
-            G->signals.update_truescale = true;
+            send_signal(G->signals.UpdatePass);
+            send_signal(G->signals.update_truescale);
         }
         HELP_MARKER_GUI("Zoom image to fit its height to the window height")
         if (ImGui::Button("1:1", ImVec2(50, 23)))
         {
             G->Position = v2(0, 0);
             G->req_truescale = 1;
-            G->signals.UpdatePass = true;
-            G->signals.update_truescale = true;
+            send_signal(G->signals.UpdatePass);
+            send_signal(G->signals.update_truescale);
         }
         HELP_MARKER_GUI("Zoom image to 100% scale, one image pixel matching one screen pixel")
 
@@ -1419,7 +1420,7 @@ static void UpdateGUI()
         ImGui::SetCursorPos(ImVec2(22, 25));
         if (ImGui::Checkbox("##", &G->nearest_filtering))
         {
-            G->signals.update_filtering = true;
+            send_signal(G->signals.update_filtering);
         }
         HELP_MARKER_GUI("Toggle between nearest-neighbor and linear filtering")
 
@@ -1506,12 +1507,12 @@ static void UpdateGUI()
         ImGui::SetNextWindowSize(ImVec2(173, 92));
         ImGui::Begin("NextPrev", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
         if (G->sorting || !(G->CurrentFileIndex > 0)) ImGui::BeginDisabled(true);
-        if (ImGui::Button("<< Prev", ImVec2(75, 30))) G->signals.previmage = true;
+        if (ImGui::Button("<< Prev", ImVec2(75, 30))) send_signal(G->signals.previmage);
         if (G->sorting || !(G->CurrentFileIndex > 0)) ImGui::EndDisabled();
         ImGui::SameLine();
 
         if (G->sorting || !(G->CurrentFileIndex < G->Files.Count - 1)) ImGui::BeginDisabled(true);
-        if (ImGui::Button("Next >>", ImVec2(75, 30))) G->signals.nextimage = true;
+        if (ImGui::Button("Next >>", ImVec2(75, 30))) send_signal(G->signals.nextimage);
         if (G->sorting || !(G->CurrentFileIndex < G->Files.Count - 1)) ImGui::EndDisabled();
         int file = G->CurrentFileIndex;
         if (G->sorting) ImGui::BeginDisabled(true);
@@ -1599,7 +1600,7 @@ static void UpdateLogic()
 
     if (keydn(Key_F))
     {
-        G->signals.update_filtering = true;
+        send_signal(G->signals.update_filtering);
         G->nearest_filtering = !G->nearest_filtering;
     }
     if (keydn(Key_G))
@@ -1714,9 +1715,8 @@ static void UpdateLogic()
         }
         if (G->signals.update_truescale || updatescalebar)
         {
-            if (G->signals.update_truescale)
+            handle_signal(G->signals.update_truescale)
             {
-                G->signals.update_truescale = false;
                 TS = G->req_truescale;
             }
 
@@ -1744,11 +1744,10 @@ static void Render()
     {
 
         glViewport(0, 0, WindowWidth, WindowHeight);
-        if (G->signals.Initstep2)
+        handle_signal(G->signals.Initstep2)
         {
             Load_Image_post();
-            G->signals.Initstep2 = false;
-            G->signals.UpdatePass = true;
+            send_signal(G->signals.UpdatePass);
             G->loaded = true;
             if (G->Loading_Droppedfile)
             {
@@ -1788,16 +1787,17 @@ static void Render()
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            G->nearest_filtering = true;
             SetToNoFile();
+            goto jump_point;
         }
 
-        if (G->signals.update_filtering)
+        handle_signal(G->signals.update_filtering)
         {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, G->nearest_filtering ? GL_NEAREST_MIPMAP_LINEAR  : GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, G->nearest_filtering ? GL_NEAREST : GL_LINEAR);
-            G->signals.update_filtering = false;
         }
+
+        jump_point: 
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(BGcolor[0], BGcolor[1], BGcolor[2], 1);
