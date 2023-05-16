@@ -18,7 +18,7 @@ Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 - Quick toggle between nearest-neighbor and linear filtering for pixelart images.
 - Pixel grid.
 - Customizable background color with support for checkerboard with custom colors.
-- Drag and drop support for opening image files.
+- Drag and drop support for opening image files and folders.
 - Switches to turn individual RGB channels off and switch between premultiplied alpha and straight RGB.
 - Keyboard controls to pan, zoom, and flip through files and GIF controls.
 - Customizable settings to save each image's zoom and pan locations within a session, or to reset image zoom and pan upon file change.
