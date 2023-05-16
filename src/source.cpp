@@ -378,6 +378,7 @@ static void Main_Init()
 
     InitializeCriticalSection(&G->Mutex);
     InitializeCriticalSection(&G->SortMutex);
+    InitializeCriticalSection(&G->IDMutex);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -740,6 +741,7 @@ static void Load_Image_post()
 
 DWORD WINAPI LoaderThread(LPVOID lpParam)
 {
+	EnterCriticalSection(&G->IDMutex);
     loaderthreadinputs *Inputs = (loaderthreadinputs *)lpParam;
     if (!G->Files[Inputs->ID].loading)
     {
@@ -748,6 +750,7 @@ DWORD WINAPI LoaderThread(LPVOID lpParam)
         else
             Load_Image(Inputs->File, Inputs->ID, Inputs->dropped);
     }
+	LeaveCriticalSection(&G->IDMutex);
     return 0;
 }
 
@@ -1004,8 +1007,10 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
         {
             if (wcscmp(FileName, G->Files[i].file.name) == 0)
             {
+				EnterCriticalSection(&G->IDMutex);
                 G->CurrentFileIndex = i;
-            }
+				LeaveCriticalSection(&G->IDMutex);
+			}
             G->Files[i].loading = false;
             G->Files[i].failed = false;
         }
@@ -1020,35 +1025,50 @@ DWORD WINAPI FolderSortThread(LPVOID lpParam)
 
 FolderSortThread_data SortData;
 
-static void ScanFolder(wchar_t *Path)
+static bool ScanFolder(wchar_t *Path)
 {
-    if (Path == nullptr || !isValidWindowsPath(Path))
+    bool is_dir = false;
+    if (Path == nullptr)
     {
         G->Files.reset_count();
-        return;
+        return is_dir;
     }
     int len = wcslen(Path);
     wchar_t *BasePath = nullptr;
     wchar_t *FileName = nullptr;
     int newlen = len;
 
-    removechar(Path, '/"');
+	if (PathIsDirectoryW(Path)) {
+		BasePath = (wchar_t*)malloc((len + 2) * sizeof(wchar_t));
+		memcpy(BasePath, Path, (len + 1) * sizeof(wchar_t));
+        BasePath[len] = '\\';
+        BasePath[len + 1] = 0;
+        FileName = (wchar_t*)malloc(8 * sizeof(wchar_t));
+        swprintf(FileName, L"none");
+        is_dir = true;
+	} else {
+		removechar(Path, '/"');
 
-    for (int i = len - 1; i > 0; i--)
-    {
-        if (Path[i] == '/' || Path[i] == '\\')
-        {
-            newlen = i + 1;
-            break;
-        }
+		for (int i = len - 1; i > 0; i--)
+		{
+			if (Path[i] == '/' || Path[i] == '\\')
+			{
+				newlen = i + 1;
+				break;
+			}
+		}
+
+		BasePath = (wchar_t *)malloc((newlen + 1) * sizeof(wchar_t));
+		FileName = (wchar_t *)malloc((len - newlen + 1) * sizeof(wchar_t));
+		memcpy(FileName, &Path[newlen], (len - newlen) * sizeof(wchar_t));
+		memcpy(BasePath, Path, newlen * sizeof(wchar_t));
+		BasePath[newlen] = '\0';
+		FileName[len - newlen] = '\0';
+	}
+    if (!isValidWindowsPath(BasePath)) {
+        G->Files.reset_count();
+        return is_dir;
     }
-
-    BasePath = (wchar_t *)malloc((newlen + 1      ) * sizeof(wchar_t));
-    FileName = (wchar_t *)malloc((len - newlen + 1) * sizeof(wchar_t));
-    memcpy(FileName, &Path[newlen], (len - newlen) * sizeof(wchar_t));
-    memcpy(BasePath, Path, newlen * sizeof(wchar_t));
-    BasePath[newlen] = '\0';
-    FileName[len - newlen] = '\0';
 
     cf_dir_t dir;
     cf_dir_open(&dir, BasePath);
@@ -1094,18 +1114,27 @@ static void ScanFolder(wchar_t *Path)
         memcpy(SortData.path, Path,          (wcslen(Path) + 1)     * sizeof(wchar_t));
         CreateThread(NULL, 0, FolderSortThread, (LPVOID)&SortData, 0, NULL);
     }
-
-    for (int i = 0; i < G->Files.Count; i++)
-    {
-        if (wcscmp(FileName, G->Files[i].file.name) == 0)
-        {
-            G->CurrentFileIndex = i;
-        }
-        G->Files[i].loading = false;
-        G->Files[i].failed = false;
-    }
+    G->CurrentFileIndex = 0;
+//    bool found = 0;
+//
+//    for (int i = 0; i < G->Files.Count; i++)
+//    {
+//        if (wcscmp(FileName, G->Files[i].file.name) == 0)
+//        {
+//            G->CurrentFileIndex = i;
+//            found = true;
+//        }
+//        G->Files[i].loading = false;
+//        G->Files[i].failed = false;
+//    }
+//    if (!found && is_dir) {
+//        G->loaded = false;
+//        loaderthreadinputs Inputs = { G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false };
+//        CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
+//    }
     free(BasePath);    
     free(FileName);    
+    return is_dir;
 }
 
 unsigned long createRGB(int r, int g, int b)
@@ -1785,8 +1814,8 @@ static void Render()
         {
             glBindTexture(GL_TEXTURE_2D, G->Graphics.LogoTextureID);
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             SetToNoFile();
             goto jump_point;
         }

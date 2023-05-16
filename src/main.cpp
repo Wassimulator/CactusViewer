@@ -13,12 +13,13 @@ int wmain(int argc, wchar_t **argv)
 #else
     APPDATA_FOLDER = "./";
 #endif
+	loaderthreadinputs Inputs;
 
     Main_Init();
     ScanFolder(argv[1]);
     if (argc > 1)
     {
-        loaderthreadinputs Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
+        Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
         CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
     }
 
@@ -33,9 +34,11 @@ int wmain(int argc, wchar_t **argv)
         if (G->Droppedfile)
         {
             G->Loading_Droppedfile = true;
-            ScanFolder(TempPath);
+            bool is_dir = ScanFolder(TempPath);
             G->loaded = false;
-            loaderthreadinputs Inputs = {TempPath, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, true};
+            Inputs = {TempPath, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, true};
+            if (is_dir)
+                Inputs.File = G->Files[0].file.path;
             CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
             G->Droppedfile = false;
         }
@@ -62,7 +65,7 @@ int wmain(int argc, wchar_t **argv)
                 {
                     G->CurrentFileIndex++;
                     G->loaded = false;
-                    loaderthreadinputs Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
+                    Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
                     CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
                 }
             }
@@ -74,7 +77,7 @@ int wmain(int argc, wchar_t **argv)
                 {
                     G->CurrentFileIndex--;
                     G->loaded = false;
-                    loaderthreadinputs Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
+                    Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
                     CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
                 }
             }

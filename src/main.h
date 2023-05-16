@@ -38,7 +38,7 @@
 
 #define _MAX_FPS 250;
 
-#define VERSION_N "1.2.1"
+#define VERSION_N "1.2.2"
 #define VERSION   VERSION_N" - 03/2023"
 
 typedef unsigned int uint;

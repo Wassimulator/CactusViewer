@@ -231,6 +231,7 @@ struct global
     keys Keys;
     dynarray <file_data> Files;
     uint CurrentFileIndex;
+    CRITICAL_SECTION IDMutex;
     CRITICAL_SECTION Mutex;
     CRITICAL_SECTION SortMutex;
     CRITICAL_SECTION ImGuiMutex;
