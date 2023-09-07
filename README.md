@@ -33,8 +33,9 @@ Supported file extensions: **PNG, JPG, JPEG, BMP, GIF**
 ## Building:
 ### Windows:
 using an MSVC developer terminal:
-- run `bgui.bat` to compile ImGui to `imgui_all.obj`
-- run `b.bat` to build the project, output in `\bin`
+- run `mkdir bin` in the root folder to create the `bin` folder.
+- run `bgui.bat` to compile ImGui to `imgui_all.obj`.
+- run `b.bat` to build the project, output in `\bin`.
 
 ## Remarks:
 - Update 1.2.0 ditches SDL and includes Windows platform code, the whole viewer is now one file.
