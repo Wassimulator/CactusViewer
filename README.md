@@ -1,11 +1,11 @@
 ![logo-export](https://user-images.githubusercontent.com/75145262/200181192-35c8ea4d-e864-4ac7-89d0-8deda4901699.png)
 # Cactus Image Viewer
 #### by Wassim Alhajomar (@wassimulator)
-A single-file handmade image viewer for Windows, written in C/C++.
-
+A single-file handmade image viewer for Windows, written in C/C++.       
 ### Watch it in action:
 [![CactusViewer in action](https://github.com/Wassimulator/CactusViewer/assets/75145262/9279bef8-5f5f-42fd-9bcc-34605fd3e60f)](https://youtu.be/OlJ1ycqpDII)
 -----
+[Consider donating if you like this project](https://www.paypal.com/donate/?hosted_button_id=NYKGNB8VZG84Y)
 #### Used libraries:
 Homemade immediate mode UI, a custom D3D11 renderer, [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec), [stb_image](https://github.com/nothings/stb) and [libwebp](https://chromium.googlesource.com/webm/libwebp) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, [FreeType](https://freetype.org/) for font loading, and [easyexif](https://github.com/mayanklahiri/easyexif) for fetching image metadata.             
 #### Supported codecs: 
