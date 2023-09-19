@@ -2,6 +2,10 @@
 # Cactus Image Viewer
 #### by Wassim Alhajomar (@wassimulator)
 A single-file handmade image viewer for Windows, written in C/C++.
+
+### Watch it in action:
+[![CactusViewer in action](https://github.com/Wassimulator/CactusViewer/assets/75145262/9279bef8-5f5f-42fd-9bcc-34605fd3e60f)](https://youtu.be/OlJ1ycqpDII)
+-----
 #### Used libraries:
 Homemade immediate mode UI, a custom D3D11 renderer, [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec), [stb_image](https://github.com/nothings/stb) and [libwebp](https://chromium.googlesource.com/webm/libwebp) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, [FreeType](https://freetype.org/) for font loading, and [easyexif](https://github.com/mayanklahiri/easyexif) for fetching image metadata.             
 #### Supported codecs: 
@@ -28,6 +32,7 @@ It also supports installed codecs for WIC, check Microsoft Store to get codecs l
 - Animated GIF and WebP support with play/pause and seek controls.
 - Quick toggle between nearest-neighbor and linear filtering for pixelart images.
 - Pixel grid.
+- 3 UI themes.
 - Customizable background color with support for checkerboard with custom colors.
 - Drag and drop support for opening image files and folders.
 - Switches to turn individual RGB channels off and switch between premultiplied alpha and straight RGB.
