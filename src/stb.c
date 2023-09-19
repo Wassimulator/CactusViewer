@@ -10,6 +10,9 @@
 #define STBI_ONLY_BMP
 #define STBI_ONLY_GIF
 
+#include <easyexif/exif.h>
+#include <easyexif/exif.cpp>
+
 #include <stb_image.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>

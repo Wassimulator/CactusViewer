@@ -1228,7 +1228,7 @@ static void stbtt__cff_skip_operand(stbtt__buf *b) {
    }
 }
 
-static stbtt__buf stbtt__dict_get(stbtt__buf *b, int key)
+static stbtt__buf stbtt__dict_get(stbtt__buf *b, int Key_Data)
 {
    stbtt__buf_seek(b, 0);
    while (b->cursor < b->size) {
@@ -1238,15 +1238,15 @@ static stbtt__buf stbtt__dict_get(stbtt__buf *b, int key)
       end = b->cursor;
       op = stbtt__buf_get8(b);
       if (op == 12)  op = stbtt__buf_get8(b) | 0x100;
-      if (op == key) return stbtt__buf_range(b, start, end-start);
+      if (op == Key_Data) return stbtt__buf_range(b, start, end-start);
    }
    return stbtt__buf_range(b, 0, 0);
 }
 
-static void stbtt__dict_get_ints(stbtt__buf *b, int key, int outcount, stbtt_uint32 *out)
+static void stbtt__dict_get_ints(stbtt__buf *b, int Key_Data, int outcount, stbtt_uint32 *out)
 {
    int i;
-   stbtt__buf operands = stbtt__dict_get(b, key);
+   stbtt__buf operands = stbtt__dict_get(b, Key_Data);
    for (i = 0; i < outcount && operands.cursor < operands.size; i++)
       out[i] = stbtt__cff_int(&operands);
 }
@@ -3643,7 +3643,7 @@ static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, 
       float x=0,y=0;
       if (pass == 1) {
          points = (stbtt__point *) STBTT_malloc(num_points * sizeof(points[0]), userdata);
-         if (points == NULL) goto error;
+         if (points == NULL) goto Error;
       }
       num_points = 0;
       n= -1;
@@ -3684,7 +3684,7 @@ static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, 
    }
 
    return points;
-error:
+Error:
    STBTT_free(points, userdata);
    STBTT_free(*contour_lengths, userdata);
    *contour_lengths = 0;

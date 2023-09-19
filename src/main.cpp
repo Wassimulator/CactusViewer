@@ -1,8 +1,7 @@
 #include "main.h"
 #include "source.cpp"
 
-int wmain(int argc, wchar_t **argv)
-{
+int wmain(int argc, wchar_t **argv) {
 
 #ifdef _WIN32
 #include <fileapi.h>
@@ -13,83 +12,75 @@ int wmain(int argc, wchar_t **argv)
 #else
     APPDATA_FOLDER = "./";
 #endif
-	loaderthreadinputs Inputs;
+	Loader_Thread_Inputs inputs;
 
-    Main_Init();
-    ScanFolder(argv[1]);
-    if (argc > 1)
-    {
-        Inputs = {argv[1], G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type};
-        CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
+    init_all();
+    scan_folder(argv[1]);
+    if (argc > 1) {
+		inputs = {argv[1], G->current_file_index, &G->files[G->current_file_index]};
+        CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
     }
 
-    while (Running)
-    {
+    while (Running) {
         bool gifmode = false;
-        if (G->Files.Count > 0) gifmode = G->Files[G->CurrentFileIndex].type == 1;
-        MouseDetection = WindowHeight - 140 - 60 * (gifmode);
+		if (G->files.Count > 0) gifmode = G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM;
+        mouse_detection = WH - 140 - 60 * (gifmode);
         PollEvents();
-        G->ShowUI = ShouldShowUI();
+		UI_begin_frame(G->ui, 60);
+		UI_check_mouse();
+        G->show_gui = should_show_gui();
+		G->ui_mouse_hit_test = false;
 
-        if (G->Droppedfile)
-        {
-            G->Loading_Droppedfile = true;
-            bool is_dir = ScanFolder(TempPath);
+        if (G->dropped_file) {
+            G->loading_dropped_file = true;
+            bool is_dir = scan_folder(TempPath);
             G->loaded = false;
-            Inputs = {TempPath, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, true};
+			inputs = {TempPath, G->current_file_index, &G->files[G->current_file_index], true};
             if (is_dir)
-                Inputs.File = G->Files[0].file.path;
-            CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
-            G->Droppedfile = false;
-        }
+                inputs.path = G->files[0].file.path;
+            CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+            G->dropped_file = false;
+        } 
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
+        get_window_size();
 
-        GetWindowSize();
+        if (G->signals.update_pass)
+            G->signals.update_pass = false;
+        update_gui();
+        update_logic();
+        render();
 
-        if (G->signals.UpdatePass)
-            G->signals.UpdatePass = false;
-        UpdateLogic();
-        UpdateGUI();
-        Render();
+        if (G->files.Count > 0) {
+            if ((!G->sorting && keyup(Key_Right)) || G->signals.next_image) {
+                G->signals.next_image = false;
 
-        if (G->Files.Count > 0)
-        {
-            if ((!G->sorting && keyup(Key_Right)) || G->signals.nextimage)
-            {
-                G->signals.nextimage = false;
-
-                if (G->CurrentFileIndex < G->Files.Count - 1)
-                {
-                    G->CurrentFileIndex++;
+                if (G->current_file_index < G->files.Count - 1) {
+                    G->current_file_index++;
                     G->loaded = false;
-                    Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
-                    CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
+                    inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
+                    CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
                 }
             }
-            if ((!G->sorting && keyup(Key_Left))|| G->signals.previmage)
-            {
-                G->signals.previmage = false;
+            if ((!G->sorting && keyup(Key_Left))|| G->signals.prev_image) {
+                G->signals.prev_image = false;
 
-                if (G->CurrentFileIndex > 0)
-                {
-                    G->CurrentFileIndex--;
+                if (G->current_file_index > 0) {
+                    G->current_file_index--;
                     G->loaded = false;
-                    Inputs = {G->Files[G->CurrentFileIndex].file.path, G->CurrentFileIndex, G->Files[G->CurrentFileIndex].type, false};
-                    CreateThread(NULL, 0, LoaderThread, (LPVOID)&Inputs, 0, NULL);
+					inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
+                    CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
                 }
             }
         }
-        ResetInputs();
+        reset_inputs();
+		if (keyup(MouseL))
+			G->mouse_dn_hash = 0;
     }
-    SaveSettings();
+    save_settings();
     return 0;
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
-{
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
     if(AttachConsole (ATTACH_PARENT_PROCESS) != 0) {
         FILE *  fpstdin = stdin, *fpstdout = stdout, *fpstderr = stderr;  
         freopen_s (&fpstdin,  "CONIN$",  "r", stdin);  

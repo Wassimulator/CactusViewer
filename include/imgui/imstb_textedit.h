@@ -729,12 +729,12 @@ static int stb_textedit_paste_internal(STB_TEXTEDIT_STRING *str, STB_TexteditSta
 #endif
 
 // API key: process a keyboard input
-static void stb_textedit_key(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, STB_TEXTEDIT_KEYTYPE key)
+static void stb_textedit_key(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, STB_TEXTEDIT_KEYTYPE Key_Data)
 {
 retry:
-   switch (key) {
+   switch (Key_Data) {
       default: {
-         int c = STB_TEXTEDIT_KEYTOTEXT(key);
+         int c = STB_TEXTEDIT_KEYTOTEXT(Key_Data);
          if (c > 0) {
             STB_TEXTEDIT_CHARTYPE ch = (STB_TEXTEDIT_CHARTYPE) c;
 
@@ -864,13 +864,13 @@ retry:
       case STB_TEXTEDIT_K_PGDOWN | STB_TEXTEDIT_K_SHIFT: {
          StbFindState find;
          StbTexteditRow row;
-         int i, j, sel = (key & STB_TEXTEDIT_K_SHIFT) != 0;
-         int is_page = (key & ~STB_TEXTEDIT_K_SHIFT) == STB_TEXTEDIT_K_PGDOWN;
+         int i, j, sel = (Key_Data & STB_TEXTEDIT_K_SHIFT) != 0;
+         int is_page = (Key_Data & ~STB_TEXTEDIT_K_SHIFT) == STB_TEXTEDIT_K_PGDOWN;
          int row_count = is_page ? state->row_count_per_page : 1;
 
          if (!is_page && state->single_line) {
             // on windows, up&down in single-line behave like left&right
-            key = STB_TEXTEDIT_K_RIGHT | (key & STB_TEXTEDIT_K_SHIFT);
+            Key_Data = STB_TEXTEDIT_K_RIGHT | (Key_Data & STB_TEXTEDIT_K_SHIFT);
             goto retry;
          }
 
@@ -931,13 +931,13 @@ retry:
       case STB_TEXTEDIT_K_PGUP | STB_TEXTEDIT_K_SHIFT: {
          StbFindState find;
          StbTexteditRow row;
-         int i, j, prev_scan, sel = (key & STB_TEXTEDIT_K_SHIFT) != 0;
-         int is_page = (key & ~STB_TEXTEDIT_K_SHIFT) == STB_TEXTEDIT_K_PGUP;
+         int i, j, prev_scan, sel = (Key_Data & STB_TEXTEDIT_K_SHIFT) != 0;
+         int is_page = (Key_Data & ~STB_TEXTEDIT_K_SHIFT) == STB_TEXTEDIT_K_PGUP;
          int row_count = is_page ? state->row_count_per_page : 1;
 
          if (!is_page && state->single_line) {
             // on windows, up&down become left&right
-            key = STB_TEXTEDIT_K_LEFT | (key & STB_TEXTEDIT_K_SHIFT);
+            Key_Data = STB_TEXTEDIT_K_LEFT | (Key_Data & STB_TEXTEDIT_K_SHIFT);
             goto retry;
          }
 

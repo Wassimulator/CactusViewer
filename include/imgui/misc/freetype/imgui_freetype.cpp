@@ -319,7 +319,7 @@ namespace
         case FT_PIXEL_MODE_BGRA:
             {
                 // FIXME: Converting pre-multiplied alpha to straight. Doesn't smell good.
-                #define DE_MULTIPLY(color, alpha) (ImU32)(255.0f * (float)color / (float)alpha + 0.5f)
+                #define DE_MULTIPLY(Color, alpha) (ImU32)(255.0f * (float)Color / (float)alpha + 0.5f)
                 if (multiply_table == NULL)
                 {
                     for (uint32_t y = 0; y < h; y++, src += src_pitch, dst += dst_pitch)

@@ -1,67 +1,70 @@
 #pragma once
 #include "main.h"
-#include "structs.cpp"
+#include "structs.h"
 
+static iv2 get_client_size() {
+	RECT rect;
+	GetClientRect(hwnd, &rect);
+	return iv2(rect.right - rect.left, rect.bottom - rect.top);
+}
 
-void ResetInputs()
-{
-    keys *K = &G->Keys;
-    for (int i = 0; i < key_COUNT; i++)
-    {
+void reset_inputs() {
+    Keys *K = &G->keys;
+    for (int i = 0; i < key_COUNT; i++) {
         K->K[i].up = false;
         K->K[i].dn = false;
     }
-    K->ScrollYdiff = 0;
+    K->scroll_y_diff = 0;
 }
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+static void set_framebuffer_size(Graphics *ctx, iv2 size);
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    keys *K = &G->Keys;
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    Keys *K = &G->keys;
 
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
-        return true;
-    switch (message)
-    {
+    switch (message) {
     case WM_DESTROY:    PostQuitMessage(0); Running = false; break;
-    case WM_DROPFILES: 
+ 	case WM_SIZE:
     {
-        if (!G->Loading_Droppedfile)
-        {
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        WW = rect.right - rect.left;
+        WH = rect.bottom - rect.top;
+		set_framebuffer_size(&G->graphics,  iv2(WW, WH));
+		break;
+    }
+    case WM_DROPFILES:  {
+        if (!G->loading_dropped_file) {
             UINT length = DragQueryFile((HDROP)wParam, /*only first one is handled*/ 0, NULL, 0);
             TempPath = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
             DragQueryFileW((HDROP)wParam, /*only first one is handled*/ 0, TempPath, length + 1);
             int i = 0;
         }
-        G->Droppedfile = true;
+        G->dropped_file = true;
         break;
     }
-    case WM_MOUSEMOVE:
-    {
+    case WM_MOUSEMOVE: {
         int xPos = LOWORD(lParam);
         int yPos = HIWORD(lParam);
         K->Mouse.x  = xPos; K->Mouse.y  = yPos;
         break;
     }
-    case WM_MOUSEWHEEL:
-    {
+    case WM_MOUSEWHEEL: {
         int scrollValue = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
-        K->ScrollYdiff = scrollValue;
+        K->scroll_y_diff = scrollValue;
         K->ScrollY    += scrollValue;
         break;
     }
-    case WM_LBUTTONDOWN:    { K->K[MouseL].dn = true; K->K[MouseL].on = true;  break; }
-    case WM_RBUTTONDOWN:    { K->K[MouseR].dn = true; K->K[MouseR].on = true;  break; }                                                                
-    case WM_MBUTTONDOWN:    { K->K[MouseM].dn = true; K->K[MouseM].on = true;  break; }                                                            
-    case WM_LBUTTONUP:      { K->K[MouseL].up = true; K->K[MouseL].on = false; break; }
-    case WM_RBUTTONUP:      { K->K[MouseR].up = true; K->K[MouseR].on = false; break; }                                                                  
-    case WM_MBUTTONUP:      { K->K[MouseM].up = true; K->K[MouseM].on = false; break; }   
+	case WM_MOUSELEAVE:  { reset_inputs(); break; };
+    case WM_LBUTTONDOWN: { K->K[MouseL].dn = true; K->K[MouseL].on = true;  break; }
+    case WM_RBUTTONDOWN: { K->K[MouseR].dn = true; K->K[MouseR].on = true;  break; }                                                                
+    case WM_MBUTTONDOWN: { K->K[MouseM].dn = true; K->K[MouseM].on = true;  break; }                                                            
+    case WM_LBUTTONUP:   { K->K[MouseL].up = true; K->K[MouseL].on = false; break; }
+    case WM_RBUTTONUP:   { K->K[MouseR].up = true; K->K[MouseR].on = false; break; }                                                                  
+    case WM_MBUTTONUP:   { K->K[MouseM].up = true; K->K[MouseM].on = false; break; }   
     case WM_KEYUP:
-    case WM_KEYDOWN:
-    {
+    case WM_KEYDOWN: {
         int i = 0;
-        switch(wParam)
-        {
+        switch(wParam) {
             // case VK_LBUTTON: i =  Key_Left;          // 	Left mouse button
             // case VK_RBUTTON: i = Key_Right;          // 	Right mouse button
             case VK_XBUTTON1:   i = MouseX1;        break; // 	X1 mouse button
@@ -167,17 +170,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case VK_OEM_PLUS:   i = Key_Plus;       break; // 	For any country/region, the '+' key
             case VK_OEM_COMMA:  i = Key_Comma;      break; // 	For any country/region, the ',' key
             case VK_OEM_MINUS:  i = Key_Minus;      break; // 	For any country/region, the '-' key
-            case VK_OEM_PERIOD: i = Key_Dot;        break; // 	For any country/region, the '.' key
+            case VK_OEM_PERIOD: i = Key_Period;        break; // 	For any country/region, the '.' key
             case VK_OEM_2:      i = Key_FSlash;     break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '/?' key
             case VK_OEM_3:      i = Key_Backquote;  break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '`~' key
-            case VK_OEM_4:      i = Key_LBracket;   break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '[{' key
+            case VK_OEM_4:      i = Key_LBracket;   break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the ' {' key
             case VK_OEM_5:      i = Key_BSlash;     break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the '\|' key
             case VK_OEM_6:      i = Key_RBracket;   break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the ']}' key
             case VK_OEM_7:      i = Key_Colon;      break; // 	Used for miscellaneous characters; it can vary by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
             // case VK_OEM_102:                         // 	The <> keys on the US standard keyboard, or the \\| key on the non-US 102-key keyboard
         }
         if (message == WM_KEYDOWN) { K->K[i].dn = true; K->K[i].on = true; }
-        else                       { K->K[i].up = true; K->K[i].on = false;}
+        else { K->K[i].up = true; K->K[i].on = false;}
         if (wParam == VK_LCONTROL || wParam == VK_RCONTROL) K->K[Key_Ctrl]  = K->K[i];
         if (wParam == VK_LSHIFT   || wParam == VK_RSHIFT)   K->K[Key_Shift] = K->K[i];
         if (wParam == VK_LMENU    || wParam == VK_RMENU)    K->K[Key_Alt]   = K->K[i];
@@ -190,25 +193,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-void WIN_DPI_Point(LONG *xOut, LONG *yOut)
-{
+void WIN_DPI_Point(LONG *xOut, LONG *yOut) {
     *xOut = (*xOut * 96) / GetDpiForWindow(hwnd);
     *yOut = (*yOut * 96) / GetDpiForWindow(hwnd);
 }
 
-static void PollEvents()
-{
-    static MSG msg = {};
-    keys *K = &G->Keys;
-    while (PeekMessage(&msg, hwnd, 0, 0, PM_NOREMOVE))
-    {
+static void PollEvents() {
+    static MSG msg  {};
+    Keys *K = &G->keys;
+    while (PeekMessage(&msg, hwnd, 0, 0, PM_NOREMOVE)) {
         GetMessage(&msg, nullptr, 0, 0);
         TranslateMessage(&msg);
         DispatchMessage(&msg);
         if (msg.message == WM_QUIT) Running = false;
     }
 
-    static POINT prevMousePos = {0};
+    static POINT prevMousePos  {0};
     POINT p;
     GetCursorPos(&p);
     ScreenToClient(hwnd, &p);
@@ -218,19 +218,131 @@ static void PollEvents()
     prevMousePos.x = p.x; prevMousePos.y = p.y;
 }
 
-inline bool keypress(int i)
-{
-    return G->Keys.K[i].on;
+inline bool keypress(int i) {
+    return G->keys.K[i].on;
 }
-inline bool keyup(int i)
-{
-    return G->Keys.K[i].up;
+inline bool keyup(int i) {
+    return G->keys.K[i].up;
 }
-inline bool keydn(int i)
-{
-    return G->Keys.K[i].dn;
+inline bool keydn(int i) {
+    return G->keys.K[i].dn;
 }
-inline void keyrelease(int i)
+inline void keyrelease(int i) {
+    G->keys.K[i].on = false;
+}
+
+
+static char get_num_input()
 {
-    G->Keys.K[i].on = false;
+	bool Caps = keypress(Key_Shift) || keypress(Key_CapsLock);
+	if (keypress(Key_0) || keypress(Key_num_0)) return '0';
+	if (keypress(Key_1) || keypress(Key_num_1)) return '1';
+	if (keypress(Key_2) || keypress(Key_num_2)) return '2';
+	if (keypress(Key_3) || keypress(Key_num_3)) return '3';
+	if (keypress(Key_4) || keypress(Key_num_4)) return '4';
+	if (keypress(Key_5) || keypress(Key_num_5)) return '5';
+	if (keypress(Key_6) || keypress(Key_num_6)) return '6';
+	if (keypress(Key_7) || keypress(Key_num_7)) return '7';
+	if (keypress(Key_8) || keypress(Key_num_8)) return '8';
+	if (keypress(Key_9) || keypress(Key_num_9)) return '9';
+	if (keypress(Key_Period))   return '.';
+	if (keypress(Key_Minus)) return '-';
+	return '\0';
+}
+static char get_char_input()
+{
+	bool Caps = keypress(Key_Shift) || keypress(Key_CapsLock);
+	if (keypress(Key_A)) return Caps ? 'A' : 'a';
+	if (keypress(Key_B)) return Caps ? 'B' : 'b';
+	if (keypress(Key_C)) return Caps ? 'C' : 'c';
+	if (keypress(Key_D)) return Caps ? 'D' : 'd';
+	if (keypress(Key_E)) return Caps ? 'E' : 'e';
+	if (keypress(Key_F)) return Caps ? 'F' : 'f';
+	if (keypress(Key_G)) return Caps ? 'G' : 'g';
+	if (keypress(Key_H)) return Caps ? 'H' : 'h';
+	if (keypress(Key_I)) return Caps ? 'I' : 'i';
+	if (keypress(Key_J)) return Caps ? 'J' : 'j';
+	if (keypress(Key_K)) return Caps ? 'K' : 'k';
+	if (keypress(Key_L)) return Caps ? 'L' : 'l';
+	if (keypress(Key_M)) return Caps ? 'M' : 'm';
+	if (keypress(Key_N)) return Caps ? 'N' : 'n';
+	if (keypress(Key_O)) return Caps ? 'O' : 'o';
+	if (keypress(Key_P)) return Caps ? 'P' : 'p';
+	if (keypress(Key_Q)) return Caps ? 'Q' : 'q';
+	if (keypress(Key_R)) return Caps ? 'R' : 'r';
+	if (keypress(Key_S)) return Caps ? 'S' : 's';
+	if (keypress(Key_T)) return Caps ? 'T' : 't';
+	if (keypress(Key_U)) return Caps ? 'U' : 'u';
+	if (keypress(Key_V)) return Caps ? 'V' : 'v';
+	if (keypress(Key_W)) return Caps ? 'W' : 'w';
+	if (keypress(Key_X)) return Caps ? 'X' : 'x';
+	if (keypress(Key_Y)) return Caps ? 'Y' : 'y';
+	if (keypress(Key_Z)) return Caps ? 'Z' : 'z';
+	if (keypress(Key_0) || keypress(Key_num_0)) return '0';
+	if (keypress(Key_1) || keypress(Key_num_1)) return '1';
+	if (keypress(Key_2) || keypress(Key_num_2)) return '2';
+	if (keypress(Key_3) || keypress(Key_num_3)) return '3';
+	if (keypress(Key_4) || keypress(Key_num_4)) return '4';
+	if (keypress(Key_5) || keypress(Key_num_5)) return '5';
+	if (keypress(Key_6) || keypress(Key_num_6)) return '6';
+	if (keypress(Key_7) || keypress(Key_num_7)) return '7';
+	if (keypress(Key_8) || keypress(Key_num_8)) return '8';
+	if (keypress(Key_9) || keypress(Key_num_9)) return '9';
+	if (keypress(Key_Minus)) return '-';
+	if (keypress(Key_Space)) return ' ';
+	if (keypress(Key_Period))   return '.';
+	return '\0';
+}
+
+void release_char_keys()
+{
+	keyrelease(Key_A);
+	keyrelease(Key_B);
+	keyrelease(Key_C);
+	keyrelease(Key_D);
+	keyrelease(Key_E);
+	keyrelease(Key_F);
+	keyrelease(Key_G);
+	keyrelease(Key_H);
+	keyrelease(Key_I);
+	keyrelease(Key_J);
+	keyrelease(Key_K);
+	keyrelease(Key_L);
+	keyrelease(Key_M);
+	keyrelease(Key_N);
+	keyrelease(Key_O);
+	keyrelease(Key_P);
+	keyrelease(Key_Q);
+	keyrelease(Key_R);
+	keyrelease(Key_S);
+	keyrelease(Key_T);
+	keyrelease(Key_U);
+	keyrelease(Key_V);
+	keyrelease(Key_W);
+	keyrelease(Key_X);
+	keyrelease(Key_Y);
+	keyrelease(Key_Z);
+	keyrelease(Key_0);
+	keyrelease(Key_1);
+	keyrelease(Key_2);
+	keyrelease(Key_3);
+	keyrelease(Key_4);
+	keyrelease(Key_5);
+	keyrelease(Key_6);
+	keyrelease(Key_7);
+	keyrelease(Key_8);
+	keyrelease(Key_9);
+	keyrelease(Key_num_0);
+	keyrelease(Key_num_1);
+	keyrelease(Key_num_2);
+	keyrelease(Key_num_3);
+	keyrelease(Key_num_4);
+	keyrelease(Key_num_5);
+	keyrelease(Key_num_6);
+	keyrelease(Key_num_7);
+	keyrelease(Key_num_8);
+	keyrelease(Key_num_9);
+	keyrelease(Key_Minus);
+	keyrelease(Key_Space);
+	keyrelease(Key_Period);
 }
