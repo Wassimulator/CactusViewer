@@ -3,11 +3,14 @@
 #### by Wassim Alhajomar (@wassimulator)
 A single-file handmade image viewer for Windows, written in C/C++.
 #### Used libraries:
-Homemade immediate mode UI, a custom D3D11 renderer, [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec), [stb_image](https://github.com/nothings/stb) and [libwebp](https://chromium.googlesource.com/webm/libwebp) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, [FreeType](https://freetype.org/) for font loading, and [easyexif](https://github.com/mayanklahiri/easyexif) for fetching image metadata.     
-Supported codecs: **BMP, GIF, ICO, JPEG, JPEG XR, PNG, TIFF, DDS**, it also supports installed codecs for WIC, check Microsoft Store to get codecs like HEIF, RAW, or AVIF. Here:
-https://www.microsoft.com/store/productid/9MVZQVXJBQ9V?ocid=pdpshare
-https://www.microsoft.com/store/productid/9NMZLZ57R3T7?ocid=pdpshare
-https://www.microsoft.com/store/productid/9NCTDW2W1BH8?ocid=pdpshare
+Homemade immediate mode UI, a custom D3D11 renderer, [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec), [stb_image](https://github.com/nothings/stb) and [libwebp](https://chromium.googlesource.com/webm/libwebp) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, [FreeType](https://freetype.org/) for font loading, and [easyexif](https://github.com/mayanklahiri/easyexif) for fetching image metadata.             
+#### Supported codecs: 
+**BMP, GIF, ICO, JPEG, JPEG XR, PNG, TIFF, DDS, WEBP**.         
+It also supports installed codecs for WIC, check Microsoft Store to get codecs like HEIF, RAW, or AVIF. Here:     
+[AV1 Video Extension](https://www.microsoft.com/store/productid/9MVZQVXJBQ9V?ocid=pdpshare)      
+[HEVC Video Extensions](https://www.microsoft.com/store/productid/9NMZLZ57R3T7?ocid=pdpshare)      
+[HEIF Image Extensions](https://www.microsoft.com/store/productid/9PMMSR1CGPWG?ocid=pdpshare)       
+[Raw Image Extension](https://www.microsoft.com/store/productid/9NCTDW2W1BH8?ocid=pdpshare)      
 
 ## Features:
 - Standalone executable.
