@@ -2428,6 +2428,7 @@ static void update_gui() {
 					bar->style.size[axis_x] = { UI_Size_t::percent_of_parent, 0.5, 1 };
 					bar->style.layout.spacing = v2(5);
 					combo_style.size = v2(235, line_h);
+					UI_combo(&combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str));
 					//if (UI_combo(&combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str))) {
 					//	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
 					//	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
@@ -2574,14 +2575,20 @@ static void update_logic() {
 	}
 
     if (G->loaded && G->files.Count > 0) {
-        if (!WantCaptureMouse)
+        if (!WantCaptureMouse && keypress(Key_LCtrl))
             G->scale *= 1 + G->keys.scroll_y_diff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
         if (G->files[G->current_file_index].type != 1) {
             G->files[G->current_file_index].pos = G->position;
             G->files[G->current_file_index].scale = G->truescale;
         }
     }
-    
+
+	if (G->keys.scroll_y_diff < 0) {
+		send_signal(G->signals.next_image);
+	} else if (G->keys.scroll_y_diff > 0) {
+		send_signal(G->signals.prev_image);
+	}
+
     if (G->graphics.main_image.w > 0) {
         if (G->graphics.aspect_img < G->graphics.aspect_wnd) {
             G->truescale = (float)WH / G->graphics.main_image.h * G->scale;

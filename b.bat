@@ -17,7 +17,7 @@ if %Mode%==release (
     set CompileFlags=/EHsc /Zi /Od /D DEBUG_MODE=1 %CompileFlags%
     set LinkFlags=/debug %LinkFlags%
 ) else (
-    echo Unknown build mode %Mode%.
+    echo Unknown build mode %Mode%, expecting "release" or "debug" or no param.
 	popd
     exit /b 2
 )
