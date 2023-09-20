@@ -2575,20 +2575,14 @@ static void update_logic() {
 	}
 
     if (G->loaded && G->files.Count > 0) {
-        if (!WantCaptureMouse && keypress(Key_LCtrl))
+        if (!WantCaptureMouse)
             G->scale *= 1 + G->keys.scroll_y_diff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
         if (G->files[G->current_file_index].type != 1) {
             G->files[G->current_file_index].pos = G->position;
             G->files[G->current_file_index].scale = G->truescale;
         }
     }
-
-	if (G->keys.scroll_y_diff < 0) {
-		send_signal(G->signals.next_image);
-	} else if (G->keys.scroll_y_diff > 0) {
-		send_signal(G->signals.prev_image);
-	}
-
+    
     if (G->graphics.main_image.w > 0) {
         if (G->graphics.aspect_img < G->graphics.aspect_wnd) {
             G->truescale = (float)WH / G->graphics.main_image.h * G->scale;
