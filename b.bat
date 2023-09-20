@@ -4,6 +4,7 @@ if [%1]==[] (
     set Mode=debug
 )
 RC /nologo src/res.rc
+if not exist bin md bin
 pushd bin
 
 set Libs= /LIBPATH:..\lib shell32.lib d3d11.lib d3dcompiler.lib shell32.lib Ole32.lib User32.lib freetype.lib libwebp.lib libwebpdecoder.lib windowscodecs.lib dwmapi.lib /LIBPATH:..\src res.res

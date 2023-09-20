@@ -390,6 +390,7 @@ struct Global
 	i32 shapes_texture_id;
 	bool ui_mouse_hit_test;
 	u32 mouse_dn_hash;
+	v4 read_px;
 
     v2 position = v2(0, 0);
     cf_file_t file;

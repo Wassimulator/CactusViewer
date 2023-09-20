@@ -216,7 +216,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	};
 	ID3D11Device* base_device;
 	ID3D11DeviceContext* base_device_ctx;
-	UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+	UINT createDeviceFlags = 0;
 #if DEBUG_MODE
 	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
@@ -552,10 +552,10 @@ static void init_all() {
 
 	load_settings();
 
-	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
-	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
-		hwnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE,
-		&USE_DARK_MODE, sizeof(USE_DARK_MODE)));
+//	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
+//	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
+//		hwnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE,
+//		&USE_DARK_MODE, sizeof(USE_DARK_MODE)));
 
     DragAcceptFiles(hwnd, TRUE);
     ShowWindow(hwnd, SW_SHOW);
@@ -1615,10 +1615,10 @@ static v4 read_texture_pixel(ID3D11Texture2D* renderTargetTexture, iv2 pixel) {
 		return v4(0, 0, 0, 0);
 	}
 
-	// Read the pixel value
-	u8 r = data[0];
+	// Read the pixel value (BGRA)!
+	u8 b = data[0];
 	u8 g = data[1];
-	u8 b = data[2];
+	u8 r = data[2];
 	u8 a = data[3];
 	v4 result = v4(r, g, b, a) / 255.f;
 
@@ -1738,7 +1738,7 @@ static void update_gui() {
 	}
 	
 	if (keypress(Key_Ctrl) || keypress(MouseM)) {
-		v4 px = read_texture_pixel(G->graphics.frame_buffer, _iv2(G->keys.Mouse));
+		v4 px = G->read_px; 
 		v2 mouse = UI_get_mouse();
 		UI_Block *inspector_menu = UI_push_block(ctx, 0);
 		inspector_menu->depth_level += 100;
@@ -2317,46 +2317,54 @@ static void update_gui() {
 			UI_separator(2.5, theme->separator);
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_1, G->ui_font, 12,"Supported codecs: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"BMP, GIF, ICO, JPEG, JPEG XR, PNG, TIFF, DDS");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"BMP, GIF, ICO, JPEG, JPEG XR, PNG, TIFF, DDS, WEBP");	
 			}
 			UI_text(theme->text_reg_main, G->ui_font, 10,"(Supports installed codecs for WIC as well, check Microsoft Store to get codecs like HEIF, RAW, or AVIF)");	
 			UI_separator(2, theme->separator);
 			UI_text(theme->text_header_1, G->ui_font, 13,"Controls:");
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Left Mouse button / WASD keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"pan image");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"pan image.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Mouse wheel / Q/E keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"zoom image");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"zoom image.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Shift key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"fine pan and zoom mode");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"fine pan and zoom mode.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Middle Mouse button/ Ctrl key (hold): ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"pixel inspector (right click to copy)");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"pixel inspector (right click to copy).");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Left/Right Arrow keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"next/ previous image");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"next/ previous image.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Up/Down Arrow keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: next/ previous image");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: next/ previous image.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Space key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: play/ pause");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: play/ pause.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"F key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle between linear and nearest neighbor filtering");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle between linear and nearest neighbor filtering.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"G key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle pixel grid (if in nearest neighbor filtering is on)");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle pixel grid (if in nearest neighbor filtering is on).");	
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_text(theme->text_header_2, G->ui_font, 12,"F11 key: ");
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle fullscreen mode.");	
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_text(theme->text_header_2, G->ui_font, 12,"R key: ");
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Reload current folder, and scan for new files in it.");	
 			}
 			UI_separator(2, theme->separator);
 			UI_text(theme->text_header_1, G->ui_font, 13,"Settings:");
@@ -2420,14 +2428,14 @@ static void update_gui() {
 					bar->style.size[axis_x] = { UI_Size_t::percent_of_parent, 0.5, 1 };
 					bar->style.layout.spacing = v2(5);
 					combo_style.size = v2(235, line_h);
-					if (UI_combo(&combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str))) {
-						BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
-						BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
-							hwnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE,
-							&USE_DARK_MODE, sizeof(USE_DARK_MODE)));
-						ShowWindow(hwnd, SW_HIDE);
-						ShowWindow(hwnd, SW_SHOW);
-					}
+					//if (UI_combo(&combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str))) {
+					//	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
+					//	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
+					//		hwnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE,
+					//		&USE_DARK_MODE, sizeof(USE_DARK_MODE)));
+					//	ShowWindow(hwnd, SW_HIDE);
+					//	ShowWindow(hwnd, SW_SHOW);
+					//}
 				}
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -2751,4 +2759,8 @@ static void render() {
 	UI_render(G->ui);
 
 	ctx->swap_chain->Present(1, 0);
+
+	if (keypress(Key_Ctrl) || keypress(MouseM)) {
+		G->read_px = read_texture_pixel(G->graphics.frame_buffer, _iv2(G->keys.Mouse));
+	}
 }
