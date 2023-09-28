@@ -27,6 +27,9 @@ It also supports installed codecs for WIC, check Microsoft Store to get codecs l
 - Image pan and zoom with fitting modes; to width or height.
 - RGB Histograms.
 - Adjustable hue, saturation, gamma, and brightness values.
+- Image cropping
+- Gaussian blur filters
+- Ability to save images with current adjustments
 - Support for reading and displaying EXIF metadata off of JPEG images and rotation info.
 - Pixel color inspector and a quick copy of HEX value to clipboard.
 - Animated GIF and WebP support with play/pause and seek controls.
