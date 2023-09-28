@@ -747,7 +747,7 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
                 G->graphics.main_image.h = h;
                 G->graphics.main_image.n = n;
 				if (G->graphics.main_image.data) {
-					free(G->graphics.main_image.data);
+					wfree(G->graphics.main_image.data);
 					G->graphics.main_image.data = 0;
 				}
                 G->graphics.main_image.data = data;
@@ -800,7 +800,7 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 	unsigned char *data = 0;
 	if (SUCCEEDED(hr)) {
 		converter->GetSize(&w, &h);
-		data = (unsigned char *)malloc(w * h * 4);
+		data = (unsigned char *)walloc(w * h * 4);
 		converter->CopyPixels(NULL, w * 4, w * h * 4, data);
 
 		// expensive, but requested:
@@ -865,15 +865,15 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
                 G->graphics.main_image.w = w;
                 G->graphics.main_image.h = h;
                 G->graphics.main_image.n = 0;
-				if (G->graphics.main_image.data) {
-					free(G->graphics.main_image.data);
-					G->graphics.main_image.data = 0;
-				}
+			//	if (G->graphics.main_image.data) {
+			//		wfree(G->graphics.main_image.data);
+			//		G->graphics.main_image.data = 0;
+			//	}
 				G->graphics.main_image.data = data;
 				calculate_histogram(data, w * h * 4);
                 send_signal(G->signals.init_step_2);
             } else {
-                free(data);
+                wfree(data);
             }
             LeaveCriticalSection(&G->mutex);
 			result = 1;
@@ -913,7 +913,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 	fseek(file, 0, SEEK_END);
 	size_t file_size = ftell(file);
 	fseek(file, 0, SEEK_SET);
-	uint8_t* file_data = (uint8_t*) malloc(file_size);
+	uint8_t* file_data = (uint8_t*)malloc(file_size);
 	fread(file_data, 1, file_size, file);
 	fclose(file);
 
@@ -942,15 +942,15 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 					G->graphics.main_image.w = w;
 					G->graphics.main_image.h = h;
 					G->graphics.main_image.n = 0;
-					if (G->graphics.main_image.data) {
-						free(G->graphics.main_image.data);
-						G->graphics.main_image.data = 0;
-					}
+					//if (G->graphics.main_image.data) {
+					//	wfree(G->graphics.main_image.data);
+					//	G->graphics.main_image.data = 0;
+					//}
 					G->graphics.main_image.data = data;
 					calculate_histogram(data, w * h * 4);
 					send_signal(G->signals.init_step_2);
 				} else {
-					free(data);
+					wfree(data);
 				}
 				LeaveCriticalSection(&G->mutex);
 				result = 1;
@@ -990,6 +990,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 
 	}
 	free(file_data);
+	free(filename_utf8);
     return result;
 }
 
@@ -1166,7 +1167,7 @@ static void load_image_post() {
 
 		G->graphics.main_image.texture = create_texture(G->graphics.main_image.data, G->graphics.main_image.w, G->graphics.main_image.h, false);
 		if (G->graphics.main_image.data) {
-			free(G->graphics.main_image.data);
+			wfree(G->graphics.main_image.data);
 			//SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
 			G->graphics.main_image.data = 0;
 		}

@@ -182,3 +182,9 @@ Dynarray<String8> w_tokenize(const String8 str)
     return res;
 }
 
+void*walloc(size_t size) {
+	return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+}
+void wfree(void* address) {
+	VirtualFree(address, 0, MEM_RELEASE);
+}
