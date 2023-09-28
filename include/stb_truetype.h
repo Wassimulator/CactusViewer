@@ -3643,7 +3643,7 @@ static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, 
       float x=0,y=0;
       if (pass == 1) {
          points = (stbtt__point *) STBTT_malloc(num_points * sizeof(points[0]), userdata);
-         if (points == NULL) goto Error;
+         if (points == NULL) goto Alert;
       }
       num_points = 0;
       n= -1;
@@ -3684,7 +3684,7 @@ static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, 
    }
 
    return points;
-Error:
+Alert:
    STBTT_free(points, userdata);
    STBTT_free(*contour_lengths, userdata);
    *contour_lengths = 0;

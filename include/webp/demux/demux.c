@@ -672,11 +672,11 @@ static ParseStatus CreateRawImageDemuxer(MemBuffer* const mem,
   {
     WebPDemuxer* const dmux = (WebPDemuxer*)WebPSafeCalloc(1ULL, sizeof(*dmux));
     Frame* const frame = (Frame*)WebPSafeCalloc(1ULL, sizeof(*frame));
-    if (dmux == NULL || frame == NULL) goto Error;
+    if (dmux == NULL || frame == NULL) goto Alert;
     InitDemux(dmux, mem);
     SetFrameInfo(0, mem->buf_size_, 1 /*frame_num*/, 1 /*complete*/, &features,
                  frame);
-    if (!AddFrame(dmux, frame)) goto Error;
+    if (!AddFrame(dmux, frame)) goto Alert;
     dmux->state_ = WEBP_DEMUX_DONE;
     dmux->canvas_width_ = frame->width_;
     dmux->canvas_height_ = frame->height_;
@@ -686,7 +686,7 @@ static ParseStatus CreateRawImageDemuxer(MemBuffer* const mem,
     *demuxer = dmux;
     return PARSE_OK;
 
- Error:
+ Alert:
     WebPSafeFree(dmux);
     WebPSafeFree(frame);
     return PARSE_ERROR;

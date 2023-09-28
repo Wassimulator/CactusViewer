@@ -15,11 +15,13 @@ int wmain(int argc, wchar_t **argv) {
 	Loader_Thread_Inputs inputs;
 
     init_all();
-    scan_folder(argv[1]);
-    if (argc > 1) {
-		inputs = {argv[1], G->current_file_index, &G->files[G->current_file_index]};
-        CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
-    }
+	{
+		int scan = scan_folder(argv[1]);
+		if (argc > 1 && scan != SCAN_FAILED) {
+			inputs = { argv[1], G->current_file_index, &G->files[G->current_file_index] };
+			CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+		}
+	}
 
     while (Running) {
         bool gifmode = false;
@@ -33,13 +35,17 @@ int wmain(int argc, wchar_t **argv) {
 
         if (G->dropped_file) {
             G->loading_dropped_file = true;
-            bool is_dir = scan_folder(TempPath);
-            G->loaded = false;
-			inputs = {TempPath, G->current_file_index, &G->files[G->current_file_index], true};
-            if (is_dir)
-                inputs.path = G->files[0].file.path;
-            CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
-            G->dropped_file = false;
+			int scan = scan_folder(global_temp_path);
+			if (scan != SCAN_FAILED) {
+				bool is_dir = scan == SCAN_DIR;
+					G->loaded = false;
+				inputs = { global_temp_path, G->current_file_index, &G->files[G->current_file_index], true };
+				if (is_dir) {
+					inputs.path = G->files[0].file.path;
+				}
+				CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+			}
+			G->dropped_file = false;
         } 
 
         get_window_size();
@@ -47,7 +53,7 @@ int wmain(int argc, wchar_t **argv) {
         if (G->signals.update_pass)
             G->signals.update_pass = false;
         update_gui();
-        update_logic();
+		update_logic();
         render();
 
         if (G->files.Count > 0) {

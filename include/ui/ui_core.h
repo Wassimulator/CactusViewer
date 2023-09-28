@@ -23,6 +23,7 @@
 #define ARRAY_SIZE(x)  (sizeof(x) / sizeof((x)[0]))
 #define UI_clamp(value, min, max) (((value) < (min)) ? (min) : (((value) > (max)) ? (max) : (value)))
 #define UI_swap(_type_, a, b) { _type_ tmp = a; a = b; b = tmp; }
+#define UI_abs(_value_)  (_value_) > 0 ? (_value_) : (-(_value_))
 
 
 #include "ui_shapes.cpp"
@@ -308,7 +309,6 @@ struct UI_Context {
 	Dynarray <UI_Block>         buffers[2];
     Dynarray <UI_Block*>        parents;
     Dynarray <u32>              hashes;
-    Dynarray <UI_Input>         inputs;
 	Dynarray <UI_Block_Data>	data_chunks;
 	Dynarray <UI_Hit_Test_Item> blocks_hit_test;
 

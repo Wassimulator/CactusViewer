@@ -146,11 +146,20 @@ inline f32 UI_round_away_from_zero(f32 value) {
 	return copysign(ceilf(abs(value)), value);
 }
 
-u32 UI_lerp_u32(u32 col_a, u32 col_b, f32 t) {
-	u8 r1 = (col_a >> 24) & 0xFF, r2 = (col_b >> 24) & 0xFF;
-	u8 g1 = (col_a >> 16) & 0xFF, g2 = (col_b >> 16) & 0xFF;
-	u8 b1 = (col_a >> 8)  & 0xFF, b2 = (col_b >> 8)  & 0xFF;
-	u8 a1 = (col_a >> 0)  & 0xFF, a2 = (col_b >> 0)  & 0xFF;
+u32 UI_lerp_u32(u32 col_a, u32 col_b, f32 t, bool refresh_test = false) {
+	u8 r1 = (col_a >> 24) & 0xFF, r2 = (col_b >> 24) & 0xFF; 
+	u8 g1 = (col_a >> 16) & 0xFF, g2 = (col_b >> 16) & 0xFF; 
+	u8 b1 = (col_a >> 8)  & 0xFF, b2 = (col_b >> 8)  & 0xFF; 
+	u8 a1 = (col_a >> 0)  & 0xFF, a2 = (col_b >> 0)  & 0xFF; 
+
+	if (refresh_test) {
+		u8 d_r = UI_abs(r2 - r1);
+		u8 d_g = UI_abs(g2 - g1);
+		u8 d_b = UI_abs(b2 - b1);
+		u8 d_a = UI_abs(a2 - a1);
+		u8 br = 5;
+		G->force_loop |= d_r > br || d_g > br || d_b > br || d_a > br;
+	}
 
 	u8 r = (u8)(r1 + UI_round_away_from_zero((r2 - r1) * t));
 	u8 g = (u8)(g1 + UI_round_away_from_zero((g2 - g1) * t));
@@ -162,10 +171,10 @@ u32 UI_lerp_u32(u32 col_a, u32 col_b, f32 t) {
 
 UI_Color4 UI_lerp_color4(UI_Color4 a, UI_Color4 b, f32 t) {
 	UI_Color4 res;
-	res.c[0] = UI_lerp_u32(a.c[0], b.c[0], t);
-	res.c[1] = UI_lerp_u32(a.c[1], b.c[1], t);
-	res.c[2] = UI_lerp_u32(a.c[2], b.c[2], t);
-	res.c[3] = UI_lerp_u32(a.c[3], b.c[3], t);
+	res.c[0] = UI_lerp_u32(a.c[0], b.c[0], t, true);
+	res.c[1] = UI_lerp_u32(a.c[1], b.c[1], t, true);
+	res.c[2] = UI_lerp_u32(a.c[2], b.c[2], t, true);
+	res.c[3] = UI_lerp_u32(a.c[3], b.c[3], t, true);
 	return res;
 }
 
@@ -584,14 +593,13 @@ UI_Context * UI_init_context() {
     UI_assert(ctx != nullptr);
     // TODO(Wassim): We REALLY need an arena allocator, all this binary tree is run by pointers
     // this is just a placeholder hack that should be changed later!
-	ctx->buffers[0].init_null();        ctx->buffers[0].reserve(1000);
-	ctx->buffers[1].init_null();        ctx->buffers[1].reserve(1000);
+	ctx->buffers[0].init_null();        ctx->buffers[0].reserve(500);
+	ctx->buffers[1].init_null();        ctx->buffers[1].reserve(500);
     ctx->parents.init_null();       	ctx->parents.reserve(1000);
     ctx->fonts.init_null();         	ctx->fonts.reserve(10);
 	ctx->data_chunks.init_null();		ctx->data_chunks.reserve(1000);
 	ctx->blocks_hit_test.init_null();	ctx->blocks_hit_test.reserve(1000);
     ctx->hashes.init_null();           
-    ctx->inputs.init_null();
     ctx->vertices.init_null();
     for (int i = 0; i < UI_MAX_TEXTURES; i++)
         ctx->textures[i] = 0;
@@ -612,7 +620,7 @@ UI_Context * UI_init_context() {
 	ctx->debug.allocated_bytes = 0;
 	ctx->debug.last_vertex_count = 0;
 	ctx->string_storage_size = 0;
-	ctx->string_storage_capacity = 1 << 20;
+	ctx->string_storage_capacity = 5000;
 	ctx->string_storage = (char*)malloc(ctx->string_storage_capacity);
 
     ctx->initialized = true;
@@ -669,14 +677,6 @@ int UI_pop_parent(UI_Context *ctx) {
 //    }
 //    return UI_hash_djb2(string + i);
 //}
-
-UI_Input *UI_get_input_of_block(UI_Context *ctx, UI_Block *block) {
-    for (int i = 0; i < ctx->inputs.count; i++) {
-        if (ctx->inputs[i].block_key == block->hash)
-        return &ctx->inputs[i];
-    }
-    return nullptr;
-}
 
 i64 UI_generate_unique_id(UI_Context *ctx) {
     i64 hash_value = 0;
@@ -755,7 +755,6 @@ void UI_begin_frame(UI_Context *ctx, u64 ms_since_last_frame) {
     UI_assert(ctx->initialized && "UI context wasn't initialized!");
     UI_assert(ctx->parents.count == 0);
     // Manage previous frame://///////////////////
-    ctx->inputs.reset_count();
     v2 mouse = UI_get_mouse();
     v2 mouse_delta = UI_get_mouse_delta();
     ctx->want_capture_keyboard = false;

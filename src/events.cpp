@@ -15,6 +15,7 @@ void reset_inputs() {
         K->K[i].dn = false;
     }
     K->scroll_y_diff = 0;
+	K->double_click = 0;
 }
 static void set_framebuffer_size(Graphics *ctx, iv2 size);
 
@@ -35,8 +36,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_DROPFILES:  {
         if (!G->loading_dropped_file) {
             UINT length = DragQueryFile((HDROP)wParam, /*only first one is handled*/ 0, NULL, 0);
-            TempPath = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
-            DragQueryFileW((HDROP)wParam, /*only first one is handled*/ 0, TempPath, length + 1);
+            global_temp_path = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
+            DragQueryFileW((HDROP)wParam, /*only first one is handled*/ 0, global_temp_path, length + 1);
             int i = 0;
         }
         G->dropped_file = true;
@@ -61,6 +62,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_LBUTTONUP:   { K->K[MouseL].up = true; K->K[MouseL].on = false; break; }
     case WM_RBUTTONUP:   { K->K[MouseR].up = true; K->K[MouseR].on = false; break; }                                                                  
     case WM_MBUTTONUP:   { K->K[MouseM].up = true; K->K[MouseM].on = false; break; }   
+    case WM_LBUTTONDBLCLK : { K->double_click = true; break; }   
     case WM_KEYUP:
     case WM_KEYDOWN: {
         int i = 0;
@@ -198,24 +200,56 @@ void WIN_DPI_Point(LONG *xOut, LONG *yOut) {
     *yOut = (*yOut * 96) / GetDpiForWindow(hwnd);
 }
 
+void run_loop(MSG *msg) {
+	while (PeekMessage(msg, hwnd, 0, 0, PM_NOREMOVE)) {
+		GetMessage(msg, nullptr, 0, 0);
+		TranslateMessage(msg);
+		DispatchMessage(msg);
+		if (msg->message == WM_QUIT) Running = false;
+	}
+}
+
+void wait_loop(MSG *msg) {
+	while (true) {
+		DWORD result = MsgWaitForMultipleObjects(
+			1,              	
+			&G->loader_event,   
+			FALSE,
+			INFINITE,
+			QS_ALLINPUT
+		);
+
+		if (result == WAIT_OBJECT_0) {
+			ResetEvent(G->loader_event); 
+			break;
+		} else if (result == WAIT_OBJECT_0 + 1) {
+			run_loop(msg);
+			break;
+		}
+	}
+}
+
 static void PollEvents() {
     static MSG msg  {};
     Keys *K = &G->keys;
-    while (PeekMessage(&msg, hwnd, 0, 0, PM_NOREMOVE)) {
-        GetMessage(&msg, nullptr, 0, 0);
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-        if (msg.message == WM_QUIT) Running = false;
-    }
 
-    static POINT prevMousePos  {0};
-    POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(hwnd, &p);
-    K->Mouse.x  = p.x; K->Mouse.y  = p.y;
-    K->Mouse_rel.x = p.x - prevMousePos.x; 
-    K->Mouse_rel.y = p.y - prevMousePos.y; 
-    prevMousePos.x = p.x; prevMousePos.y = p.y;
+	if (G->force_loop || G->force_loop_frames > 0)
+		run_loop(&msg);
+	else
+		wait_loop(&msg);
+
+	if (G->force_loop_frames > 0)
+		--G->force_loop_frames;
+	G->force_loop = 0;
+
+	static POINT prevMousePos { 0 };
+	POINT p;
+	GetCursorPos(&p);
+	ScreenToClient(hwnd, &p);
+	K->Mouse.x = p.x; K->Mouse.y = p.y;
+	K->Mouse_rel.x = p.x - prevMousePos.x;
+	K->Mouse_rel.y = p.y - prevMousePos.y;
+	prevMousePos.x = p.x; prevMousePos.y = p.y;
 }
 
 inline bool keypress(int i) {

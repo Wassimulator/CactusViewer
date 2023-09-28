@@ -33,16 +33,11 @@
 #include <propidl.h>
 #include <dwmapi.h>
 
-
-#define IMGUI 1
-
 #define _MAX_FPS 250;
 
-#define VERSION_N "2.0.0"
-#define VERSION VERSION_N" - 09/2023"
+#define VERSION_N "2.1.0"
+#define VERSION VERSION_N" - 28/09/23"
 
-#define set_backed_up_bool(_boolean_, _backup_, _value_) { _backup_ = _boolean_; _boolean_ = _value_; }
-#define restore_backed_up_bool(_boolean_, _backup_) { _boolean_ = _backup_; }
 #define handle_signal(signal) for(int _i_ = (signal); _i_; _i_ = 0, (signal = false))
 #define send_signal(signal) signal = true
 #define array_size(a) (sizeof(a) / sizeof(*(a)))
@@ -84,7 +79,7 @@ float checkerboard_color_1[3];
 float checkerboard_color_2[3];
 float Checkerboard_size;
 int RGBAflags[4];
-wchar_t *TempPath;
+wchar_t *global_temp_path;
 
 HWND hwnd;
 HGLRC hRC;

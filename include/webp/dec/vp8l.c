@@ -376,7 +376,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
     const int huffman_pixs = huffman_xsize * huffman_ysize;
     if (!DecodeImageStream(huffman_xsize, huffman_ysize, 0, dec,
                            &huffman_image)) {
-      goto Error;
+      goto Alert;
     }
     hdr->huffman_subsample_bits_ = huffman_precision;
     for (i = 0; i < huffman_pixs; ++i) {
@@ -389,7 +389,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
     }
   }
 
-  if (br->eos_) goto Error;
+  if (br->eos_) goto Alert;
 
   // Find maximum alphabet size for the htree group.
   for (j = 0; j < HUFFMAN_CODES_PER_META_CODE; ++j) {
@@ -410,7 +410,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
 
   if (htree_groups == NULL || code_lengths == NULL || huffman_tables == NULL) {
     dec->status_ = VP8_STATUS_OUT_OF_MEMORY;
-    goto Error;
+    goto Alert;
   }
 
   next = huffman_tables;
@@ -429,7 +429,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
       }
       size = ReadHuffmanCode(alphabet_size, dec, code_lengths, next);
       if (size == 0) {
-        goto Error;
+        goto Alert;
       }
       if (is_trivial_literal && kLiteralMap[j] == 1) {
         is_trivial_literal = (next->bits == 0);
@@ -473,7 +473,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
   hdr->huffman_tables_ = huffman_tables;
   return 1;
 
- Error:
+ Alert:
   WebPSafeFree(code_lengths);
   WebPSafeFree(huffman_image);
   WebPSafeFree(huffman_tables);
@@ -1125,7 +1125,7 @@ static int DecodeImageData(VP8LDecoder* const dec, uint32_t* const data,
       dist = PlaneCodeToDistance(width, dist_code);
       if (br->eos_) break;
       if (src - data < (ptrdiff_t)dist || src_end - src < (ptrdiff_t)length) {
-        goto Error;
+        goto Alert;
       } else {
         CopyBlock32b(src, dist, length);
       }
@@ -1158,7 +1158,7 @@ static int DecodeImageData(VP8LDecoder* const dec, uint32_t* const data,
       *src = VP8LColorCacheLookup(color_cache, key);
       goto AdvanceByOne;
     } else {  // Not reached
-      goto Error;
+      goto Alert;
     }
     assert(br->eos_ == VP8LIsEndOfStream(br));
   }
@@ -1175,11 +1175,11 @@ static int DecodeImageData(VP8LDecoder* const dec, uint32_t* const data,
   } else {
     // if not incremental, and we are past the end of buffer (eos_=1), then this
     // is a real bitstream error.
-    goto Error;
+    goto Alert;
   }
   return 1;
 
- Error:
+ Alert:
   dec->status_ = VP8_STATUS_BITSTREAM_ERROR;
   return 0;
 }
@@ -1576,16 +1576,16 @@ int VP8LDecodeHeader(VP8LDecoder* const dec, VP8Io* const io) {
   VP8LInitBitReader(&dec->br_, io->data, io->data_size);
   if (!ReadImageInfo(&dec->br_, &width, &height, &has_alpha)) {
     dec->status_ = VP8_STATUS_BITSTREAM_ERROR;
-    goto Error;
+    goto Alert;
   }
   dec->state_ = READ_DIM;
   io->width = width;
   io->height = height;
 
-  if (!DecodeImageStream(width, height, 1, dec, NULL)) goto Error;
+  if (!DecodeImageStream(width, height, 1, dec, NULL)) goto Alert;
   return 1;
 
- Error:
+ Alert:
   VP8LClear(dec);
   assert(dec->status_ != VP8_STATUS_OK);
   return 0;

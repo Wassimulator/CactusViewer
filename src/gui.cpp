@@ -16,23 +16,26 @@ UI_Theme *UI_get_theme() {
 		themes[UI_Theme_Cactus_Green].bg_main_3 = 		UI_color4_sld_u32(0x9ca19aff);
 		themes[UI_Theme_Cactus_Green].bg_main_4 = 		UI_color4_sld_u32(0x2d362bff);
 		themes[UI_Theme_Cactus_Green].bg_sub = 			UI_color4_sld_u32(0x222222FF);
-		themes[UI_Theme_Cactus_Green].border_main = 	UI_color4_sld_u32(0x888888FF);
+		themes[UI_Theme_Cactus_Green].border_main = 	UI_color4_sld_u32(0x444444FF);
 		themes[UI_Theme_Cactus_Green].separator = 		UI_color4_sld_v3(v3(.5));
 		themes[UI_Theme_Cactus_Green].text_reg_main = 	UI_color4_sld_u32(0xFFFFFFFF);
 		themes[UI_Theme_Cactus_Green].text_reg_main_d = UI_color4_sld_u32(0x888888FF);
 		themes[UI_Theme_Cactus_Green].text_reg_light = 	UI_color4_sld_v3(v3(.95));
 		themes[UI_Theme_Cactus_Green].text_reg_mid = 	UI_color4_sld_v3(v3(.7));
 		themes[UI_Theme_Cactus_Green].text_error = 		UI_color4_sld_v3(v3(1, 0.3, 0));
-		themes[UI_Theme_Cactus_Green].text_alert = 		UI_color4_sld_v3(v3(1, 0.9, 0));
+		themes[UI_Theme_Cactus_Green].text_info = 		UI_color4_sld_v3(v3(1, 0.9, 0));
 		themes[UI_Theme_Cactus_Green].text_header_0 = 	UI_color4_sld_v3(v3(1, 1, 0));
 		themes[UI_Theme_Cactus_Green].text_header_1 = 	UI_color4_sld_v3(v3(1, .7, 0));
 		themes[UI_Theme_Cactus_Green].text_header_2 = 	UI_color4_sld_v3(v3(.7, .7, 1));
 		themes[UI_Theme_Cactus_Green].text_slider_0 = 	UI_color4_sld_u32(0xFFFFFFBB);
 		themes[UI_Theme_Cactus_Green].text_slider_1 = 	UI_color4_sld_u32(0xFFFF00BB);
 		themes[UI_Theme_Cactus_Green].text_slider_2 = 	UI_color4_sld_u32(0xFFFF00FF);
-		themes[UI_Theme_Cactus_Green].open_btn_0 = 		UI_color4_sld_u32(0x2d7b2fff);
-		themes[UI_Theme_Cactus_Green].open_btn_1 = 		UI_color4_sld_u32(0x389c3cff);
-		themes[UI_Theme_Cactus_Green].open_btn_2 = 		UI_color4_sld_u32(0x1a481cff);
+		themes[UI_Theme_Cactus_Green].pos_btn_0 = 		UI_color4_sld_u32(0x389c3cff);
+		themes[UI_Theme_Cactus_Green].pos_btn_1 = 		UI_color4_sld_u32(0x4ec652ff);
+		themes[UI_Theme_Cactus_Green].pos_btn_2 = 		UI_color4_sld_u32(0x2d7b2fff);
+		themes[UI_Theme_Cactus_Green].neg_btn_0 = 		UI_color4_sld_u32(0x8a4e2eff);
+		themes[UI_Theme_Cactus_Green].neg_btn_1 = 		UI_color4_sld_u32(0xaf643aff);
+		themes[UI_Theme_Cactus_Green].neg_btn_2 = 		UI_color4_sld_u32(0x512e1bff);
 
 		themes[UI_Theme_Dark_Blue].bg_main_0 = 			UI_color4_sld_u32(0x251c27ff);
 		themes[UI_Theme_Dark_Blue].bg_main_1 = 			UI_color4_sld_u32(0x3e2f41ff);
@@ -42,23 +45,26 @@ UI_Theme *UI_get_theme() {
 		themes[UI_Theme_Dark_Blue].bg_main_3 = 			UI_color4_sld_u32(0x9e93a3ff);
 		themes[UI_Theme_Dark_Blue].bg_main_4 = 			UI_color4_sld_u32(0x302432ff);
 		themes[UI_Theme_Dark_Blue].bg_sub = 			UI_color4_sld_u32(0x222222FF);
-		themes[UI_Theme_Dark_Blue].border_main = 		UI_color4_sld_u32(0x888888FF);
+		themes[UI_Theme_Dark_Blue].border_main = 		UI_color4_sld_u32(0x444444FF);
 		themes[UI_Theme_Dark_Blue].separator = 			UI_color4_sld_v3(v3(.5));
 		themes[UI_Theme_Dark_Blue].text_reg_main = 		UI_color4_sld_u32(0xFFFFFFFF);
 		themes[UI_Theme_Dark_Blue].text_reg_main_d =	UI_color4_sld_u32(0x888888FF);
 		themes[UI_Theme_Dark_Blue].text_reg_light = 	UI_color4_sld_v3(v3(.95));
 		themes[UI_Theme_Dark_Blue].text_reg_mid = 		UI_color4_sld_v3(v3(.7));
 		themes[UI_Theme_Dark_Blue].text_error = 		UI_color4_sld_v3(v3(1, 0.3, 0));
-		themes[UI_Theme_Dark_Blue].text_alert = 		UI_color4_sld_v3(v3(1, 0.9, 0));
+		themes[UI_Theme_Dark_Blue].text_info = 			UI_color4_sld_v3(v3(1, 0.9, 0));
 		themes[UI_Theme_Dark_Blue].text_header_0 = 		UI_color4_sld_v3(v3(1, 1, 0));
 		themes[UI_Theme_Dark_Blue].text_header_1 = 		UI_color4_sld_v3(v3(1, .7, 0));
 		themes[UI_Theme_Dark_Blue].text_header_2 = 		UI_color4_sld_v3(v3(.7, .7, 1));
 		themes[UI_Theme_Dark_Blue].text_slider_0 = 		UI_color4_sld_u32(0xFFFFFFBB);
 		themes[UI_Theme_Dark_Blue].text_slider_1 = 		UI_color4_sld_u32(0xFFFF00BB);
 		themes[UI_Theme_Dark_Blue].text_slider_2 = 		UI_color4_sld_u32(0xFFFF00FF);
-		themes[UI_Theme_Dark_Blue].open_btn_0 = 		UI_color4_sld_u32(0x2d7b2fff);
-		themes[UI_Theme_Dark_Blue].open_btn_1 = 		UI_color4_sld_u32(0x389c3cff);
-		themes[UI_Theme_Dark_Blue].open_btn_2 = 		UI_color4_sld_u32(0x1a481cff);
+		themes[UI_Theme_Dark_Blue].pos_btn_0 = 			UI_color4_sld_u32(0x2d7b2fff);
+		themes[UI_Theme_Dark_Blue].pos_btn_1 = 			UI_color4_sld_u32(0x389c3cff);
+		themes[UI_Theme_Dark_Blue].pos_btn_2 = 			UI_color4_sld_u32(0x1a481cff);
+		themes[UI_Theme_Dark_Blue].neg_btn_0 = 			UI_color4_sld_u32(0x8a4e2eff);
+		themes[UI_Theme_Dark_Blue].neg_btn_1 = 			UI_color4_sld_u32(0xaf643aff);
+		themes[UI_Theme_Dark_Blue].neg_btn_2 = 			UI_color4_sld_u32(0x512e1bff);
 
 		themes[UI_Theme_Light].bg_main_0 = 				UI_color4_sld_u32(0xffffffff);
 		themes[UI_Theme_Light].bg_main_1 = 				UI_color4_sld_u32(0xe1d8e3ff);
@@ -75,22 +81,36 @@ UI_Theme *UI_get_theme() {
 		themes[UI_Theme_Light].text_reg_light = 		UI_color4_sld_v3(v3(.05));
 		themes[UI_Theme_Light].text_reg_mid = 			UI_color4_sld_v3(v3(.3));
 		themes[UI_Theme_Light].text_error = 			UI_color4_sld_v3(v3(1, 0.3, 0));
-		themes[UI_Theme_Light].text_alert = 			UI_color4_sld_v3(v3(.5, .5, 0));
+		themes[UI_Theme_Light].text_info = 				UI_color4_sld_v3(v3(.5, .5, 0));
 		themes[UI_Theme_Light].text_header_0 = 			UI_color4_sld_v3(v3(.5, .5, 0));
 		themes[UI_Theme_Light].text_header_1 = 			UI_color4_sld_v3(v3(.8, .5, 0));
 		themes[UI_Theme_Light].text_header_2 = 			UI_color4_sld_v3(v3(.3, .3, .6));
 		themes[UI_Theme_Light].text_slider_0 = 			UI_color4_sld_u32(0x000000BB);
 		themes[UI_Theme_Light].text_slider_1 = 			UI_color4_sld_u32(0x363d00BB);
-		themes[UI_Theme_Light].text_slider_2 = 			UI_color4_sld_u32(0x363d00FF);
-		themes[UI_Theme_Light].open_btn_0 = 			UI_color4_sld_u32(0x389c3cff);
-		themes[UI_Theme_Light].open_btn_1 = 			UI_color4_sld_u32(0x4ec652ff);
-		themes[UI_Theme_Light].open_btn_2 = 			UI_color4_sld_u32(0x2d7b2fff);
+		themes[UI_Theme_Light].text_slider_2 = 			UI_color4_sld_u32(0xFFFF00FF);
+		themes[UI_Theme_Light].pos_btn_0 = 				UI_color4_sld_u32(0x56d55cff);
+		themes[UI_Theme_Light].pos_btn_1 = 				UI_color4_sld_u32(0x49ab4bff);
+		themes[UI_Theme_Light].pos_btn_2 = 				UI_color4_sld_u32(0x306b33ff);
+		themes[UI_Theme_Light].neg_btn_0 = 				UI_color4_sld_u32(0xff9c6fff);
+		themes[UI_Theme_Light].neg_btn_1 = 				UI_color4_sld_u32(0xfe7245ff);
+		themes[UI_Theme_Light].neg_btn_2 = 				UI_color4_sld_u32(0x9b4b2eff);
 
 		init = true;
 	}
 	return &themes[G->settings_selected_theme];
 }
 char *themes_str[] {"Cactus Green", "Dark Blue", "Light Blue"};
+
+int UI_set_disabled(bool value) {
+	G->gui_disabled_backup = G->gui_disabled;
+	G->gui_disabled = value;
+	return G->gui_disabled_backup;
+}
+void UI_reset_disabled() {
+	G->gui_disabled = G->gui_disabled_backup;
+}
+
+#define UI_set_disabled_defer(__value__) for (int _i_ = 1, _j_ = UI_set_disabled((__value__)); _i_; _i_ = 0, UI_reset_disabled())
 
 UI_Block* UI_bar(Axis2 axis) {
 	UI_Context *ctx = G->ui;
@@ -430,7 +450,7 @@ bool UI_color_picker(UI_Color_Picker_Style *style, u32 *color, bool with_alpha, 
 	button->style.layout.align[axis_y] = align_center;
 	UI_push_parent(ctx, button);
 	u32 color_inv = UI_invert_u32_color((*color & 0xFFFFFF00) | 0x000000FF);
-	color_inv = UI_lerp_u32(0xFFFFFFFF, color_inv, (((*color) & 0x000000FF)) / 255.f);
+	color_inv = UI_lerp_u32(0xFFFFFFFF, color_inv, (((*color) & 0x000000FF)) / 255.f, false);
 	UI_text(UI_color4_sld_u32(color_inv), G->ui_font, style->font_size, style->label);
 	UI_pop_parent(ctx);
 
@@ -443,7 +463,7 @@ bool UI_color_picker(UI_Color_Picker_Style *style, u32 *color, bool with_alpha, 
 		if (keydn(MouseL) && hot)
 			G->mouse_dn_hash = prv->hash;
 		clicked = hot && keyup(MouseL) && G->mouse_dn_hash == prv->hash;
-		color_border = button->style.color[c_border];
+		color_border = prv->style.color[c_border];
 	}
 
 	if (metadata && metadata->open) {
@@ -668,9 +688,9 @@ bool UI_color_picker(UI_Color_Picker_Style *style, u32 *color, bool with_alpha, 
 					UI_text(theme->text_reg_main, G->ui_font, 13, "%i, %i, %i", r, g, b);
 			}
 			if (with_alpha)
-				UI_text(theme->text_alert, G->ui_font, 13, "#%02X%02X%02X%02X", r, g, b, a);
+				UI_text(theme->text_info, G->ui_font, 13, "#%02X%02X%02X%02X", r, g, b, a);
 			else
-				UI_text(theme->text_alert, G->ui_font, 13, "#%02X%02X%02X", r, g, b);
+				UI_text(theme->text_info, G->ui_font, 13, "#%02X%02X%02X", r, g, b);
 
 		}
 
@@ -707,7 +727,7 @@ bool UI_color_picker(UI_Color_Picker_Style *style, u32 *color, bool with_alpha, 
 
 	if (metadata) {
 		if (!metadata->open)	metadata->value = *color;
-		if (clicked)			metadata->open = true;
+		if (clicked)			{ metadata->open = true; G->force_loop_frames += 2; }
 		if (clicked_outside)	metadata->open = false;
 	}
 
@@ -952,18 +972,20 @@ bool UI_slider_fill(UI_Slider_Style* style, Axis2 axis,f32* data, f32 min, f32 m
 void UI_spacer_ver(f32 pixels = 0) {
 	UI_Context *ctx = G->ui;
 	UI_Block* spacer = UI_push_block(ctx);
-	if (pixels = 0)
+	if (pixels == 0)
 		spacer->style.size[axis_y] = { UI_Size_t::percent_of_parent, 1, 0 };
 	else
-		spacer->style.size[axis_y] = { UI_Size_t::pixels, pixels, 0 };
+		spacer->style.size[axis_y] = { UI_Size_t::pixels, pixels, 1 };
+	spacer->style.size[axis_x] = { UI_Size_t::pixels, 1, 1 };
 }
 void UI_spacer_hor(f32 pixels = 0) {
 	UI_Context *ctx = G->ui;
 	UI_Block* spacer = UI_push_block(ctx); 
-	if (pixels = 0)
+	if (pixels == 0)
 		spacer->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1, 0 };
 	else
-		spacer->style.size[axis_x] = { UI_Size_t::pixels, pixels, 0 };
+		spacer->style.size[axis_x] = { UI_Size_t::pixels, pixels, 1 };
+	spacer->style.size[axis_y] = { UI_Size_t::pixels, 1, 1 };
 }
 void UI_separator(f32 thickness, UI_Color4 color) {
 	UI_Context *ctx = G->ui;
@@ -988,6 +1010,7 @@ void UI_tooltip(char* string, u32 time = 30) {
 	if (UI_mouse_in_block(prv)) {
 		if (last_mouse != _iv2(G->keys.Mouse)) {
 			timer = 0;
+			G->force_loop_frames += time;
 		}
 		last_mouse = _iv2(G->keys.Mouse);
 		timer++;
@@ -1020,7 +1043,8 @@ void UI_tooltip(char* string, u32 time = 30) {
 }
 
 struct UI_Combo_Style {
-	v2 size; //also combo item size
+	v2 btn_size; //also combo item size
+	v2 item_size; //also combo item size
 	bool show_selected_item; // else shows label
 	u32 font_size;
 	UI_Color4_Set col_box;
@@ -1032,26 +1056,35 @@ struct UI_Combo_Style {
 struct UI_Combo_Data {
 	bool open;
 };
-bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 item_count) {
+
+struct UI_Combo_Return {
+	bool changed;
+	bool popup;
+	UI_Block* bounding_box;
+};
+
+UI_Combo_Return UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 item_count) {
 	UI_Context *ctx = G->ui;
 	UI_Block *box = UI_push_block(ctx);
-	UI_Block* arrow = 0;
+	//UI_Block* arrow = 0;
 	UI_Block* label_block = 0;
 	UI_Block* container = 0;
-	bool result = false;
+	UI_Block* bounding_box = 0;
+	bool changed = false;
+	bool popup = false;
 	box->hash = UI_hash_formatted(ctx, label);
 	box->style.roundness = v4(style->roundness);
 	box->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_hit_test;
 	UI_Color4 col_box = box->style.color[c_background] = style->col_box.base;
 	
 	UI_push_parent_defer(ctx, box) {
-		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+		//UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 			label_block = UI_text(style->col_text.base, G->ui_font, style->font_size, style->show_selected_item ? items[*index] : label);
-		}
-		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-			UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-			arrow = UI_push_block(ctx);
-		}
+		//}
+//		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+//			UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+//			arrow = UI_push_block(ctx);
+//		}
 	}
 
 	bool hot = false;
@@ -1065,6 +1098,7 @@ bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 
 		col_box = prv_box->style.color[c_background];
 
 	if (metadata->open && prv_box) {
+		popup = true;
 		box->style.roundness[UI_Corner_bl] = 0;
 		box->style.roundness[UI_Corner_br] = 0;
 		box->style.softness = 0;
@@ -1083,8 +1117,8 @@ bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 
 				UI_Block* item_label = 0;
 				item->style.softness = 0;
 				item->hash = UI_hash_formatted(ctx, "%s_%i", label, i);
-				item->style.size[axis_x] = { UI_Size_t::pixels, style->size.x, 1 };
-				item->style.size[axis_y] = { UI_Size_t::pixels, style->size.y, 1 };
+				item->style.size[axis_x] = { UI_Size_t::pixels, style->item_size.x, 1 };
+				item->style.size[axis_y] = { UI_Size_t::pixels, style->item_size.y, 1 };
 				item->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_hit_test;
 				UI_Color4 item_col = item->style.color[c_background] = style->col_box.base;
 				item->style.layout.padding = v2(5);
@@ -1112,7 +1146,7 @@ bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 
 					if (item_hot && G->mouse_dn_hash == prv_item->hash && keyup(MouseL)) {
 						*index = i;
 						metadata->open = false;
-						result = true;
+						changed = true;
 					}
 				}
 				if (prv_label) item_text_col = prv_label->style.color[c_text];
@@ -1124,13 +1158,14 @@ bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 
 		frame->depth_level = container->depth_level + 10;
 		frame->hash = UI_hash_formatted(ctx, "%s_c_frame", label);
 		frame->style.position[axis_x] = { UI_Position_t::pixels_from_parent, 0 };
-		frame->style.position[axis_y] = { UI_Position_t::pixels_from_parent, -style->size.y };
-		frame->style.size[axis_x] = { UI_Size_t::pixels, style->size.x, 1 };
-		frame->style.size[axis_y] = { UI_Size_t::pixels, style->size.y * (item_count + 1), 1 };
+		frame->style.position[axis_y] = { UI_Position_t::pixels_from_parent, -style->btn_size.y };
+		frame->style.size[axis_x] = { UI_Size_t::pixels, style->btn_size.x, 1 };
+		frame->style.size[axis_y] = { UI_Size_t::pixels, style->item_size.y * (item_count) + style->btn_size.y, 1 };
 		frame->flags |= UI_Block_Flags_draw_border;
 		frame->style.border_size = 1;
 		frame->style.color[c_border] = UI_color4_sld_u32(0xFFFFFFBB);
 		frame->style.roundness = v4(style->roundness);
+		bounding_box = frame;
 	}
 
 	if (prv_box) {
@@ -1139,25 +1174,27 @@ bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 
 		if (hot && keydn(MouseL)) {
 			G->mouse_dn_hash = prv_box->hash;
 		}
-		if (hot && G->mouse_dn_hash == prv_box->hash && keyup(MouseL))
-			metadata->open = !metadata->open;
+		if (hot && G->mouse_dn_hash == prv_box->hash && keydn(MouseL)) { 
+			metadata->open = !metadata->open; 
+			G->force_loop_frames += 2;
+		}
 		if (!hot && !in_container && keydn(MouseL)) {
 			metadata->open = false;
 		}
 	}
 
-	arrow->style.texture_handle = G->shapes_texture_id;
-	arrow->style.texture_uv = v2(0);
-	arrow->style.texture_src_size = v2(UI_ASSET_SHAPE_ARROW_WIDTH, UI_ASSET_SHAPE_ARROW_HEIGHT);
-	arrow->style.texture_rotation = 0;
-	arrow->hash = UI_hash_formatted(ctx, "%s_combo_arrow", label);
-	UI_Color4 col_arrow = arrow->style.color[c_background] = style->col_text.base;
-	arrow->flags |= UI_Block_Flags_draw_image;
-	UI_Block* prv_arrow = UI_find_block(ctx, box->hash, UI_PREVIOUS);
-	if (prv_arrow) col_arrow = prv_arrow->style.color[c_background];
+//	arrow->style.texture_handle = G->shapes_texture_id;
+//	arrow->style.texture_uv = v2(0);
+//	arrow->style.texture_src_size = v2(UI_ASSET_SHAPE_ARROW_WIDTH, UI_ASSET_SHAPE_ARROW_HEIGHT);
+//	arrow->style.texture_rotation = 0;
+//	arrow->hash = UI_hash_formatted(ctx, "%s_combo_arrow", label);
+//	UI_Color4 col_arrow = arrow->style.color[c_background] = style->col_text.base;
+//	arrow->flags |= UI_Block_Flags_draw_image;
+//	UI_Block* prv_arrow = UI_find_block(ctx, box->hash, UI_PREVIOUS);
+//	if (prv_arrow) col_arrow = prv_arrow->style.color[c_background];
 
-	box->style.size[axis_x] = {UI_Size_t::pixels, style->size.x, 1};
-	box->style.size[axis_y] = {UI_Size_t::pixels, style->size.y, 1};
+	box->style.size[axis_x] = {UI_Size_t::pixels, style->btn_size.x, 1};
+	box->style.size[axis_y] = {UI_Size_t::pixels, style->btn_size.y, 1};
 	box->style.layout.align[axis_x] = align_center;
 	box->style.layout.align[axis_y] = align_center;
 	
@@ -1167,11 +1204,11 @@ bool UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**items, u32 
 	UI_Block* prv_text = UI_find_block(ctx, label_block->hash, UI_PREVIOUS);
 	if (prv_text) col_text = prv_text->style.color[c_text];
 
-	arrow->style.color[c_background] = 	UI_animate_color_4(col_arrow, hot, active, disabled, style->col_text);
+	//arrow->style.color[c_background] = 	UI_animate_color_4(col_arrow, hot, active, disabled, style->col_text);
 	box->style.color[c_background] = 	UI_animate_color_4(col_box,   hot, active, disabled, style->col_box);
 	label_block->style.color[c_text] = 	UI_animate_color_4(col_text,  hot, active, disabled, style->col_text);
 
-	return result;
+	return { changed, popup, bounding_box };
 }
 
 // more Cactus specific widgets:
@@ -1180,14 +1217,17 @@ struct UI_Popup_Data {
 	bool open;
 };
 
-struct UI_Image_Values_Style {
+struct UI_Image_Edit_Style {
 	UI_Button_Style button_style;
 	UI_Slider_Style slider_style;
+	UI_Checkbox_Style checkbox_style;
 	UI_Color4 color_text;
 	UI_Color4 color_frame_bg;
 };
 
-bool UI_image_values(UI_Image_Values_Style *style, char* label) {
+static void reset_image_edit();
+
+bool UI_image_edit(UI_Image_Edit_Style *style, char* label) {
 	UI_Context *ctx = G->ui;
 	UI_Popup_Data *metadata = 0;
 	iv2 mouse = _iv2(UI_get_mouse());
@@ -1205,7 +1245,8 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 		UI_find_else_allocate_data(ctx, hash, sizeof(UI_Popup_Data)).buffer;
 
 	if (UI_button(&style->button_style, label)) {
-		metadata->open = !metadata->open;
+		metadata->open = !metadata->open; 
+		G->force_loop_frames += 2;
 		spawn_pos = UI_get_mouse();
 	}
 
@@ -1222,13 +1263,29 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 				clicked_outside = true;
 			}
 		}
+		f32 text_bar_frac = 0.45;
 		style->slider_style.snap = true;
 		style->slider_style.mouse_right_to_reset = true;
 		UI_push_parent_defer(ctx, popup) {
+			UI_Button_Style btn_style = style->button_style;
+			btn_style.size.x = 120;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				auto bar = UI_get_current_parent(ctx);
+				bar->style.layout.align[axis_x] = align_center;
+				bar->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1, 1 };
+				if (UI_button(&btn_style, G->crop_mode ? "Exit crop mode" : "Enter crop mode"))
+					G->crop_mode = !G->crop_mode;
+				UI_spacer_hor(20);
+				btn_style.color_bg.base = theme->neg_btn_0;
+				btn_style.color_bg.hot = theme->neg_btn_1;
+				btn_style.color_bg.active = theme->neg_btn_2;
+				if (UI_button(&btn_style, "Reset edits"))
+					reset_image_edit();
+			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, .32, 0};
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
 					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Hue:");
 				}
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -1244,7 +1301,7 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, .32, 0};
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
 					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Saturation:");
 				}
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -1260,7 +1317,7 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, .32, 0};
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
 					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Contrast:");
 				}
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -1276,7 +1333,7 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, .32, 0};
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
 					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Brightness:");
 				}
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -1292,7 +1349,7 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, .32, 0};
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
 					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Gamma:");
 				}
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -1305,8 +1362,49 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 					UI_tooltip("right click to reset", 20);
 				}
 			}
+			UI_checkbox(&style->checkbox_style, &G->srgb, "Render base colors in sRGB");
+			UI_checkbox(&style->checkbox_style,(bool*)(&G->do_blur), "Gaussian blur (GPU intensive)");
+			bool prev_disabled = G->gui_disabled;
+			if (!G->do_blur)
+				G->gui_disabled = true;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Blur samples:");
+				}
+				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+					sprintf(style->slider_style.string, "%i", G->blur_samples);
+					style->slider_style.snap_value = 32;
+					style->slider_style.snap_range = 4;
+					style->slider_style.reset_value = 32;
+					float t_samples = G->blur_samples;
+					UI_slider(&style->slider_style, axis_x, &t_samples, 2, 64, UI_hash_formatted(ctx, "%s_blur_samples", label));
+					G->blur_samples = t_samples;
+					UI_tooltip("right click to reset", 20);
+				}
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Blur scale:");
+				}
+				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+					sprintf(style->slider_style.string, "%.5f", G->blur_scale);
+					style->slider_style.snap_value = 0.001;
+					style->slider_style.snap_range = 0.0001;
+					style->slider_style.reset_value = 0.001;
+					style->slider_style.logarithmic = true;
+					UI_slider(&style->slider_style, axis_x, &G->blur_scale, 0, 0.005, UI_hash_formatted(ctx, "%s_blur_scale", label));
+					UI_tooltip("right click to reset", 20);
+				}
+			}
+			G->gui_disabled = prev_disabled;
 		}
-		popup->style.size[axis_x] = { UI_Size_t::pixels, 245, 1.0f };
+		popup->style.size[axis_x] = { UI_Size_t::pixels, 300, 1.0f };
 		popup->style.size[axis_y] = { UI_Size_t::sum_of_children, 1, 1.f };
 		popup->style.color[c_background] = style->color_frame_bg;
 		popup->style.color[c_border] = theme->bg_sub;
@@ -1315,19 +1413,19 @@ bool UI_image_values(UI_Image_Values_Style *style, char* label) {
 		popup->style.layout.padding = v2(10);
 		popup->style.layout.spacing = v2(7);
 		popup->style.layout.axis = axis_y;
-		popup->style.position[axis_x] = { UI_Position_t::absolute, spawn_pos.x };
-		popup->style.position[axis_y] = { UI_Position_t::absolute, spawn_pos.y - 100 };
+		popup->style.position[axis_x] = { UI_Position_t::absolute, 5 };
+		popup->style.position[axis_y] = { UI_Position_t::absolute, WH - 120.f };
 		UI_Block *ref_popup = UI_find_block(ctx, popup->hash, UI_PREVIOUS);
 		if (ref_popup) {
-			popup->style.position[axis_x].value = clamp(popup->style.position[axis_x].value, 0, WW - ref_popup->size.x);
-			popup->style.position[axis_y].value = clamp(popup->style.position[axis_y].value, 0, WH - ref_popup->size.y);
+			popup->style.position[axis_x].value = clamp(popup->style.position[axis_x].value, 0, WW - ref_popup->size.x - 5);
+			popup->style.position[axis_y].value = clamp(popup->style.position[axis_y].value, 0, WH - ref_popup->size.y - 35);
 			popup->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_draw_border;
 		}
 
 	}
 
 	if (metadata) {
-		if (clicked)			metadata->open = true;
+		if (clicked)			{ metadata->open = true; G->force_loop_frames += 2; }
 		if (clicked_outside)	metadata->open = false;
 	}
 
@@ -1342,10 +1440,6 @@ struct UI_Histogram_Style {
 
 struct UI_Histogram_Data {
 	bool open;
-	bool r = 1;
-	bool g = 1;
-	bool b = 1;
-	bool t = 1;
 };
 
 bool UI_histogram(UI_Histogram_Style *style, char* label) {
@@ -1363,14 +1457,11 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 
 	UI_Theme* theme = UI_get_theme();
 
-	bool init = 0;
-	metadata = (UI_Histogram_Data *)UI_find_else_allocate_data(ctx, hash, sizeof(UI_Histogram_Data), &init).buffer;
-	if (init) {
-		metadata->r = metadata->g = metadata->b = metadata->t = true;
-	}
+	metadata = (UI_Histogram_Data *)UI_find_else_allocate_data(ctx, hash, sizeof(UI_Histogram_Data)).buffer;
 
 	if (UI_button(&style->button_style, label)) {
 		metadata->open = !metadata->open;
+		G->force_loop_frames += 2;
 		spawn_pos = UI_get_mouse();
 	}
 
@@ -1382,7 +1473,7 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 	} else {
 		UI_tooltip("this is disabled from settings. you can change it in 'config'");
 	}
-
+	G->histo_block = 0;
 	if (metadata && metadata->open) {
 		popup_open = true;
 		UI_Block *popup = UI_push_block(ctx, 0);
@@ -1424,57 +1515,22 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 					}
 				}
 			}
-			UI_push_parent_defer(ctx, hframe) {
-				for (int i = 0; i < 256; i++) {
-					if (metadata->t) {
-						br = UI_push_block(ctx);
-						br->style.size[axis_x] = { UI_Size_t::pixels, 1, 1 };
-						br->style.size[axis_y] = { UI_Size_t::pixels, min(((f32)G->histo_t[i] / G->histo_max_edit) * 150, 150), 1 };
-						br->style.position[axis_x] = { UI_Position_t::pixels_from_parent, 1 + f32(i) };
-						br->style.color[c_background] = col_t;
-						br->flags |= UI_Block_Flags_draw_background;
-						br->style.softness = 0;
-					}
+			G->histo_block = ref_frame;
 
-					if (metadata->b) {
-						br = UI_push_block(ctx);
-						br->style.size[axis_x] = { UI_Size_t::pixels, 1, 1 };
-						br->style.size[axis_y] = { UI_Size_t::pixels, min(((f32)G->histo_b[i] / G->histo_max_edit) * 150, 150), 1 };
-						br->style.position[axis_x] = { UI_Position_t::pixels_from_parent, 1 + f32(i) };
-						br->style.color[c_background] = col_b;
-						br->flags |= UI_Block_Flags_draw_background;
-						br->style.softness = 0;
-					}
-
-					if (metadata->g) {
-						br = UI_push_block(ctx);
-						br->style.size[axis_x] = { UI_Size_t::pixels, 1, 1 };
-						br->style.size[axis_y] = { UI_Size_t::pixels, min(((f32)G->histo_g[i] / G->histo_max_edit) * 150, 150), 1 };
-						br->style.position[axis_x] = { UI_Position_t::pixels_from_parent, 1 + f32(i) };
-						br->style.color[c_background] = col_g;
-						br->flags |= UI_Block_Flags_draw_background;
-						br->style.softness = 0;
-					}
-
-					if (metadata->r) {
-						br = UI_push_block(ctx);
-						br->style.size[axis_x] = { UI_Size_t::pixels, 1, 1 };
-						br->style.size[axis_y] = { UI_Size_t::pixels, min(((f32)G->histo_r[i] / G->histo_max_edit) * 150, 150), 1 };
-						br->style.position[axis_x] = { UI_Position_t::pixels_from_parent, 1 + f32(i) };
-						br->style.color[c_background] = col_r;
-						br->flags |= UI_Block_Flags_draw_background;
-						br->style.softness = 0;
-					}
-	
-				}
+			f32 height = 150 - 4;
+			for (int i = 0; i < 256; i++) {
+				G->p_histo_r[i] = v2(i, height - min(((f32)G->histo_r[i] / G->histo_max_edit) * height, height));
+				G->p_histo_g[i] = v2(i, height - min(((f32)G->histo_g[i] / G->histo_max_edit) * height, height));
+				G->p_histo_b[i] = v2(i, height - min(((f32)G->histo_b[i] / G->histo_max_edit) * height, height));
+				G->p_histo_t[i] = v2(i, height - min(((f32)G->histo_t[i] / G->histo_max_edit) * height, height));
 			}
 
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
-				UI_checkbox(&style->checkbox_style, &metadata->r, "red");
-				UI_checkbox(&style->checkbox_style, &metadata->g, "green");
-				UI_checkbox(&style->checkbox_style, &metadata->b, "blue");
-				UI_checkbox(&style->checkbox_style, &metadata->t, "total");
+				UI_checkbox(&style->checkbox_style, &G->draw_histo_r, "red");
+				UI_checkbox(&style->checkbox_style, &G->draw_histo_g, "green");
+				UI_checkbox(&style->checkbox_style, &G->draw_histo_b, "blue");
+				UI_checkbox(&style->checkbox_style, &G->draw_histo_t, "luminosity");
 			}
 
 			popup->style.size[axis_x] = { UI_Size_t::sum_of_children, 1, 1.0f };
@@ -1486,12 +1542,12 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 			popup->style.layout.padding = v2(10);
 			popup->style.layout.spacing = v2(7);
 			popup->style.layout.axis = axis_y;
-			popup->style.position[axis_x] = { UI_Position_t::absolute, spawn_pos.x };
-			popup->style.position[axis_y] = { UI_Position_t::absolute, spawn_pos.y - 200 };
+			popup->style.position[axis_x] = { UI_Position_t::absolute, 5 };
+			popup->style.position[axis_y] = { UI_Position_t::absolute, f32(WH)};
 			UI_Block *ref_popup = UI_find_block(ctx, popup->hash, UI_PREVIOUS);
 			if (ref_popup) {
-				popup->style.position[axis_x].value = clamp(popup->style.position[axis_x].value, 0, WW - ref_popup->size.x);
-				popup->style.position[axis_y].value = clamp(popup->style.position[axis_y].value, 0, WH - ref_popup->size.y);
+				popup->style.position[axis_x].value = clamp(popup->style.position[axis_x].value, 0, WW - ref_popup->size.x - 5);
+				popup->style.position[axis_y].value = clamp(popup->style.position[axis_y].value, 0, WH - ref_popup->size.y - 35);
 				popup->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_draw_border;
 			}
 		}
@@ -1499,7 +1555,7 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 	}
 
 	if (metadata) {
-		if (clicked)			metadata->open = true;
+		if (clicked)			{ metadata->open = true; G->force_loop_frames += 2; }
 		if (clicked_outside)	metadata->open = false;
 	}
 

@@ -883,7 +883,7 @@ int VP8LGetHistoImageSymbols(int xsize, int ysize,
   const int entropy_combine =
       (orig_histo->size > entropy_combine_num_bins * 2) && (quality < 100);
 
-  if (orig_histo == NULL) goto Error;
+  if (orig_histo == NULL) goto Alert;
 
   // Don't attempt linear bin-partition heuristic for:
   // histograms of small sizes, as bin_map will be very sparse and;
@@ -891,7 +891,7 @@ int VP8LGetHistoImageSymbols(int xsize, int ysize,
   if (entropy_combine) {
     const int bin_map_size = bin_depth * entropy_combine_num_bins;
     bin_map = (int16_t*)WebPSafeCalloc(bin_map_size, sizeof(*bin_map));
-    if (bin_map == NULL) goto Error;
+    if (bin_map == NULL) goto Alert;
   }
 
   // Construct the histograms from backward references.
@@ -920,7 +920,7 @@ int VP8LGetHistoImageSymbols(int xsize, int ysize,
                                cur_combo, quality, threshold_size);
     if ((image_histo->size <= threshold_size) &&
         !HistogramCombineGreedy(image_histo)) {
-      goto Error;
+      goto Alert;
     }
   }
 
@@ -930,7 +930,7 @@ int VP8LGetHistoImageSymbols(int xsize, int ysize,
 
   ok = 1;
 
- Error:
+ Alert:
   WebPSafeFree(bin_map);
   VP8LFreeHistogramSet(orig_histo);
   return ok;

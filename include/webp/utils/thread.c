@@ -275,11 +275,11 @@ static int Reset(WebPWorker* const worker) {
       return 0;
     }
     if (pthread_mutex_init(&worker->impl_->mutex_, NULL)) {
-      goto Error;
+      goto Alert;
     }
     if (pthread_cond_init(&worker->impl_->condition_, NULL)) {
       pthread_mutex_destroy(&worker->impl_->mutex_);
-      goto Error;
+      goto Alert;
     }
     pthread_mutex_lock(&worker->impl_->mutex_);
     ok = !pthread_create(&worker->impl_->thread_, NULL, ThreadLoop, worker);
@@ -288,7 +288,7 @@ static int Reset(WebPWorker* const worker) {
     if (!ok) {
       pthread_mutex_destroy(&worker->impl_->mutex_);
       pthread_cond_destroy(&worker->impl_->condition_);
- Error:
+ Alert:
       WebPSafeFree(worker->impl_);
       worker->impl_ = NULL;
       return 0;

@@ -129,6 +129,8 @@ struct Keys
     Key_Data K[key_COUNT];
     bool disconnect = false;
 
+	bool double_click = false;
+
     v2 Mouse;
     v2 Mouse_rel;
     int ScrollY = 0;
@@ -169,6 +171,9 @@ struct glrect
     Vertex V[6];
 };
 
+#define RENDER_MODE_VEIWER	0
+#define RENDER_MODE_ENCODER	1
+
 struct Shader_Constants_Main { //packed to 16 byte alignment
 	f32 aspect_img;
 	f32 aspect_wnd;
@@ -192,10 +197,20 @@ struct Shader_Constants_Main { //packed to 16 byte alignment
 	f32 brightness;
 	f32 gamma;
 	i32 srgb;
+	i32 render_mode;
+
+	i32 do_blur;
+	u32 blur_samples;
+	u32 blur_lod;
+	f32 blur_scale;
+
+	v2 crop_a;
+	v2 crop_b;
+	i32 crop_mode;
 };
 
 struct Shader_Constants_BG { //packed to 16 byte alignment
-	v2 Window;
+	v2 window;
 	f32 size;
 	f32 _padding0;
 
@@ -207,11 +222,63 @@ struct Shader_Constants_BG { //packed to 16 byte alignment
 
 	v4 bg;
 };
+
+struct Shader_Constants_Crop { //packed to 16 byte alignment
+	v2 window;
+	v2 image_pos;
+
+	v2 crop_a;
+	v2 crop_b;
+
+	v2 image_dim;
+
+	f32 scale;
+};
+
+struct Shader_Constants_Lines { //packed to 16 byte alignment
+	v4 color;
+
+	v2 window;
+	v2 offset;
+};
+
 struct Texture {
 	v2                          size;
 	ID3D11Texture2D*            d3d_texture;
 	ID3D11ShaderResourceView*   srv;
 	ID3D11ShaderResourceView*   srv_srgb;
+};
+
+enum Encoder_Format {
+	Format_Bmp,
+	Format_Png,
+	//Format_Ico,
+	//Format_Jpeg,
+	Format_Tiff,
+	//Format_Gif,
+	//Format_Wmp,
+	Format_Dds,
+	//Format_Adng,
+	Format_Heif,
+	//Format_Webp,
+	//Format_Raw,
+
+	Format_Count
+};
+
+char* encoder_formats_str[] = {
+	"BMP",
+	"PNG",
+	//"Ico",
+	//"Jpeg",
+	"TIFF",
+	//"Gif",
+	//"Wmp",
+	"DDS",
+	//"Adng",
+	"HEIF",
+	//"Webp",
+	//"Raw"
 };
 
 struct Image
@@ -257,6 +324,10 @@ struct Graphics
 
 	Shader_Program 				main_program;
 	Shader_Program 				bg_program;
+	Shader_Program 				crop_program;
+	Shader_Program 				lines_program;
+
+	ID3D11Buffer				*lines_vertex_buffer;
 
     i32 MAX_GPU = 0;
 
@@ -267,16 +338,23 @@ struct Graphics
     float aspect_img;
 };
 
-struct Error
+enum Alert_Type {
+	Alert_Error,
+	Alert_Info
+};
+
+struct Alert
 {
     int timer;
     char string[265];
+	Alert_Type type;
 };
 
 struct Signals
 {
     bool update_pass = false;
     bool init_step_2 = false;
+    bool update_orientation_step_2 = false;
     bool update_blending = false;
     bool next_image = false;
     bool prev_image = false;
@@ -307,6 +385,8 @@ enum Cursor_Type {
 	Cursor_Type_arrow,
 	Cursor_Type_resize_h,
 	Cursor_Type_resize_v,
+	Cursor_Type_resize_dr,
+	Cursor_Type_resize_dl,
 	Cursor_Type_text,
 
 	Cursor_Type_count
@@ -336,7 +416,7 @@ struct UI_Theme {
 	UI_Color4 text_reg_light;
 	UI_Color4 text_reg_mid;
 	UI_Color4 text_error;
-	UI_Color4 text_alert;
+	UI_Color4 text_info;
 
 	UI_Color4 text_header_0;
 	UI_Color4 text_header_1;
@@ -346,9 +426,13 @@ struct UI_Theme {
 	UI_Color4 text_slider_1;
 	UI_Color4 text_slider_2;
 
-	UI_Color4 open_btn_0;
-	UI_Color4 open_btn_1;
-	UI_Color4 open_btn_2;
+	UI_Color4 pos_btn_0;
+	UI_Color4 pos_btn_1;
+	UI_Color4 pos_btn_2;
+
+	UI_Color4 neg_btn_0;
+	UI_Color4 neg_btn_1;
+	UI_Color4 neg_btn_2;
 };
 
 struct Global
@@ -362,7 +446,7 @@ struct Global
     CRITICAL_SECTION sort_mutex;
     CRITICAL_SECTION imgui_mutex;
     Signals signals;
-    Error error;
+    Alert alert;
 
 	IWICImagingFactory* wic_factory = NULL;
 
@@ -374,6 +458,7 @@ struct Global
     bool imgui_in_frame = false;
     bool show_gui = false;
 	bool gui_disabled = false; //inter-frame value, not cross-frame! used by gui functions
+	bool gui_disabled_backup = false;
 
     float scale = 1;
     float truescale = 1;
@@ -381,6 +466,10 @@ struct Global
     float req_truescale = 1;
 
 	HCURSOR hcursor[Cursor_Type_count];
+
+	bool force_loop;
+	i32 force_loop_frames;
+	HANDLE loader_event;
 
 	UI_Context *ui;
 	UI_Font* ui_font;
@@ -402,6 +491,10 @@ struct Global
 	f32 brightness = 1;
 	f32 gamma;
 	bool srgb = 0;
+	b32 do_blur;
+	i32 blur_samples;
+	i32 blur_lod;
+	f32 blur_scale;
 
 	int anim_index;
 	bool anim_play;
@@ -411,6 +504,7 @@ struct Global
     int anim_frames;
     bool anim_loaded;
     bool settings_visible;
+    bool save_as_visible;
     bool exif_data_visible;
     bool dropped_file;
     bool loading_dropped_file;
@@ -430,12 +524,28 @@ struct Global
 
 	bool mouse_dragging = false;
 
-	i32 histo_r[256];
-	i32 histo_g[256];
-	i32 histo_b[256];
-	i32 histo_t[256];
-	i32 histo_max;
-	i32 histo_max_edit;
+	bool crop_mode = false;
+	iv2 crop_a;
+	iv2 crop_b;
+
+	u64 histo_r[256]; 
+	u64 histo_g[256]; 
+	u64 histo_b[256]; 
+	u64 histo_t[256];
+	
+	v2 p_histo_r[265];
+	v2 p_histo_g[265];
+	v2 p_histo_b[265];
+	v2 p_histo_t[265];
+
+	bool draw_histo_r = 1;
+	bool draw_histo_g = 1;
+	bool draw_histo_b = 1;
+	bool draw_histo_t = 1;
+
+	u64 histo_max;
+	u64 histo_max_edit;
+	UI_Block* histo_block;
 
     bool nearest_filtering = false;
     bool pixel_grid = false;

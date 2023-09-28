@@ -53,6 +53,12 @@ template <typename T> struct vec2 {
 		T L = length(); 
 		return (L > static_cast<T>(0)) ? vec2(x / L, y / L) : vec2(0, 0);
 	}
+	inline vec2 invert_y() { 
+		return vec2(x, -y);
+	}
+	inline vec2 yx() { 
+		return vec2(y, x);
+	}
 };
 
 template<typename T> struct vec3 {
@@ -285,17 +291,18 @@ float signed_angle_v2(v2 A, v2 B)
 	return atan2(A.x * B.y - A.y * B.x, A.x * B.x + A.y * B.y);
 }
 
-v2 Rotate2D(v2 P, float sine, float cosine)
+v2 rotate_2d(v2 P, float sine, float cosine)
 {
 	return v2(v2(cosine, -sine).dot(P), v2(sine, cosine).dot(P));
 }
 
-v2 Rotate2D(v2 P, float Angle)
+v2 rotate_2d(v2 P, float Angle)
 {
-	return Rotate2D(P, sin(Angle), cos(Angle));
+	return rotate_2d(P, sin(Angle), cos(Angle));
 }
-v2 Rotate2D(v2 p, v2 o, float angle)
+v2 rotate_2d(v2 p, v2 o, float angle)
 {
+	if (angle = 0) return p;
 	// Demonstration: https://www.desmos.com/calculator/8aaegifsba
 	float s = sin(angle);
 	float c = cos(angle);
@@ -325,7 +332,9 @@ bool PointInRectangle(v2 P, v2 A, v2 B, v2 C)
 	return false;
 }
 
-static float abso(float F) { return F > 0 ? F : -F; };
+//#define abso(_value_)  (_value_) > 0 ? (_value_) : (-(_value_))
+
+static inline float abso(float F) { return F > 0 ? F : -F; };
 
 uint32_t hash_djb2(char *str)
 {

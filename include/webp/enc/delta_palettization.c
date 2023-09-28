@@ -396,7 +396,7 @@ static WebPEncodingError ApplyDeltaPalette(uint32_t* src, uint32_t* dst,
   uint8_t* const tmp_row = (uint8_t*)WebPSafeMalloc(width, sizeof(*tmp_row));
   if (new_image == NULL || tmp_row == NULL) {
     err = VP8_ENC_ERROR_OUT_OF_MEMORY;
-    goto Error;
+    goto Alert;
   }
 
   while (num_passes--) {
@@ -417,7 +417,7 @@ static WebPEncodingError ApplyDeltaPalette(uint32_t* src, uint32_t* dst,
       cur_dst += dst_stride;
     }
   }
- Error:
+ Alert:
   WebPSafeFree(new_image);
   WebPSafeFree(tmp_row);
   return err;
@@ -439,9 +439,9 @@ WebPEncodingError WebPSearchOptimalDeltaPalette(VP8LEncoder* const enc) {
   err = ApplyDeltaPalette(src, dst, pic->argb_stride, enc->current_width_,
                           enc->palette_, enc->palette_size_,
                           width, height, 2);
-  if (err != VP8_ENC_OK) goto Error;
+  if (err != VP8_ENC_OK) goto Alert;
 
- Error:
+ Alert:
   return err;
 }
 

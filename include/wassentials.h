@@ -118,8 +118,8 @@ struct String8
     inline String8(const char * src)                       { count = capacity = 0; data = nullptr; operator=(src); }
     inline String8(const char * src, int size )            { count = capacity = 0; data = nullptr; resize(size + 1);  
                                                               memcpy(data, src, size); data[size] = '\0';}
-    inline String8& operator=(const String8& src)          { reset_count(); resize(src.count); memcpy(data, src.data, (size_t)count * sizeof(char)); return *this; }
-    inline String8& operator=(const char * src)            { reset_count(); resize(strlen(src)+ 1 ); memcpy(data, src, strlen(src)+ 1 ); return *this; }
+    inline String8& operator=(const String8& src)          { free(data); reset_count(); resize(src.count); memcpy(data, src.data, (size_t)count * sizeof(char)); return *this; }
+    inline String8& operator=(const char * src)            { free(data); reset_count(); resize(strlen(src)+ 1 ); memcpy(data, src, strlen(src)+ 1 ); return *this; }
     inline ~String8()                                      { } // all of the universe's evil comes from destructors calling themselves willy nilly, do not, and I mean it, do not touch this.
 
     inline void     clear()                                 { if (data) { count = capacity = 0; free(data); data = nullptr;} }  
@@ -143,7 +143,7 @@ struct String8
                                                               assert(new_data != nullptr); 
                                                               data = new_data; 
                                                               capacity = new_capacity; }
-    String8        &operator+= (String8 rhs)               { resize(count + rhs.count); memcpy(data, rhs.data, rhs.count); return *this;}                                                                 
+    String8        &operator+= (String8 rhs)                { resize(count + rhs.count); memcpy(data, rhs.data, rhs.count); return *this;}                                                                 
     String8        &operator+= (const char* rhs)            { resize(count + strlen(rhs)+ 1 ); memcpy(data, rhs, strlen(rhs)+ 1 ); return *this;}                                                                 
 
 };

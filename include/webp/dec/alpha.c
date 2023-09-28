@@ -190,10 +190,10 @@ const uint8_t* VP8DecompressAlphaRows(VP8Decoder* const dec,
     if (dec->alph_dec_ == NULL) {    // Initialize decoder.
       dec->alph_dec_ = ALPHNew();
       if (dec->alph_dec_ == NULL) return NULL;
-      if (!AllocateAlphaPlane(dec, io)) goto Error;
+      if (!AllocateAlphaPlane(dec, io)) goto Alert;
       if (!ALPHInit(dec->alph_dec_, dec->alpha_data_, dec->alpha_data_size_,
                     io, dec->alpha_plane_)) {
-        goto Error;
+        goto Alert;
       }
       // if we allowed use of alpha dithering, check whether it's needed at all
       if (dec->alph_dec_->pre_processing_ != ALPHA_PREPROCESSED_LEVELS) {
@@ -205,7 +205,7 @@ const uint8_t* VP8DecompressAlphaRows(VP8Decoder* const dec,
 
     assert(dec->alph_dec_ != NULL);
     assert(row + num_rows <= height);
-    if (!ALPHDecode(dec, row, num_rows)) goto Error;
+    if (!ALPHDecode(dec, row, num_rows)) goto Alert;
 
     if (dec->is_alpha_decoded_) {   // finished?
       ALPHDelete(dec->alph_dec_);
@@ -217,7 +217,7 @@ const uint8_t* VP8DecompressAlphaRows(VP8Decoder* const dec,
                                   io->crop_right - io->crop_left,
                                   io->crop_bottom - io->crop_top,
                                   width, dec->alpha_dithering_)) {
-          goto Error;
+          goto Alert;
         }
       }
     }
@@ -226,7 +226,7 @@ const uint8_t* VP8DecompressAlphaRows(VP8Decoder* const dec,
   // Return a pointer to the current decoded row.
   return dec->alpha_plane_ + row * width;
 
- Error:
+ Alert:
   WebPDeallocateAlphaMemory(dec);
   return NULL;
 }

@@ -1183,7 +1183,7 @@ FT_BEGIN_HEADER
    */
   typedef int
   (*FT_Raster_SetModeFunc)( FT_Raster      raster,
-                            unsigned long  mode,
+                            unsigned long  render_mode,
                             void*          args );
 
 #define FT_Raster_Set_Mode_Func  FT_Raster_SetModeFunc

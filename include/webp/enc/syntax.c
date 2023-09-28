@@ -153,33 +153,33 @@ static int PutWebPHeaders(const VP8Encoder* const enc, size_t size0,
 
   // RIFF header.
   err = PutRIFFHeader(enc, riff_size);
-  if (err != VP8_ENC_OK) goto Error;
+  if (err != VP8_ENC_OK) goto Alert;
 
   // VP8X.
   if (IsVP8XNeeded(enc)) {
     err = PutVP8XHeader(enc);
-    if (err != VP8_ENC_OK) goto Error;
+    if (err != VP8_ENC_OK) goto Alert;
   }
 
   // Alpha.
   if (enc->has_alpha_) {
     err = PutAlphaChunk(enc);
-    if (err != VP8_ENC_OK) goto Error;
+    if (err != VP8_ENC_OK) goto Alert;
   }
 
   // VP8 header.
   err = PutVP8Header(pic, vp8_size);
-  if (err != VP8_ENC_OK) goto Error;
+  if (err != VP8_ENC_OK) goto Alert;
 
   // VP8 frame header.
   err = PutVP8FrameHeader(pic, enc->profile_, size0);
-  if (err != VP8_ENC_OK) goto Error;
+  if (err != VP8_ENC_OK) goto Alert;
 
   // All OK.
   return 1;
 
   // Error.
- Error:
+ Alert:
   return WebPEncodingSetError(pic, err);
 }
 

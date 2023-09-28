@@ -433,7 +433,7 @@ static int BackwardReferencesLz77(int xsize, int ysize,
 
   if (use_color_cache) {
     cc_init = VP8LColorCacheInit(&hashers, cache_bits);
-    if (!cc_init) goto Error;
+    if (!cc_init) goto Alert;
   }
   ClearBackwardRefs(refs);
   for (i = 0; i < pix_count;) {
@@ -480,7 +480,7 @@ static int BackwardReferencesLz77(int xsize, int ysize,
   }
 
   ok = !refs->error_;
- Error:
+ Alert:
   if (cc_init) VP8LColorCacheClear(&hashers);
   return ok;
 }
@@ -525,7 +525,7 @@ static int CostModelBuild(CostModel* const m, int cache_bits,
                           VP8LBackwardRefs* const refs) {
   int ok = 0;
   VP8LHistogram* const histo = VP8LAllocateHistogram(cache_bits);
-  if (histo == NULL) goto Error;
+  if (histo == NULL) goto Alert;
 
   VP8LHistogramCreate(histo, refs, cache_bits);
 
@@ -542,7 +542,7 @@ static int CostModelBuild(CostModel* const m, int cache_bits,
       NUM_DISTANCE_CODES, histo->distance_, m->distance_);
   ok = 1;
 
- Error:
+ Alert:
   VP8LFreeHistogram(histo);
   return ok;
 }
@@ -1187,20 +1187,20 @@ static int BackwardReferencesHashChainDistanceOnly(
   CostManager* cost_manager =
       (CostManager*)WebPSafeMalloc(1ULL, sizeof(*cost_manager));
 
-  if (cost_model == NULL || cost_manager == NULL) goto Error;
+  if (cost_model == NULL || cost_manager == NULL) goto Alert;
 
   cost_model->literal_ = (double*)(cost_model + 1);
   if (use_color_cache) {
     cc_init = VP8LColorCacheInit(&hashers, cache_bits);
-    if (!cc_init) goto Error;
+    if (!cc_init) goto Alert;
   }
 
   if (!CostModelBuild(cost_model, cache_bits, refs)) {
-    goto Error;
+    goto Alert;
   }
 
   if (!CostManagerInit(cost_manager, dist_array, pix_count, cost_model)) {
-    goto Error;
+    goto Alert;
   }
 
   // We loop one pixel at a time, but store all currently best points to
@@ -1335,7 +1335,7 @@ static int BackwardReferencesHashChainDistanceOnly(
   }
 
   ok = !refs->error_;
- Error:
+ Alert:
   if (cc_init) VP8LColorCacheClear(&hashers);
   CostManagerClear(cost_manager);
   WebPSafeFree(cost_model);
@@ -1375,7 +1375,7 @@ static int BackwardReferencesHashChainFollowChosenPath(
 
   if (use_color_cache) {
     cc_init = VP8LColorCacheInit(&hashers, cache_bits);
-    if (!cc_init) goto Error;
+    if (!cc_init) goto Alert;
   }
 
   ClearBackwardRefs(refs);
@@ -1406,7 +1406,7 @@ static int BackwardReferencesHashChainFollowChosenPath(
     }
   }
   ok = !refs->error_;
- Error:
+ Alert:
   if (cc_init) VP8LColorCacheClear(&hashers);
   return ok;
 }
@@ -1423,20 +1423,20 @@ static int BackwardReferencesTraceBackwards(
   uint16_t* dist_array =
       (uint16_t*)WebPSafeMalloc(dist_array_size, sizeof(*dist_array));
 
-  if (dist_array == NULL) goto Error;
+  if (dist_array == NULL) goto Alert;
 
   if (!BackwardReferencesHashChainDistanceOnly(
       xsize, ysize, argb, quality, cache_bits, hash_chain,
       refs, dist_array)) {
-    goto Error;
+    goto Alert;
   }
   TraceBackwards(dist_array, dist_array_size, &chosen_path, &chosen_path_size);
   if (!BackwardReferencesHashChainFollowChosenPath(
           argb, cache_bits, chosen_path, chosen_path_size, hash_chain, refs)) {
-    goto Error;
+    goto Alert;
   }
   ok = 1;
- Error:
+ Alert:
   WebPSafeFree(dist_array);
   return ok;
 }
@@ -1465,11 +1465,11 @@ static double ComputeCacheEntropy(const uint32_t* argb,
   VP8LColorCache hashers;
   VP8LRefsCursor c = VP8LRefsCursorInit(refs);
   VP8LHistogram* histo = VP8LAllocateHistogram(cache_bits);
-  if (histo == NULL) goto Error;
+  if (histo == NULL) goto Alert;
 
   if (use_color_cache) {
     cc_init = VP8LColorCacheInit(&hashers, cache_bits);
-    if (!cc_init) goto Error;
+    if (!cc_init) goto Alert;
   }
   if (!use_color_cache) {
     while (VP8LRefsCursorOk(&c)) {
@@ -1507,7 +1507,7 @@ static double ComputeCacheEntropy(const uint32_t* argb,
   }
   entropy = VP8LHistogramEstimateBits(histo) +
       kSmallPenaltyForLargeCache * cache_bits;
- Error:
+ Alert:
   if (cc_init) VP8LColorCacheClear(&hashers);
   VP8LFreeHistogram(histo);
   return entropy;
@@ -1632,29 +1632,29 @@ static VP8LBackwardRefs* GetBackwardReferences(
 
   if (!CalculateBestCacheSize(argb, width, height, quality, hash_chain,
                               refs_lz77, &lz77_computed, cache_bits)) {
-    goto Error;
+    goto Alert;
   }
 
   if (lz77_computed) {
     // Transform refs_lz77 for the optimized cache_bits.
     if (*cache_bits > 0) {
       if (!BackwardRefsWithLocalCache(argb, *cache_bits, refs_lz77)) {
-        goto Error;
+        goto Alert;
       }
     }
   } else {
     if (!BackwardReferencesLz77(width, height, argb, *cache_bits, hash_chain,
                                 refs_lz77)) {
-      goto Error;
+      goto Alert;
     }
   }
 
   if (!BackwardReferencesRle(width, height, argb, *cache_bits, refs_rle)) {
-    goto Error;
+    goto Alert;
   }
 
   histo = VP8LAllocateHistogram(*cache_bits);
-  if (histo == NULL) goto Error;
+  if (histo == NULL) goto Alert;
 
   {
     // Evaluate LZ77 coding.
@@ -1676,7 +1676,7 @@ static VP8LBackwardRefs* GetBackwardReferences(
       VP8LBackwardRefs* const refs_trace = refs_rle;
       if (!VP8LBackwardRefsCopy(refs_lz77, refs_trace)) {
         best = NULL;
-        goto Error;
+        goto Alert;
       }
       if (BackwardReferencesTraceBackwards(width, height, argb, quality,
                                            *cache_bits, hash_chain,
@@ -1696,7 +1696,7 @@ static VP8LBackwardRefs* GetBackwardReferences(
 
   BackwardReferences2DLocality(width, best);
 
- Error:
+ Alert:
   VP8LFreeHistogram(histo);
   return best;
 }

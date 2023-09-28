@@ -87,7 +87,7 @@ FT_BEGIN_HEADER
   typedef FT_Error
   (*FT_Renderer_RenderFunc)( FT_Renderer       renderer,
                              FT_GlyphSlot      slot,
-                             FT_Render_Mode    mode,
+                             FT_Render_Mode    render_mode,
                              const FT_Vector*  origin );
 
   typedef FT_Error

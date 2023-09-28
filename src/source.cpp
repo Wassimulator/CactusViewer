@@ -279,6 +279,23 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	                                          "vs_main", "ps_main", sizeof(Shader_Constants_Main), 0, 0);
 	ctx->bg_program   = create_shader_program(ctx, shader_text_bg, strlen(shader_text_bg),
 	                                          "vs_bg", "ps_bg", sizeof(Shader_Constants_BG), 0, 0);
+	ctx->crop_program = create_shader_program(ctx, shader_text_crop, strlen(shader_text_crop),
+	                                          "vs_crop", "ps_crop", sizeof(Shader_Constants_Crop), 0, 0);
+
+	D3D11_INPUT_ELEMENT_DESC lines_layout[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
+	ctx->lines_program= create_shader_program(ctx, shader_text_lines, strlen(shader_text_lines),
+	                                          "vs_lines", "ps_lines", sizeof(Shader_Constants_Lines), 
+	                                          1, lines_layout);
+
+	D3D11_BUFFER_DESC lines_vertex_desc = {};
+	lines_vertex_desc.Usage = D3D11_USAGE_DYNAMIC;
+	lines_vertex_desc.ByteWidth = sizeof(v2) * 256;
+	lines_vertex_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	lines_vertex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	ctx->device->CreateBuffer(&lines_vertex_desc, 0, &G->graphics.lines_vertex_buffer);
 
 	D3D11_BLEND_DESC blend_desc = { 0 };
 	blend_desc.AlphaToCoverageEnable = false;
@@ -293,18 +310,18 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	err(ctx->device->CreateBlendState(&blend_desc, &ctx->blend_state));
 
 	D3D11_RASTERIZER_DESC rast_desc = { 0 };
-	rast_desc.FillMode = D3D11_FILL_SOLID;
 	rast_desc.CullMode = D3D11_CULL_NONE;
+	rast_desc.FillMode = D3D11_FILL_SOLID;
 	rast_desc.ScissorEnable = false;
-	rast_desc.DepthClipEnable = true;
+	rast_desc.DepthClipEnable = false;
 	rast_desc.FrontCounterClockwise = true;
 	err(ctx->device->CreateRasterizerState(&rast_desc, &ctx->raster_state));
 
 	D3D11_DEPTH_STENCIL_DESC depth_desc = { 0 };
 	depth_desc.DepthEnable = false;
+	depth_desc.StencilEnable = false;
 	depth_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	depth_desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
-	depth_desc.StencilEnable = false;
 	depth_desc.FrontFace.StencilFailOp = depth_desc.FrontFace.StencilDepthFailOp = depth_desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
 	depth_desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 	depth_desc.BackFace = depth_desc.FrontFace;
@@ -326,6 +343,35 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	set_framebuffer_size(ctx, iv2(ww, wh));
 
 	G->graphics.MAX_GPU = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+}
+
+static Shader_Constants_Main set_main_shader_constants() {
+	Shader_Constants_Main result = { 0 };
+	result.aspect_img = G->graphics.aspect_img;
+	result.aspect_wnd = G->graphics.aspect_wnd;
+	result.scale = G->scale;
+	result.position = G->position / v2(WW, -WH) * 2;
+	result.pixel_grid = (G->nearest_filtering && (G->truescale > 5) && G->pixel_grid) ? 1 : 0;
+	result.true_scale = G->truescale;
+	result.image_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
+	result.window = v2(WW, WH);
+	result.rgba_flags = v4((float)RGBAflags[0], (float)RGBAflags[1], (float)RGBAflags[2], (float)RGBAflags[3]);
+	result.rotation = G->graphics.main_image.orientation;
+	result.hue = G->hue;
+	result.saturation = G->saturation;
+	result.contrast = G->contrast;
+	result.brightness = G->brightness;
+	result.srgb = G->srgb;
+	result.gamma = G->gamma;
+	result.render_mode = RENDER_MODE_VEIWER;
+	result.do_blur = G->do_blur;
+	result.blur_lod = G->blur_lod;
+	result.blur_samples = G->blur_samples;
+	result.blur_scale = G->blur_scale;
+	result.crop_a = _v2(G->crop_a);
+	result.crop_b = _v2(G->crop_b);
+	result.crop_mode = G->crop_mode;
+	return result;
 }
 
 static Texture create_texture(u8 *data, int w, int h, bool dynamic) {
@@ -487,7 +533,7 @@ static void init_all() {
    
     WNDCLASSEX wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS ;
     wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
@@ -536,7 +582,7 @@ static void init_all() {
 	RGBAflags[1] = 1;
 	RGBAflags[2] = 1;
 	RGBAflags[3] = 1;
-	G->error.timer = 0;
+	G->alert.timer = 0;
 	G->settings_autoplayGIFs = true;
 	G->settings_movementmag = 2;
 	G->settings_shiftslowmag = 9;
@@ -546,6 +592,10 @@ static void init_all() {
 	G->contrast = 1;
 	G->brightness = 0;
 	G->gamma = 1;
+	G->do_blur = false;
+	G->blur_lod = 1;
+	G->blur_samples = 32;
+	G->blur_scale = 0.001;
 
 	G->graphics.main_image.has_exif = false;
 	G->graphics.main_image.orientation = 0;
@@ -567,6 +617,8 @@ static void init_all() {
 	G->hcursor[(int)Cursor_Type_text] =      LoadCursor(nullptr, IDC_IBEAM);
 	G->hcursor[(int)Cursor_Type_resize_h] =  LoadCursor(nullptr, IDC_SIZEWE);
 	G->hcursor[(int)Cursor_Type_resize_v] =  LoadCursor(nullptr, IDC_SIZENS);
+	G->hcursor[(int)Cursor_Type_resize_dr] = LoadCursor(nullptr, IDC_SIZENWSE);
+	G->hcursor[(int)Cursor_Type_resize_dl] = LoadCursor(nullptr, IDC_SIZENESW);
     G->graphics.main_image.texture.d3d_texture = 0;
 	
     InitializeCriticalSection(&G->mutex);
@@ -592,23 +644,36 @@ static void init_all() {
 	                                 ascii_start, ascii_end, sizes, array_size(sizes));
 #endif
 
-	G->shapes_texture_id = UI_create_texture(G->ui, 
-	                                         (u8*)UI_asset_shape_arrow,
-	                                         UI_ASSET_SHAPE_ARROW_WIDTH,
-	                                         UI_ASSET_SHAPE_ARROW_HEIGHT);
+//	G->shapes_texture_id = UI_create_texture(G->ui, 
+//	                                         (u8*)UI_asset_shape_arrow,
+//	                                         UI_ASSET_SHAPE_ARROW_WIDTH,
+//	                                         UI_ASSET_SHAPE_ARROW_HEIGHT);
 
 
     // CreateThread(NULL, 0, FontLoadThread, NULL, 0, NULL);
 
+	G->force_loop_frames = 2;
+	G->loader_event = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event; false = auto-reset
+		FALSE,              // initial state is nonsignaled
+		TEXT("loader event")     
+	);
+
+
+
 }
 
-static void push_error(char *string) {
+static void push_alert(char *string, Alert_Type type = Alert_Error) {
     int l = strlen(string) + 1;
-    memcpy(G->error.string, string, min(l, 256));
+    memcpy(G->alert.string, string, min(l, 256));
+    G->alert.timer = 1;
+	G->alert.type = type;
+	G->force_loop_frames += 310;
+
 #if DEBUG_MODE
-    printf("%s\n",string);
+	printf("%s\n",string);
 #endif
-    G->error.timer = 1;
 };
 struct Loader_Thread_Inputs {
     wchar_t *path;
@@ -636,15 +701,15 @@ void calculate_histogram(unsigned char* data, u64 size) {
 	G->graphics.main_image.has_histo = false;
 	if (!G->settings_calculate_histograms) return;
 	assert(size % 4 == 0);
-	memset(G->histo_r, 0, 256);
-	memset(G->histo_g, 0, 256);
-	memset(G->histo_b, 0, 256);
-	memset(G->histo_t, 0, 256);
+	memset(G->histo_r, 0, 256 * sizeof(u64));
+	memset(G->histo_g, 0, 256 * sizeof(u64));
+	memset(G->histo_b, 0, 256 * sizeof(u64));
+	memset(G->histo_t, 0, 256 * sizeof(u64));
 	G->histo_max = 0;
-	for (int i = 0; i < size; i+=4) {
-		G->histo_r[u8(data[i + 0])]++; G->histo_t[u8(data[i + 0])]++;
-		G->histo_g[u8(data[i + 1])]++; G->histo_t[u8(data[i + 1])]++;
-		G->histo_b[u8(data[i + 2])]++; G->histo_t[u8(data[i + 2])]++;
+	for (int i = 0; i < size - 4; i+=4) {
+		G->histo_r[data[i + 0]]++; G->histo_t[data[i + 0]]++; 
+		G->histo_g[data[i + 1]]++; G->histo_t[data[i + 1]]++;
+		G->histo_b[data[i + 2]]++; G->histo_t[data[i + 2]]++;
 	}
 	for (int i = 0; i < 256; i++) {
 		G->histo_max = max(G->histo_max, G->histo_t[i]);
@@ -664,7 +729,7 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
     unsigned char *data = stbi_load(filename_utf8, &w, &h, &n, 4);
     G->files[id].loading = false;
     if (data == nullptr) {
-        push_error("Loading the file failed");
+        push_alert("Loading the file failed");
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
         send_signal(G->signals.update_pass);
@@ -673,7 +738,7 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
         set_to_no_file();
     } else {
         if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
-            push_error("Image is too large.");
+            push_alert("Image is too large.");
         }
         else {
             EnterCriticalSection(&G->mutex);
@@ -681,10 +746,10 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
                 G->graphics.main_image.w = w;
                 G->graphics.main_image.h = h;
                 G->graphics.main_image.n = n;
-				//if (G->graphics.main_image.orientation == 1 || G->graphics.main_image.orientation == 3) {
-					//G->graphics.main_image.w = h;
-					//G->graphics.main_image.h = w;
-				//}
+				if (G->graphics.main_image.data) {
+					free(G->graphics.main_image.data);
+					G->graphics.main_image.data = 0;
+				}
                 G->graphics.main_image.data = data;
                 send_signal(G->signals.init_step_2);
             }
@@ -741,27 +806,26 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 		// expensive, but requested:
 		if (G->settings_exif) {
 			FILE* temp_file = _wfopen(path, L"rb");
-			if (!temp_file) {
-				perror("Failed to open file");
-				return result;
-			}
-			fseek(temp_file, 0, SEEK_END);
-			size_t file_size = ftell(temp_file);
-			fseek(temp_file, 0, SEEK_SET);
-			uint8_t* file_data = (uint8_t*) malloc(file_size);
-			fread(file_data, 1, file_size, temp_file);
-			fclose(temp_file);
-			int exif_result = G->graphics.main_image.exif_info.parseFrom(file_data, file_size);
-			free(file_data);
-			G->graphics.main_image.has_exif = exif_result == PARSE_EXIF_SUCCESS;
-			if (G->graphics.main_image.has_exif) {
-				switch (G->graphics.main_image.exif_info.Orientation) {
-					case 3:
-						G->graphics.main_image.orientation = 2; break;
-					case 6:
-						G->graphics.main_image.orientation = 3; break;
-					case 8:
-						G->graphics.main_image.orientation = 1; break;
+			if (temp_file) {
+				fseek(temp_file, 0, SEEK_END);
+				size_t file_size = ftell(temp_file);
+				fseek(temp_file, 0, SEEK_SET);
+				uint8_t* file_data = (uint8_t*) malloc(file_size);
+				fread(file_data, 1, file_size, temp_file);
+				fclose(temp_file);
+				int exif_result = G->graphics.main_image.exif_info.parseFrom(file_data, file_size);
+				free(file_data);
+				G->graphics.main_image.has_exif = exif_result == PARSE_EXIF_SUCCESS;
+				if (G->graphics.main_image.has_exif) {
+					switch (G->graphics.main_image.exif_info.Orientation) {
+						case 3:
+							G->graphics.main_image.orientation = 2; break;
+						case 6:
+							G->graphics.main_image.orientation = 3; break;
+						case 8:
+							G->graphics.main_image.orientation = 1; break;
+					}
+					send_signal(G->signals.update_orientation_step_2);
 				}
 			}
 		}
@@ -769,9 +833,9 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 	G->files[id].loading = false;
 	if (FAILED(hr) || data == 0) {
 		if (hr == WINCODEC_ERR_COMPONENTNOTFOUND) {
-			push_error(UI_sprintf(&G->ui->strings, "Component not found: File type '%s' not supported.", UI_sprintf(&G->ui->strings, "%S", file_data->file.ext)));
+			push_alert(UI_sprintf(&G->ui->strings, "Component not found: File type '%s' not supported.", UI_sprintf(&G->ui->strings, "%S", file_data->file.ext)));
 		} else if (hr == WINCODEC_ERR_COMPONENTINITIALIZEFAILURE) {
-			push_error(UI_sprintf(&G->ui->strings, "Component initialization failed: Codec of '%s' is likely not installed.", UI_sprintf(&G->ui->strings, "%S", file_data->file.ext)));
+			push_alert(UI_sprintf(&G->ui->strings, "Component initialization failed: Codec of '%s' is likely not installed.", UI_sprintf(&G->ui->strings, "%S", file_data->file.ext)));
 		} else {
 			LPVOID lpMsgBuf;
 			DWORD bufLen = FormatMessageA(
@@ -783,7 +847,7 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 				MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 				(LPSTR) & lpMsgBuf,
 				0, NULL);
-			push_error((char*)lpMsgBuf);
+			push_alert((char*)lpMsgBuf);
 			LocalFree(lpMsgBuf);
 		}
         G->files[G->current_file_index].failed = true;
@@ -794,14 +858,18 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
         set_to_no_file();
     } else {
         if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
-            push_error("Image is too large.");
+            push_alert("Image is too large.");
         } else {
             EnterCriticalSection(&G->mutex);
             if (id == G->current_file_index) {
                 G->graphics.main_image.w = w;
                 G->graphics.main_image.h = h;
                 G->graphics.main_image.n = 0;
-                G->graphics.main_image.data = data;
+				if (G->graphics.main_image.data) {
+					free(G->graphics.main_image.data);
+					G->graphics.main_image.data = 0;
+				}
+				G->graphics.main_image.data = data;
 				calculate_histogram(data, w * h * 4);
                 send_signal(G->signals.init_step_2);
             } else {
@@ -811,6 +879,8 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 			result = 1;
         }
     }
+
+	cleanup:
 
 	if (frame) frame->Release();
 	if (decoder) decoder->Release();
@@ -855,7 +925,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 		unsigned char *data = WebPDecodeRGBA(file_data, file_size, &w, &h);
 		G->files[id].loading = false;
 		if (data == nullptr) {
-			push_error("Loading the file failed");
+			push_alert("Loading the file failed");
 			G->files[G->current_file_index].failed = true;
 			G->loaded = true;
 			send_signal(G->signals.update_pass);
@@ -864,7 +934,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			set_to_no_file();
 		} else {
 			if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
-				push_error("Image is too large.");
+				push_alert("Image is too large.");
 			}
 			else {
 				EnterCriticalSection(&G->mutex);
@@ -872,6 +942,10 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 					G->graphics.main_image.w = w;
 					G->graphics.main_image.h = h;
 					G->graphics.main_image.n = 0;
+					if (G->graphics.main_image.data) {
+						free(G->graphics.main_image.data);
+						G->graphics.main_image.data = 0;
+					}
 					G->graphics.main_image.data = data;
 					calculate_histogram(data, w * h * 4);
 					send_signal(G->signals.init_step_2);
@@ -905,7 +979,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 				send_signal(G->signals.init_step_2);
 			result = 1;
 		} else {
-			push_error("Loading animated WebP file failed");
+			push_alert("Loading animated WebP file failed");
 			G->files[G->current_file_index].failed = true;
 			G->loaded = true;
 			//if (dropped)
@@ -964,7 +1038,7 @@ static int load_GIF_pre(wchar_t *File, u32 id, bool dropped) {
             send_signal(G->signals.init_step_2);
         result = 1;
     } else {
-        push_error("Loading GIF file failed");
+        push_alert("Loading GIF file failed");
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
         //if (dropped)
@@ -1061,7 +1135,6 @@ static void apply_settings() {
     }
     switch (G->settings_resetpos) {
     case 0: // Persistent position across all files
-
         break;
     case 1: // Save position for each file
         G->position = G->files[G->current_file_index].pos;
@@ -1092,7 +1165,11 @@ static void load_image_post() {
             refresh_display();
 
 		G->graphics.main_image.texture = create_texture(G->graphics.main_image.data, G->graphics.main_image.w, G->graphics.main_image.h, false);
-        free(G->graphics.main_image.data);
+		if (G->graphics.main_image.data) {
+			free(G->graphics.main_image.data);
+			//SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
+			G->graphics.main_image.data = 0;
+		}
     }
 
     Reduced_Frac frac = reduced_fraction(G->graphics.main_image.w, G->graphics.main_image.h);
@@ -1110,7 +1187,7 @@ static void load_image_post() {
 DWORD WINAPI loader_thread(LPVOID lpParam) {
 	EnterCriticalSection(&G->id_mutex);
     Loader_Thread_Inputs *inputs = (Loader_Thread_Inputs *)lpParam;
-	G->error.timer = 0;
+	G->alert.timer = 0;
 	G->graphics.main_image.has_exif = 0;
 	G->graphics.main_image.orientation = 0;
     if (!G->files[inputs->id].loading) {
@@ -1122,6 +1199,7 @@ DWORD WINAPI loader_thread(LPVOID lpParam) {
 		}
     }
 	LeaveCriticalSection(&G->id_mutex);
+	SetEvent(G->loader_event);
     return 0;
 }
 
@@ -1199,8 +1277,8 @@ static int check_valid_extention(wchar_t *EXT) {
 	else if (wcscmp(ext, L".sr2")   == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".srf")   == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".srw")   == 0)   result = TYPE_MISC;
-	else if (wcscmp(ext, L".svg")   == 0)   result = TYPE_MISC;
-	else if (wcscmp(ext, L".svgz")  == 0)   result = TYPE_MISC;
+	//else if (wcscmp(ext, L".svg")   == 0)   result = TYPE_MISC;
+	//else if (wcscmp(ext, L".svgz")  == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".tif")   == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".tiff")  == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".wdp")   == 0)   result = TYPE_MISC;
@@ -1245,7 +1323,7 @@ bool is_valid_windows_path(wchar_t* path)  {
 
 struct Folder_Entry  { 
     wchar_t wpath[MAX_PATH];
-    char *path;
+	char path[MAX_PATH];
 };
 Folder_Entry *files_in_folder;
 
@@ -1276,14 +1354,12 @@ wchar_t *get_wc(char *c) {
 
     return wc;
 }
-char* get_c(wchar_t* wc) {
+void get_c(wchar_t* wc, char* target) {
     const size_t wcSize = wcslen(wc) + 1;
-    char* c = new char[wcSize];
-    wcstombs(c, wc, wcSize);
-
-    return c;
+	if (wcSize >= MAX_PATH) assert(!"max path length!");
+	wcstombs(target, wc, wcSize);
 }
-int itemsInFolder;
+int items_in_folder;
 
 int cmp(const void* a, const void* b)  {
     File_Data* A = (File_Data*)a;
@@ -1295,7 +1371,7 @@ int cmp(const void* a, const void* b)  {
 
 static void sort_folder() {
     for (int i =0; i < G->files.Count; i++)
-        for (int j =0; j < itemsInFolder; j++)
+        for (int j =0; j < items_in_folder; j++)
             if (wcscmp(G->files[i].file.path, files_in_folder[j].wpath) == 0) {
                 G->files[i].index = j;
                 break;
@@ -1318,7 +1394,6 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
     wchar_t *file_name = data->FileName;
 	wchar_t path_buffer[MAX_PATH + 4];
     static int index_in_folder;
-
     
 	IShellWindows *shellWindows = NULL;
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -1344,23 +1419,21 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 		int itemCount = 0, focusedItem = 0;
 		path_buffer[0] = 0;
 		
-		if (S_OK != dispatch->QueryInterface(IID_IWebBrowserApp, (void **) &webBrowserApp)) goto Error;
-		if (S_OK != webBrowserApp->QueryInterface(IID_IServiceProvider, (void **) &serviceProvider)) goto Error;
-		if (S_OK != serviceProvider->QueryService(SID_STopLevelBrowser, IID_IShellBrowser, (void **) &shellBrowser)) goto Error;
-		if (S_OK != shellBrowser->QueryActiveShellView(&shellView)) goto Error;
-		if (S_OK != shellView->QueryInterface(IID_IFolderView, (void **) &folderView)) goto Error;
-		if (S_OK != folderView->GetFolder(IID_IPersistFolder2, (void **) &persistFolder)) goto Error;
-		if (S_OK != persistFolder->GetCurFolder(&folderPIDL)) goto Error;
-		if (S_OK != folderView->GetFocusedItem(&focusedItem)) goto Error;
-		if (S_OK != folderView->Item(focusedItem, &itemPIDL)) goto Error;
+		if (S_OK != dispatch->QueryInterface(IID_IWebBrowserApp, (void **) &webBrowserApp)) goto Alert;
+		if (S_OK != webBrowserApp->QueryInterface(IID_IServiceProvider, (void **) &serviceProvider)) goto Alert;
+		if (S_OK != serviceProvider->QueryService(SID_STopLevelBrowser, IID_IShellBrowser, (void **) &shellBrowser)) goto Alert;
+		if (S_OK != shellBrowser->QueryActiveShellView(&shellView)) goto Alert;
+		if (S_OK != shellView->QueryInterface(IID_IFolderView, (void **) &folderView)) goto Alert;
+		if (S_OK != folderView->GetFolder(IID_IPersistFolder2, (void **) &persistFolder)) goto Alert;
+		if (S_OK != persistFolder->GetCurFolder(&folderPIDL)) goto Alert;
+		if (S_OK != folderView->GetFocusedItem(&focusedItem)) goto Alert;
+		if (S_OK != folderView->Item(focusedItem, &itemPIDL)) goto Alert;
 		fullPIDL = ILCombine(folderPIDL, itemPIDL);
-		if (!SHGetPathFromIDListW(fullPIDL, path_buffer)) goto Error;
-		if (!string_equal(file_path, path_buffer)) goto Error;
-		if (S_OK != folderView->ItemCount(SVGIO_ALLVIEW, &itemCount)) goto Error;
-        for(int i = 0; i < itemsInFolder; i++)
-            free(files_in_folder[i].path);
-        free(files_in_folder);
-		if (!(files_in_folder = (Folder_Entry *) malloc(itemCount * sizeof(Folder_Entry)))) goto Error;
+		if (!SHGetPathFromIDListW(fullPIDL, path_buffer)) goto Alert;
+		if (!string_equal(file_path, path_buffer)) goto Alert;
+		if (S_OK != folderView->ItemCount(SVGIO_ALLVIEW, &itemCount)) goto Alert;
+
+		if (!(files_in_folder = (Folder_Entry *) malloc(itemCount * sizeof(Folder_Entry)))) goto Alert;
 		
 		for (int i = 0; i < itemCount; i++)  {
 			files_in_folder[i].wpath[0] = 0;
@@ -1372,11 +1445,11 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 			CoTaskMemFree(itemPIDL);
 		}
 		
-		itemsInFolder = itemCount;
+		items_in_folder = itemCount;
 		index_in_folder = focusedItem;
 	
 		success = true;
-		Error:;
+		Alert:;
 		
 		if (fullPIDL) CoTaskMemFree(fullPIDL);
 		if (folderPIDL) CoTaskMemFree(folderPIDL);
@@ -1396,8 +1469,8 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 
 	if (files_in_folder) {
     
-        for(int i = 0; i < itemsInFolder; i++) {
-            files_in_folder[i].path = get_c(files_in_folder[i].wpath);
+        for(int i = 0; i < items_in_folder; i++) {
+			get_c(files_in_folder[i].wpath, files_in_folder[i].path);
         }
 
         sort_folder();
@@ -1413,6 +1486,8 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
         }
     } 
 
+	free(files_in_folder);
+
     free(data->FileName);
     free(data->path);
     G->sorting = false;
@@ -1423,11 +1498,15 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 
 Folder_Sort_Thread_data sort_data;
 
-static bool scan_folder(wchar_t *path) {
-    bool is_dir = false;
+#define SCAN_FAILED 0
+#define SCAN_FILE 1
+#define SCAN_DIR 2
+
+static int scan_folder(wchar_t *path) {
+	int result = SCAN_FILE;
     if (path == nullptr) {
         G->files.reset_count();
-        return is_dir;
+		return SCAN_DIR;
     }
     int len = wcslen(path);
     wchar_t *BasePath = nullptr;
@@ -1441,7 +1520,7 @@ static bool scan_folder(wchar_t *path) {
         BasePath[len + 1] = 0;
         FileName = (wchar_t*)malloc(8 * sizeof(wchar_t));
         swprintf(FileName, L"none");
-        is_dir = true;
+		result = SCAN_DIR;
 	} else {
 		remove_char(path, '/"');
 
@@ -1461,7 +1540,7 @@ static bool scan_folder(wchar_t *path) {
 	}
     if (!is_valid_windows_path(BasePath))  {
         G->files.reset_count();
-        return is_dir;
+		return SCAN_DIR;
     }
 
     cf_dir_t dir;
@@ -1481,11 +1560,18 @@ static bool scan_folder(wchar_t *path) {
 
 		int type = check_valid_extention(file_0.ext); 
 		if (type == TYPE_UNKNOWN) {
+			if (wcscmp(FileName, file_0.name) == 0) {
+				char err[128] = { 0 };
+				sprintf(err, "Cannot open files of the type '%S'.", file_0.ext);
+				push_alert(err, Alert_Error);
+				result = SCAN_FAILED;
+				break;
+			}
             cf_dir_next(&dir);
             continue;
         }
-
-        G->files.push_back(*new File_Data);
+		File_Data new_file;
+        G->files.push_back(new_file);
 		G->files.back().type = type;
 
         cf_file_t *file = &G->files.back().file;
@@ -1495,6 +1581,9 @@ static bool scan_folder(wchar_t *path) {
         cf_dir_next(&dir);
     }
     cf_dir_close(&dir);
+
+	if (result == SCAN_FAILED)
+		goto cleanup;
 
     if (!G->sorting && G->settings_Sort) {   
         sort_data.FileName = (wchar_t*)malloc((wcslen(FileName) + 1) * sizeof(wchar_t));
@@ -1513,53 +1602,266 @@ static bool scan_folder(wchar_t *path) {
 			break;
 		}
 	}
+	cleanup:
     free(BasePath);    
-    free(FileName);    
-    return is_dir;
+    free(FileName);  
+	
+    return result;
 }
 
 unsigned long create_RBG(int r, int g, int b) {
     return (r << 16) | (g << 8) | b;
 }
 
-void basic_file_open() {
-    IFileOpenDialog *pFileOpen;
+
+static GUID get_GUID(Encoder_Format encoder_format) {
+
+	switch (encoder_format) {
+		case Format_Bmp:	return GUID_ContainerFormatBmp;
+		case Format_Png:	return GUID_ContainerFormatPng;
+		//case Format_Ico:	return GUID_ContainerFormatIco;
+		//case Format_Jpeg:	return GUID_ContainerFormatJpeg;
+		case Format_Tiff:	return GUID_ContainerFormatTiff;
+		//case Format_Gif:	return GUID_ContainerFormatGif;
+		//case Format_Wmp:	return GUID_ContainerFormatWmp;
+		case Format_Dds:	return GUID_ContainerFormatDds;
+		//case Format_Adng:	return GUID_ContainerFormatAdng;
+		case Format_Heif:	return GUID_ContainerFormatHeif;
+		//case Format_Webp:	return GUID_ContainerFormatWebp;
+		//case Format_Raw:	return GUID_ContainerFormatRaw;
+
+		default:  			return GUID_ContainerFormatJpeg;
+	}
+}
+
+static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path) {
+	Graphics* ctx = &G->graphics;
+
+	HRESULT hr;
+	if (path == 0) {
+		push_alert("Failed to fetch file path from `save as` dialogue.");
+		return -1;
+	}
+
+	DXGI_FORMAT image_format = DXGI_FORMAT_B8G8R8A8_UNORM;
+
+	v2 new_size = _v2(G->crop_b - G->crop_a);
+
+	// create an offscreen texture
+	D3D11_TEXTURE2D_DESC tex_desc = { };
+	tex_desc.Width =  new_size.x; 
+	tex_desc.Height =  new_size.y;
+	tex_desc.MipLevels = 1;
+	tex_desc.ArraySize = 1;
+	tex_desc.Format = image_format;
+	tex_desc.SampleDesc.Count = 1; 
+	tex_desc.SampleDesc.Quality = 0;
+	tex_desc.Usage = D3D11_USAGE_DEFAULT;
+	tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	tex_desc.CPUAccessFlags = 0;
+	tex_desc.MiscFlags = 0;
+	ID3D11Texture2D* offscreen_texture = nullptr;
+	ID3D11RenderTargetView* offscreen_texture_rtv = nullptr;
+	hr = ctx->device->CreateTexture2D(&tex_desc, NULL, &offscreen_texture);
+	hr = ctx->device->CreateRenderTargetView(offscreen_texture, NULL, &offscreen_texture_rtv);
+
+	// run the shaders on it
+	ctx->device_ctx->ClearState();
+	Shader_Constants_Main constants_main = set_main_shader_constants();
+	constants_main.render_mode = RENDER_MODE_ENCODER;
+	constants_main.aspect_img = new_size.x / new_size.y;
+	upload_constants(&ctx->main_program, &constants_main);
+	D3D11_VIEWPORT vp;
+	vp.Width = new_size.x;
+	vp.Height = new_size.y;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	ctx->device_ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	ctx->device_ctx->IASetInputLayout(nullptr);
+	ctx->device_ctx->VSSetShader(ctx->main_program.vertex_shader, nullptr, 0);
+	ctx->device_ctx->VSSetConstantBuffers(0, 1, &ctx->main_program.constants_buffer);
+	ctx->device_ctx->PSSetShader(ctx->main_program.pixel_shader, nullptr, 0);
+	ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->main_program.constants_buffer);
+	ctx->device_ctx->PSSetShaderResources(0, 1, &G->graphics.main_image.texture.srv);
+	ctx->device_ctx->PSSetSamplers(0, 1, &ctx->sampler_nearest);
+	ctx->device_ctx->RSSetState(ctx->raster_state);
+	ctx->device_ctx->RSSetViewports(1, &vp);
+	ctx->device_ctx->OMSetRenderTargets(1, &offscreen_texture_rtv, nullptr); // we don't need a depth/stencil view here
+	ctx->device_ctx->Draw(4, 0);
+
+	// Create a staging texture with the same format as the render target
+	D3D11_TEXTURE2D_DESC staging_desc = {};
+	staging_desc.Width = new_size.x;
+	staging_desc.Height = new_size.y;
+	staging_desc.MipLevels = 1;
+	staging_desc.ArraySize = 1;
+	staging_desc.SampleDesc.Count = 1;
+	staging_desc.Format = image_format;
+	staging_desc.Usage = D3D11_USAGE_STAGING;
+	staging_desc.BindFlags = 0;
+	staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+	ID3D11Texture2D* staging_texture = nullptr;
+	hr = ctx->device->CreateTexture2D(&staging_desc, nullptr, &staging_texture);
+	if (FAILED(hr)) {
+		goto cleanup;
+	}
+
+	// Copy the whole texture from the render target to the staging texture
+	ctx->device_ctx->CopySubresourceRegion(staging_texture, 0, 0, 0, 0, offscreen_texture, 0, 0);
+
+	// Map the staging texture
+	D3D11_MAPPED_SUBRESOURCE mapped_resource;
+	hr = ctx->device_ctx->Map(staging_texture, 0, D3D11_MAP_READ, 0, &mapped_resource);
+	if (FAILED(hr)) {
+		goto cleanup;
+	}
+
+	u8* data = reinterpret_cast<u8*>(mapped_resource.pData);
+	if (data == nullptr) {
+		printf("invalid data ptr\n");
+		goto cleanup;
+	}
+
+	// Read the pixel value BGRA (!)
+	CoInitialize(NULL);
+	IWICBitmapEncoder *encoder = 0;
+	IWICStream* stream = 0;
+	IWICBitmapFrameEncode* frame = 0;
+	IPropertyBag2 *property_bag = NULL;
+	WICPixelFormatGUID req_pixel_format = GUID_WICPixelFormat32bppBGRA; // Direct3D defaults to BGRA for some reason
+	WICPixelFormatGUID pixel_format = req_pixel_format; 
+	hr = CoCreateInstance(CLSID_WICImagingFactory,
+	                      NULL,
+	                      CLSCTX_INPROC_SERVER,
+	                      IID_IWICImagingFactory,
+	                      (LPVOID*) & G->wic_factory);
+	UINT width = new_size.x;
+	UINT height = new_size.y;
+	UINT stride = mapped_resource.RowPitch;
+	UINT buffer_size = stride * height;
+	if (SUCCEEDED(hr))
+		hr = G->wic_factory->CreateStream(&stream);
+	if (SUCCEEDED(hr))
+		hr = stream->InitializeFromFilename(path, GENERIC_WRITE);
+	if (SUCCEEDED(hr))
+		hr = G->wic_factory->CreateEncoder(get_GUID(encoder_format), nullptr, &encoder);
+	if (SUCCEEDED(hr))
+		hr = encoder->Initialize(stream, WICBitmapEncoderNoCache);
+	if (SUCCEEDED(hr))
+		hr = encoder->CreateNewFrame(&frame, &property_bag);
+	if (SUCCEEDED(hr))
+		hr = frame->Initialize(property_bag);  // No encoder parameters
+	if (SUCCEEDED(hr))
+		hr = frame->SetSize(width, height);
+	if (SUCCEEDED(hr))
+		hr = frame->SetPixelFormat(&pixel_format);
+	//	if (SUCCEEDED(hr)) // We're expecting to write out 32bppBGRA. Fail if the encoder cannot do it.
+	//		hr = IsEqualGUID(req_pixel_format, pixel_format) ? S_OK : E_FAIL;
+	if (SUCCEEDED(hr)) 
+		hr = frame->WritePixels(height, stride, buffer_size, data);
+	if (SUCCEEDED(hr)) 
+		hr = frame->Commit();
+	if (SUCCEEDED(hr)) 
+		hr = encoder->Commit();
+	if (SUCCEEDED(hr)) {
+		printf("saved!\n");
+	} else {
+		printf("failed!\n");
+	}
+
+	cleanup:
+
+	if (frame) frame->Release();
+	if (stream) stream->Release();
+	if (encoder) encoder->Release();
+
+	if (offscreen_texture_rtv) offscreen_texture_rtv->Release();
+	if (offscreen_texture) offscreen_texture->Release();
+
+	if (staging_texture) ctx->device_ctx->Unmap(staging_texture, 0);
+	if (staging_texture) staging_texture->Release();
+
+	CoUninitialize();
+
+	return hr;
+}
+
+
+HRESULT save_as_dialogue(Encoder_Format selected_encoder) {
+	IFileSaveDialog *dialogue = 0;
+	IShellItem *item = 0;
+	PWSTR file_path = 0;
 
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    // Create the FileOpenDialog object.
+	HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL, 
+	                              IID_IFileSaveDialog, reinterpret_cast<void**>(&dialogue));
+	COMDLG_FILTERSPEC extensions[] = { { L"All Files", L"*.*" } };
+
+	if (dialogue == 0)
+		goto cleanup;
+	if (SUCCEEDED(hr))
+		hr = dialogue->SetFileTypes(1, extensions);
+	if (SUCCEEDED(hr))
+		hr = dialogue->Show(NULL);
+	if (SUCCEEDED(hr))
+		hr = dialogue->GetResult(&item);
+	if (SUCCEEDED(hr))
+		hr = item->GetDisplayName(SIGDN_FILESYSPATH, &file_path);
+	if (SUCCEEDED(hr)) {
+		hr = save_image(selected_encoder, file_path);
+	}
+
+	cleanup:
+
+	if (item) 		item->Release();
+	if (dialogue) 	dialogue->Release();
+	if (file_path)	free(file_path);
+
+	CoUninitialize();
+
+	return hr;
+}
+
+
+void file_open_dialogue() {
+    IFileOpenDialog *dialogue = 0;
+	IShellItem *item = 0;
+	PWSTR file_path = 0;
+
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, 
-            IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-	COMDLG_FILTERSPEC rgSpec[] = {  { L"Images", L"*.3fr;*.ari;*.arw;*.avci;*.avcs;*.avif;*.avifs;*.bay;*.bmp;*.cap;*.cr2;*.cr3;*.crw;*.cur;*.dcr;*.dcs;*.dds;*.dib;*.dng;*.drf;*.eip;*.erf;*.exif;*.fff;*.gif;*.heic;*.heics;*.heif;*.heifs;*.hif;*.ico;*.icon;*.iiq;*.jfif;*.jpe;*.jpeg;*.jpg;*.jxr;*.k25;*.kdc;*.mef;*.mos;*.mrw;*.nef;*.nrw;*.orf;*.ori;*.pef;*.png;*.ptx;*.pxn;*.raf;*.raw;*.rle;*.rw2;*.rwl;*.sr2;*.srf;*.srw;*.svg;*.svgz;*.tif;*.tiff;*.wdp;*.webp;*.x3f" },
+            IID_IFileOpenDialog, reinterpret_cast<void**>(&dialogue));
+	COMDLG_FILTERSPEC extensions[] = {  { L"Images", L"*.3fr;*.ari;*.arw;*.avci;*.avcs;*.avif;*.avifs;*.bay;*.bmp;*.cap;*.cr2;*.cr3;*.crw;*.cur;*.dcr;*.dcs;*.dds;*.dib;*.dng;*.drf;*.eip;*.erf;*.exif;*.fff;*.gif;*.heic;*.heics;*.heif;*.heifs;*.hif;*.ico;*.icon;*.iiq;*.jfif;*.jpe;*.jpeg;*.jpg;*.jxr;*.k25;*.kdc;*.mef;*.mos;*.mrw;*.nef;*.nrw;*.orf;*.ori;*.pef;*.png;*.ptx;*.pxn;*.raf;*.raw;*.rle;*.rw2;*.rwl;*.sr2;*.srf;*.srw;*.tif;*.tiff;*.wdp;*.webp;*.x3f" },
     };
-	if (pFileOpen == 0) return;
-    pFileOpen->SetFileTypes(1, rgSpec);
 
-    if (SUCCEEDED(hr)) {
-        // Show the Open dialog box.
-        hr = pFileOpen->Show(NULL);
+	if (dialogue == 0) 
+		goto cleanup;
+	if (SUCCEEDED(hr))
+		hr = dialogue->SetFileTypes(1, extensions);
+	if (SUCCEEDED(hr))
+		hr = dialogue->Show(NULL);
+	if (SUCCEEDED(hr))
+		hr = dialogue->GetResult(&item);
+	if (SUCCEEDED(hr))
+		hr = item->GetDisplayName(SIGDN_FILESYSPATH, &file_path);
+	if (SUCCEEDED(hr)) {
+		if (!G->loading_dropped_file) {
+			size_t len = wcslen(file_path);
+			global_temp_path = (wchar_t *)malloc((len + 1) * sizeof(wchar_t));
+			memcpy(global_temp_path, file_path, (len + 1) * sizeof(wchar_t));
+			global_temp_path[len] = 0;
+		}
+		G->dropped_file = true;
+	}
 
-        // Get the file name from the dialog box.
-        if (SUCCEEDED(hr)) {
-            IShellItem *pItem;
-            hr = pFileOpen->GetResult(&pItem);
-            if (SUCCEEDED(hr)) {
-                PWSTR pszFilePath;
-                hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-                // Display the file name to the user.
-                if (SUCCEEDED(hr)) {
-                    if (!G->loading_dropped_file) {
-                        int l = wcslen(pszFilePath);
-                        TempPath = (wchar_t *)malloc((l + 1) * sizeof(wchar_t));
-                        memcpy(TempPath, pszFilePath, (l + 1) * sizeof(wchar_t));
-                        TempPath[l] = 0;
-                    }
-                    G->dropped_file = true;
-                }
-                pItem->Release();
-            }
-        }
-        pFileOpen->Release();
-    }
+	cleanup:
+		
+	if (item) 		item->Release();
+	if (dialogue) 	dialogue->Release();
+
     CoUninitialize();
 }
 bool should_show_gui() {
@@ -1665,13 +1967,25 @@ char* get_clipboard_text() {
 	return pText;
 }
 
+static void reset_image_edit() {
+	G->crop_a = iv2(0);
+	G->crop_b = iv2(G->graphics.main_image.w, G->graphics.main_image.h);
+	G->hue = 0;
+	G->saturation = 1;
+	G->contrast = 1;
+	G->brightness = 0;
+	G->gamma = 1;
+	G->crop_mode = false;
+	G->do_blur = false;
+	G->blur_samples = 32;
+	G->blur_scale = 0.001;
+}
 
 static void update_gui() {
 	UI_Context* ctx = G->ui;
 
 	bool disabled_prv = false;
-#define set_disabled(__value__) set_backed_up_bool(G->gui_disabled, disabled_prv, __value__);
-#define reset_disabled() restore_backed_up_bool(G->gui_disabled, disabled_prv);
+
 	UI_Theme* theme = UI_get_theme();
 
 	u32 font_size_status = 13;
@@ -1693,16 +2007,19 @@ static void update_gui() {
 		base = 30;
 
 		UI_push_parent(ctx, status_bar);
-		if (G->error.timer > 0) {
-			UI_text(theme->text_error, G->ui_font, font_size_status, "Error: %s", G->error.string);
+		if (G->alert.timer > 0) {
+			if (G->alert.type == Alert_Error)
+				UI_text(theme->text_error, G->ui_font, font_size_status, "Error: %s", G->alert.string);
+			else if (G->alert.type == Alert_Info)
+				UI_text(theme->text_info, G->ui_font, font_size_status, "Info: %s", G->alert.string);
 		} else {
 			if (G->files.Count > 0) {
 				UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%i / %i | ", G->current_file_index + 1, G->files.Count);
 
 				if (G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM)
-					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d - frames: %i -", G->graphics.main_image.w, G->graphics.main_image.h, G->anim_frames);
+					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d - frames: %i - ", G->graphics.main_image.w, G->graphics.main_image.h, G->anim_frames);
 				else
-					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d -", G->graphics.main_image.w, G->graphics.main_image.h);
+					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d - ", G->graphics.main_image.w, G->graphics.main_image.h);
 				UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%i:%i = %.3f - zoom: %.0f%% - Mouse: %i , %i",
 				        G->graphics.main_image.frac1, G->graphics.main_image.frac2, G->graphics.main_image.aspect_ratio, G->truescale * 100,
 				        (int)G->pixel_mouse.x, (int)G->pixel_mouse.y);
@@ -1713,32 +2030,64 @@ static void update_gui() {
 		UI_pop_parent(ctx);
 	}
 
-    if (!G->loaded && G->files.Count > 0) {
+	if (!G->loaded && G->files.Count > 0) {
 		UI_Block *frame = UI_push_block(ctx, 0);
-		frame->style.size[axis_x] = {UI_Size_t::pixels, f32(WW), 1};
-		frame->style.size[axis_y] = {UI_Size_t::pixels, f32(WH), 1};
+		frame->style.size[axis_x] = { UI_Size_t::pixels, f32(WW), 1 };
+		frame->style.size[axis_y] = { UI_Size_t::pixels, f32(WH), 1 };
 		frame->style.layout.align[axis_y] = align_start;
 		frame->style.layout.align[axis_x] = align_start;
 
 		UI_push_parent(ctx, frame);
 
 		UI_Block *loading = UI_push_block(ctx);
-		loading->style.size[axis_x] = {UI_Size_t::sum_of_children, 0, 1};
-		loading->style.size[axis_y] = {UI_Size_t::sum_of_children, 0, 1};
+		loading->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
+		loading->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
 		loading->style.layout.padding = v2(5);
 		loading->style.roundness = v4(6.f);
 		loading->style.color[c_background] = theme->bg_main_0;
 		loading->flags |= UI_Block_Flags_draw_background;
 
 		UI_push_parent(ctx, loading);
-		UI_text(theme->text_alert, G->ui_font, font_size_status,"Loading image...");
+		UI_text(theme->text_info, G->ui_font, font_size_status, "Loading image...");
 		UI_pop_parent(ctx);
 
 		UI_pop_parent(ctx);
 	}
+	if (G->crop_mode) {
+		UI_Block *poup = UI_push_block(ctx, 0);
+		poup->style.size[axis_x] = { UI_Size_t::pixels, 200, 1 };
+		poup->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
+		poup->style.position[axis_x] = { UI_Position_t::absolute, WW - 200 - 5.f };
+		poup->style.position[axis_y] = { UI_Position_t::absolute, 5};
+		poup->style.layout.padding = v2(5);
+		poup->style.roundness = v4(6.f);
+		poup->style.color[c_background] = theme->bg_main_0;
+		poup->flags |= UI_Block_Flags_draw_background;
+		poup->style.layout.spacing = v2(4);
+
+		UI_push_parent(ctx, poup);
+		iv2 dim = G->crop_b - G->crop_a;
+		UI_Color4 col_0 = theme->text_header_2;
+		UI_Color4 col_1 = theme->text_reg_main;
+		UI_text(theme->text_header_1, G->ui_font, 14, "Crop:");
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_text(col_0, G->ui_font, 12, "Dimenstions: ");
+			UI_text(col_1, G->ui_font, 12, "%i x %i", dim.x, dim.y);
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_text(col_0, G->ui_font, 12, "Offset top-left: ");
+			UI_text(col_1, G->ui_font, 12, "%i, %i", G->crop_a.x, G->crop_a.y);
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_text(col_0, G->ui_font, 12, "Offset bottom-right: ");
+			UI_text(col_1, G->ui_font, 12, "%i, %i", G->crop_b.x, G->crop_b.y);
+		}
+		UI_pop_parent(ctx);
+
+	}
 	
 	if (keypress(Key_Ctrl) || keypress(MouseM)) {
-		v4 px = G->read_px; 
+		v4 px = G->read_px;
 		v2 mouse = UI_get_mouse();
 		UI_Block *inspector_menu = UI_push_block(ctx, 0);
 		inspector_menu->depth_level += 100;
@@ -1773,7 +2122,7 @@ static void update_gui() {
 				UI_text(theme->text_reg_light, G->ui_font, 13, "G : %i", g);
 				UI_text(theme->text_reg_light, G->ui_font, 13, "B : %i", b);
 				UI_text(theme->text_reg_light, G->ui_font, 13, "A : %i", a);
-				UI_text(theme->text_alert, G->ui_font, 13, "#%02X%02X%02X", r, g, b);
+				UI_text(theme->text_info, G->ui_font, 13, "#%02X%02X%02X", r, g, b);
 				UI_text(theme->text_reg_mid, G->ui_font, 9, "Right click to copy");
 				if (keyup(MouseR)) {
 					char hexcolor[10];
@@ -1795,7 +2144,7 @@ static void update_gui() {
 	btn_default.color_text = {
 		theme->text_reg_main,
 		theme->text_reg_main,
-		theme->text_reg_main,
+		theme->text_slider_2,
 		theme->text_reg_main_d
 	};
 	btn_default.font = G->ui_font;
@@ -1860,6 +2209,29 @@ static void update_gui() {
 		theme->text_slider_2,
 		theme->text_reg_main_d
 	};
+	UI_Combo_Style default_combo_style;
+	default_combo_style.btn_size = default_combo_style.item_size = v2(237.5, 25);
+	default_combo_style.show_selected_item = true;
+	default_combo_style.font_size = font_size_btn;
+	default_combo_style.col_box = {
+		theme->bg_main_2,
+		theme->bg_main_3,
+		theme->bg_main_4,
+		theme->bg_main_2_d
+	};
+	default_combo_style.col_item = {
+		theme->bg_main_1,
+		theme->bg_main_3,
+		theme->bg_main_4,
+		theme->bg_main_2_d
+	};
+	default_combo_style.col_text = {
+		theme->text_reg_main,
+		theme->text_reg_main,
+		theme->text_reg_main,
+		theme->text_reg_main_d
+	};
+	default_combo_style.roundness = 4;
 
 	if (G->files.Count == 0)
 		G->gui_disabled = true;
@@ -1867,7 +2239,7 @@ static void update_gui() {
 	if (G->show_gui || popup_open) {
 		popup_open = false;
 		//if (G->files.Count && G->files[G->current_file_index].failed)
-			//G->gui_disabled = true;
+		//G->gui_disabled = true;
 
 		UI_Block *main_h_bar = UI_push_block(ctx, 0);
 		main_h_bar->style.position[axis_x] = { UI_Position_t::absolute, 0 };
@@ -1878,7 +2250,7 @@ static void update_gui() {
 		main_h_bar->style.layout.align[axis_x] = align_center;
 		main_h_bar->style.layout.align[axis_y] = align_end;
 		main_h_bar->style.layout.spacing = v2(5);
-		UI_push_parent_defer(ctx, main_h_bar) 
+		UI_push_parent_defer(ctx, main_h_bar)
 		{
 			UI_Block *left_menu = UI_push_block(ctx);
 			left_menu->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
@@ -1891,32 +2263,43 @@ static void update_gui() {
 			left_menu->flags |= UI_Block_Flags_draw_background;
 			left_menu->hash = UI_hash_djb2(ctx, "left_menu");
 			G->check_mouse_hashes.push_back(left_menu->hash);
-			UI_push_parent_defer(ctx, left_menu) 
+			UI_push_parent_defer(ctx, left_menu)
 			{
-				UI_push_parent_defer(ctx, UI_bar(axis_y)) 
+				UI_push_parent_defer(ctx, UI_bar(axis_y))
 				{
+					v2 btn_size = v2(75, 27);
 					UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
-					UI_Image_Values_Style image_value_style;
+					UI_Image_Edit_Style image_value_style;
+					image_value_style.checkbox_style = checkbox_default;
 					image_value_style.button_style = btn_default;
-					image_value_style.button_style.size = v2(75, 30);
+					image_value_style.button_style.size = btn_size;
 					image_value_style.slider_style = slider_style;
 					image_value_style.slider_style.pad_style = false;
 					image_value_style.slider_style.logarithmic = false;
 					image_value_style.color_text = theme->text_reg_main;
 					image_value_style.color_frame_bg = theme->bg_sub;
-					popup_open |= UI_image_values(&image_value_style, "values");
+					popup_open |= UI_image_edit(&image_value_style, "edit");
 
 					UI_Histogram_Style histogram_style;
 					histogram_style.button_style = btn_default;
-					histogram_style.button_style.size = v2(75, 30);
+					histogram_style.button_style.size = btn_size;
 					histogram_style.color_text = theme->text_reg_main;
 					histogram_style.checkbox_style = checkbox_default;
 					histogram_style.color_frame_bg = theme->bg_sub;
-					if (!G->settings_calculate_histograms || !G->graphics.main_image.has_histo)
-						set_backed_up_bool(G->gui_disabled, disabled_prv, true);
-					popup_open |= UI_histogram(&histogram_style, "histogram");
-					restore_backed_up_bool(G->gui_disabled, disabled_prv);
-					UI_checkbox(&checkbox_default, &G->srgb, "sRGB");
+
+					UI_set_disabled_defer((!G->settings_calculate_histograms || !G->graphics.main_image.has_histo))
+					{
+						popup_open |= UI_histogram(&histogram_style, "histogram");
+					}
+
+					UI_Button_Style style = btn_default;
+					style.color_bg.base = theme->pos_btn_0;
+					style.color_bg.hot = theme->pos_btn_1;
+					style.color_bg.active = theme->pos_btn_2;
+					style.size = btn_size;
+					if (UI_button(&style, "save as")) {
+						G->save_as_visible = !G->save_as_visible;
+					}
 				}
 				UI_push_parent_defer(ctx, UI_bar(axis_y))
 				{
@@ -1926,7 +2309,7 @@ static void update_gui() {
 					UI_checkbox(&checkbox_default, (bool *) & RGBAflags[2], "B"); UI_tooltip("Toggle blue channel");
 					UI_checkbox(&checkbox_default, (bool *) & RGBAflags[3], "A"); UI_tooltip("Toggle alpha channel");
 				}
-				UI_push_parent_defer(ctx, UI_bar(axis_y)) 
+				UI_push_parent_defer(ctx, UI_bar(axis_y))
 				{
 					UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
 					btn_default.size = v2(50, 27);
@@ -1983,56 +2366,56 @@ static void update_gui() {
 					UI_push_parent_defer(ctx, UI_bar(axis_x))
 					{
 						UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
-						if (G->anim_play || G->anim_index == 0) set_disabled(true);
-						if (UI_button(&style_side, "<<")) req_index_i--;
-						reset_disabled();
+						UI_set_disabled_defer((G->anim_play || G->anim_index == 0)) {
+							if (UI_button(&style_side, "<<")) req_index_i--;
+						}
 						if (UI_button(&style_main, str_button)) G->anim_play = !G->anim_play;
-						if (G->anim_play || G->anim_index == 0) set_disabled(true);
-						if (UI_button(&style_side, ">>")) req_index_i++;
-						reset_disabled();
+						UI_set_disabled_defer((G->anim_play || G->anim_index == 0)) {
+							if (UI_button(&style_side, ">>")) req_index_i++;
+						}
 						G->anim_index = clamp(req_index_i, 0, G->anim_frames - 1);
 					}
-				}	
-				static float testnr =0.1;
+				}
+				static float testnr = 0.1;
 				slider_style.bar_short_axis = slider_style.pad_min_size = 25;
 				slider_style.logarithmic = true;
 				sprintf(slider_style.string, "zoom: %.0f%%%%", G->truescale * 100);
-				if (G->anim_play || G->anim_index == 0) set_disabled(true);
+
 				if (UI_slider(&slider_style, axis_x, &G->truescale_edit, 0.1, 500, UI_hash_djb2(ctx, "zoom slider"))) {
 					send_signal(G->signals.update_scale_ui);
 				}
-				reset_disabled();
+	
 				slider_style.logarithmic = false;
 				UI_push_parent_defer(ctx, UI_bar(axis_x))
 				{
 					UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
 					UI_Button_Style style = btn_default;
 					style.size = v2(75, 42);
-					if (G->sorting || !(G->current_file_index > 0)) set_disabled(true);
-					if (UI_button(&style, "<< Prev")) {
-						send_signal(G->signals.prev_image);
+					UI_set_disabled_defer((G->files.Count == 0) || G->sorting || !(G->current_file_index > 0)) {
+						if (UI_button(&style, "<< Prev")) {
+							send_signal(G->signals.prev_image);
+						}
 					}
-					reset_disabled();
-					if (G->sorting || !(G->current_file_index < G->files.Count - 1)) set_disabled(true);
-					if (UI_button(&style, "Next >>")) {
-						send_signal(G->signals.next_image);
+					UI_set_disabled_defer((G->files.Count == 0) || G->sorting || !(G->current_file_index < G->files.Count - 1)) {
+						if (UI_button(&style, "Next >>")) {
+							send_signal(G->signals.next_image);
+						}
 					}
-					reset_disabled();
 
 				}
 				float file = G->current_file_index;
-				set_disabled(true);
-				slider_style.string[0] = 0;
-				slider_style.col_text = {
-					theme->text_reg_main_d,
-					theme->text_reg_main_d,
-					theme->text_reg_main_d,
-					theme->text_reg_main_d
-				};
-				sprintf(slider_style.string,"file: %i \\ %i", G->current_file_index + 1, G->files.Count);
-				slider_style.bar_short_axis = slider_style.pad_min_size = 15;
-				UI_slider(&slider_style, axis_x, &file, 0, G->files.Count - 1, UI_hash_djb2(ctx, "file slider"));
-				reset_disabled();
+				UI_set_disabled_defer(true) {
+					slider_style.string[0] = 0;
+					slider_style.col_text = {
+						theme->text_reg_main_d,
+						theme->text_reg_main_d,
+						theme->text_reg_main_d,
+						theme->text_reg_main_d
+					};
+					sprintf(slider_style.string, "file: %i \\ %i", G->current_file_index + 1, G->files.Count);
+					slider_style.bar_short_axis = slider_style.pad_min_size = 15;
+					UI_slider(&slider_style, axis_x, &file, 0, G->files.Count - 1, UI_hash_djb2(ctx, "file slider"));
+				}
 			}
 
 			UI_Block *right_menu = UI_push_block(ctx);
@@ -2054,9 +2437,23 @@ static void update_gui() {
 					UI_Button_Style style = btn_default;
 					style.size = v2(62.5, 20);
 					style.font_size -= 2;
-					if (UI_button(&style, "Rotate L")) G->graphics.main_image.orientation++;
+					if (UI_button(&style, "Rotate L")) { 
+						G->graphics.main_image.orientation++;
+						iv2 prev_a = G->crop_a;
+						iv2 prev_b = G->crop_b;
+						G->crop_a = iv2(prev_a.y, G->graphics.main_image.w -  prev_b.x);
+						G->crop_b = iv2(prev_b.y, G->graphics.main_image.w -  prev_a.x);
+						swap(int, G->graphics.main_image.w, G->graphics.main_image.h);
+					}
 					UI_tooltip("rotate image 90 degrees anticlockwise (doesn't change original file)");
-					if (UI_button(&style, "Rotate R")) G->graphics.main_image.orientation--;
+					if (UI_button(&style, "Rotate R")) {
+						G->graphics.main_image.orientation--;
+						iv2 prev_a = G->crop_a;
+						iv2 prev_b = G->crop_b;
+						G->crop_a = iv2(G->graphics.main_image.h - prev_b.y, prev_a.x);
+						G->crop_b = iv2(G->graphics.main_image.h - prev_a.y, prev_b.x);
+						swap(int, G->graphics.main_image.w, G->graphics.main_image.h);
+					}
 					UI_tooltip("rotate image 90 degrees clockwise (doesn't change original file)");
 					G->graphics.main_image.orientation = clamp_circular(G->graphics.main_image.orientation, 0, 3);
 				}
@@ -2070,71 +2467,71 @@ static void update_gui() {
 						{
 							UI_checkbox(&checkbox_default, &G->nearest_filtering, "nrst");
 							UI_tooltip("Toggle between nearest-neighbor and linear filtering");
+							if (!G->nearest_filtering) UI_set_disabled(true);
 							UI_checkbox(&checkbox_default, &G->pixel_grid, "grid");
 							UI_tooltip("Show pixel grid");
+							UI_reset_disabled();
 						}
 
-						set_backed_up_bool(G->gui_disabled, disabled_prv, false);
-
-					
-						static u32 tmp_bg_color = UI_v4_to_u32(v4(bg_color));
-						UI_push_parent_defer(ctx, UI_bar(axis_y))
-						{
-							UI_Block* bar = UI_get_current_parent(ctx);
-							bar->style.layout.spacing = v2(3);
-							picker_style.button_size = v2(65, 40);
-							popup_open |= UI_color_picker(&picker_style, &tmp_bg_color, true, 15);
-							UI_tooltip("Set background color");
-							v4 new_bg_color = UI_u32_to_v4(tmp_bg_color);
-							bg_color[0] = new_bg_color[0];
-							bg_color[1] = new_bg_color[1];
-							bg_color[2] = new_bg_color[2];
-							bg_color[3] = new_bg_color[3];
+						UI_set_disabled_defer(false) {
+							static u32 tmp_bg_color = UI_v4_to_u32(v4(bg_color));
+							UI_push_parent_defer(ctx, UI_bar(axis_y))
+							{
+								UI_Block* bar = UI_get_current_parent(ctx);
+								bar->style.layout.spacing = v2(3);
+								picker_style.button_size = v2(65, 40);
+								popup_open |= UI_color_picker(&picker_style, &tmp_bg_color, true, 15);
+								UI_tooltip("Set background color");
+								v4 new_bg_color = UI_u32_to_v4(tmp_bg_color);
+								bg_color[0] = new_bg_color[0];
+								bg_color[1] = new_bg_color[1];
+								bg_color[2] = new_bg_color[2];
+								bg_color[3] = new_bg_color[3];
+							}
 						}
 					}
 					UI_push_parent_defer(ctx, UI_bar(axis_x))
 					{
 						UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
 						UI_Button_Style style = btn_default;
-						style.color_bg.base = theme->open_btn_0;
-						style.color_bg.hot = theme->open_btn_1;
-						style.color_bg.active = theme->open_btn_2;
+						style.color_bg.base = theme->pos_btn_0;
+						style.color_bg.hot = theme->pos_btn_1;
+						style.color_bg.active = theme->pos_btn_2;
 						v2 btn_size = v2(50, 25);
-
-						style.size = btn_size;
-						if (UI_button(&style, "open")) {
-							basic_file_open();
+						UI_set_disabled_defer(false) {
+							style.size = btn_size;
+							if (UI_button(&style, "open")) {
+								file_open_dialogue();
+							}
+							UI_tooltip("Open image file");
+							style = btn_default;
+							style.size = btn_size;
+							if (UI_button(&style, "config")) {
+								G->settings_visible = true;
+								G->exif_data_visible = false;
+							}
+							UI_tooltip("Open settings menu");
 						}
-						UI_tooltip("Open image file");
-						style = btn_default;
-						style.size = btn_size;
-						if (UI_button(&style, "config")) {
-							G->settings_visible = true;
-							G->exif_data_visible = false;
-						}
-						UI_tooltip("Open settings menu");
 						style.size = v2(20, 25);
-						if (!G->graphics.main_image.has_exif)
-							set_backed_up_bool(G->gui_disabled, disabled_prv, true);
-						if (UI_button(&style, "i")) {
-							G->exif_data_visible = true;
-							G->settings_visible = false;
+						UI_set_disabled_defer(!G->graphics.main_image.has_exif) {
+							if (UI_button(&style, "i")) {
+								G->exif_data_visible = true;
+								G->settings_visible = false;
+							}
+							if (!G->graphics.main_image.has_exif)
+								UI_tooltip("No EXIF metadata found on this image!");
+							else
+								UI_tooltip("Open image EXIF metadata");
 						}
-						restore_backed_up_bool(G->gui_disabled, disabled_prv);
-						if (!G->graphics.main_image.has_exif)
-							UI_tooltip("No EXIF metadata found on this image!");
-						else
-							UI_tooltip("Open image EXIF metadata");
 
 					}
-					restore_backed_up_bool(G->gui_disabled, disabled_prv);
 				}
 			}
 		}
 	}
 	static bool exif_popup_open = false;
 	if (G->exif_data_visible || exif_popup_open) {
-		set_backed_up_bool(G->gui_disabled, disabled_prv, false);
+		UI_set_disabled(false);
 
 		UI_Block *frame = UI_push_block(ctx, 0);
 		frame->style.size[axis_x] = { UI_Size_t::pixels, f32(WW), 1 };
@@ -2267,10 +2664,80 @@ static void update_gui() {
 				UI_text(col_1, G->ui_font, 12, "%f m", G->graphics.main_image.exif_info.GeoLocation.Altitude);
 			}
 		}
+		UI_reset_disabled();
 	}
+	static bool save_as_popup_open = false;
+
+	if (G->save_as_visible || save_as_popup_open) {
+		UI_set_disabled(false);
+		save_as_popup_open = false;
+
+		UI_Block *frame = UI_push_block(ctx, 0);
+		frame->style.size[axis_x] = {UI_Size_t::pixels, f32(WW), 1};
+		frame->style.size[axis_y] = {UI_Size_t::pixels, f32(WH), 1};
+		frame->style.layout.align[axis_y] = align_center;
+		frame->style.layout.align[axis_x] = align_center;
+
+		UI_Block *save_as_menu = UI_push_block(ctx, frame);
+		save_as_menu->style.size[axis_x] = { UI_Size_t::sum_of_children, 300, 1 };
+		save_as_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
+		save_as_menu->style.color[c_background] = theme->bg_main_0;
+		save_as_menu->style.layout.padding = v2(8);
+		save_as_menu->style.layout.spacing = v2(5);
+		save_as_menu->style.layout.axis = axis_x;
+		save_as_menu->style.roundness = v4(8);
+		save_as_menu->flags |= UI_Block_Flags_draw_background;
+		save_as_menu->hash = UI_hash_djb2(ctx, "save_as_menu");
+		save_as_menu->depth_level += 200;
+		G->check_mouse_hashes.push_back(save_as_menu->hash);
+
+		UI_Button_Style style = btn_default;
+		style.color_bg.base = theme->pos_btn_0;
+		style.color_bg.hot = theme->pos_btn_1;
+		style.color_bg.active = theme->pos_btn_2;
+		style.size = v2(100, 27);
+		static int selected_encoder = 0;
+
+		UI_Combo_Style combo_style = default_combo_style;
+		combo_style.btn_size = style.size;
+		combo_style.item_size = v2(style.size.x, 20);
+
+		bool keep = false;
+		UI_push_parent_defer(ctx, save_as_menu) {
+			UI_push_parent_defer(ctx, UI_bar(axis_y)) {
+				UI_Block* bar = UI_get_current_parent(ctx);
+				bar->style.size[axis_y] = { UI_Size_t::pixels, style.size.y, 1 };
+				bar->style.layout.align[axis_y] = align_center;
+				UI_text(theme->text_reg_light, G->ui_font, 12, "Codec: ");
+			}
+			
+			UI_Combo_Return combo_return = UI_combo(&combo_style, "save as encoder", &selected_encoder, encoder_formats_str, array_size(encoder_formats_str));
+			save_as_popup_open |= combo_return.popup;
+			keep = combo_return.changed;
+			if (combo_return.bounding_box)
+				G->check_mouse_hashes.push_back(combo_return.bounding_box->hash);
+			if (UI_button(&style, "save image...")) {
+				if (SUCCEEDED(save_as_dialogue((Encoder_Format) selected_encoder) )) {
+					push_alert("Image saved successfully!", Alert_Info);
+					G->save_as_visible = false;
+				}
+			}
+		}
+
+		UI_Block *menu_ref = UI_find_block(ctx, save_as_menu->hash, UI_PREVIOUS);
+		if (menu_ref) {
+			if (!save_as_popup_open && !UI_point_in_rect(menu_ref->position, menu_ref->position + menu_ref->size, UI_get_mouse())) {
+				if (!keep && keydn(MouseL))
+					G->save_as_visible = false;
+			}
+		}
+
+		UI_reset_disabled();
+	}
+
 	static bool settings_popup_open = false;
 	if (G->settings_visible || settings_popup_open) {
-		set_backed_up_bool(G->gui_disabled, disabled_prv, false);
+		UI_set_disabled(false);
 
 		UI_Block *frame = UI_push_block(ctx, 0);
 		frame->style.size[axis_x] = {UI_Size_t::pixels, f32(WW), 1};
@@ -2369,30 +2836,6 @@ static void update_gui() {
 			UI_separator(2, theme->separator);
 			UI_text(theme->text_header_1, G->ui_font, 13,"Settings:");
 
-			UI_Combo_Style combo_style;
-			combo_style.size = v2(237.5, 25);
-			combo_style.show_selected_item = true;
-			combo_style.font_size = font_size_btn;
-			combo_style.col_box = {
-				theme->bg_main_2,
-				theme->bg_main_3,
-				theme->bg_main_4,
-				theme->bg_main_2_d
-			};
-			combo_style.col_item = {
-				theme->bg_main_1,
-				theme->bg_main_3,
-				theme->bg_main_4,
-				theme->bg_main_2_d
-			};
-			combo_style.col_text = {
-				theme->text_reg_main,
-				theme->text_reg_main,
-				theme->text_reg_main,
-				theme->text_reg_main_d
-			};
-			combo_style.roundness = 4;
-
 			char *resetzoom_options[]  {"Do not reset zoom", "Save zoom for each file", "Fit Width", "Fit Height", "Zoom to 1:1"};
 			char *resetpos_options[] { "Do not reset position", "Save position for each file", "Reset to center" };
 			UI_text(theme->text_reg_main, G->ui_font, 12,"Persistent zoom and position settings upon file change: ");
@@ -2400,8 +2843,8 @@ static void update_gui() {
 				UI_Block* bar = UI_get_current_parent(ctx);
 				bar->style.layout.spacing = v2(5);
 				bar->style.layout.align[axis_x] = align_center;
-				UI_combo(&combo_style, "reset position options",  &G->settings_resetpos, resetpos_options, array_size(resetpos_options));
-				UI_combo(&combo_style, "reset zoom options", &G->settings_resetzoom, resetzoom_options, array_size(resetzoom_options));
+				UI_combo(&default_combo_style, "reset position options",  &G->settings_resetpos, resetpos_options, array_size(resetpos_options));
+				UI_combo(&default_combo_style, "reset zoom options", &G->settings_resetzoom, resetzoom_options, array_size(resetzoom_options));
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_y)) {
 				UI_checkbox(&checkbox_default, &G->settings_autoplayGIFs, "Autoplay GIF files upon loading");
@@ -2427,8 +2870,8 @@ static void update_gui() {
 					UI_Block* bar = UI_get_current_parent(ctx);
 					bar->style.size[axis_x] = { UI_Size_t::percent_of_parent, 0.5, 1 };
 					bar->style.layout.spacing = v2(5);
-					combo_style.size = v2(235, line_h);
-					UI_combo(&combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str));
+					default_combo_style.btn_size = v2(235, line_h);
+					UI_combo(&default_combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str));
 					//if (UI_combo(&combo_style, "Theme selector", &G->settings_selected_theme, themes_str, array_size(themes_str))) {
 					//	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
 					//	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
@@ -2500,20 +2943,35 @@ static void update_gui() {
 					UI_tooltip("adjusts how much slower the pan and zoom speed is when holding SHIFT");
 				}
 			}
-			restore_backed_up_bool(G->gui_disabled, disabled_prv);
+			UI_reset_disabled();
 		}
 	}
 	
 	G->gui_disabled = false;
 }
 
+enum Drag_index {
+	drag_free,
+	drag_crop_a_x,
+	drag_crop_a_y,
+	drag_crop_b_x,
+	drag_crop_b_y,
+
+	drag_crop_a_x_a_y,
+	drag_crop_a_x_b_y,
+	drag_crop_b_x_a_y,
+	drag_crop_b_x_b_y,
+
+	drag_count,
+};
+
 static void update_logic() {
 	bool WantCaptureMouse = G->ui_want_capture_mouse;
 
-    if (G->error.timer > 0)
-        G->error.timer++;
-    if (G->error.timer == 300)
-        G->error.timer = 0;
+    if (G->alert.timer > 0)
+        G->alert.timer++;
+    if (G->alert.timer == 300)
+        G->alert.timer = 0;
 
 	if (keyup(Key_F11))
 		toggle_fullscreen(hwnd);
@@ -2531,12 +2989,123 @@ static void update_logic() {
 		scan_folder(G->files[G->current_file_index].file.path);
 	}
 
-    if (keypress(MouseL) && !WantCaptureMouse) {
-        G->position += G->keys.Mouse_rel;
-		G->mouse_dragging = true;
-	} else {
-		G->mouse_dragging = false;
+	G->mouse_dragging = false;
+	static int drag_index = drag_free;
+	bool hovers[drag_count] = { 0 };
+	if (!WantCaptureMouse) {
+		if (G->crop_mode) {
+			f32 threshold = 5 / G->truescale;
+			SetCursor(G->hcursor[Cursor_Type_arrow]);
+
+			if 		  (abso(G->pixel_mouse.x - (G->crop_a.x)) < threshold) {
+				if (keydn(MouseL)) drag_index = drag_crop_a_x;
+				hovers[drag_crop_a_x] = true;
+				SetCursor(G->hcursor[Cursor_Type_resize_h]);
+			} else if (abso(G->pixel_mouse.x - (G->crop_b.x)) < threshold) {
+				if (keydn(MouseL)) drag_index = drag_crop_b_x;
+				hovers[drag_crop_b_x] = true;
+				SetCursor(G->hcursor[Cursor_Type_resize_h]);
+			}
+
+			if 		  (abso(G->pixel_mouse.y - (G->crop_a.y)) < threshold) {
+				if (keydn(MouseL)) drag_index = drag_crop_a_y;
+				hovers[drag_crop_a_y] = true;
+				SetCursor(G->hcursor[Cursor_Type_resize_v]);
+			} else if (abso(G->pixel_mouse.y - (G->crop_b.y)) < threshold) {
+				if (keydn(MouseL)) drag_index = drag_crop_b_y;
+				hovers[drag_crop_b_y] = true;
+				SetCursor(G->hcursor[Cursor_Type_resize_v]);
+			}
+
+			if 		  (hovers[drag_crop_a_x] && hovers[drag_crop_a_y]) {
+				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+				if (keydn(MouseL)) drag_index = drag_crop_a_x_a_y;
+			} else if (hovers[drag_crop_a_x] && hovers[drag_crop_b_y]) {
+				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+				if (keydn(MouseL)) drag_index = drag_crop_a_x_b_y;
+			} else if (hovers[drag_crop_b_x] && hovers[drag_crop_a_y]) {
+				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+				if (keydn(MouseL)) drag_index = drag_crop_b_x_a_y;
+			} else if (hovers[drag_crop_b_x] && hovers[drag_crop_b_y]) {
+				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+				if (keydn(MouseL)) drag_index = drag_crop_b_x_b_y;
+			}
+		}
+		if (keypress(MouseL)) {
+			if (drag_index == drag_free)
+				G->position += G->keys.Mouse_rel;
+			G->mouse_dragging = true;
+		}
 	}
+	if (G->crop_mode) {
+		v2 new_pixel = G->pixel_mouse + 0.5f;
+		switch (drag_index) {
+			case drag_crop_a_x: 
+				SetCursor(G->hcursor[Cursor_Type_resize_h]);
+				G->crop_a.x = new_pixel.x; 
+				break;
+			case drag_crop_b_x: 
+				SetCursor(G->hcursor[Cursor_Type_resize_h]);
+				G->crop_b.x = new_pixel.x;
+				break;
+			case drag_crop_a_y: 
+				SetCursor(G->hcursor[Cursor_Type_resize_v]);
+				G->crop_a.y = new_pixel.y;
+				break;
+			case drag_crop_b_y: 
+				SetCursor(G->hcursor[Cursor_Type_resize_v]);
+				G->crop_b.y = new_pixel.y;
+				break;
+			case drag_crop_a_x_a_y: 
+				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+				G->crop_a.x = new_pixel.x; 
+				G->crop_a.y = new_pixel.y;
+				break;
+			case drag_crop_a_x_b_y: 
+				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+				G->crop_a.x = new_pixel.x; 
+				G->crop_b.y = new_pixel.y;
+				break;
+			case drag_crop_b_x_a_y: 
+				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+				G->crop_b.x = new_pixel.x;
+				G->crop_a.y = new_pixel.y;
+				break;
+			case drag_crop_b_x_b_y: 
+				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+				G->crop_b.x = new_pixel.x;
+				G->crop_b.y = new_pixel.y;
+				break;
+			default:
+				if (keypress(MouseR) && !WantCaptureMouse) {
+					G->crop_a += _iv2(G->keys.Mouse_rel / G->truescale);
+					G->crop_b += _iv2(G->keys.Mouse_rel / G->truescale);
+					G->mouse_dragging = true;
+				}
+				break;
+		}
+		if (drag_index != drag_free) 
+			G->mouse_dragging = true;
+	}
+	v2 img_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
+	G->crop_a.x = clamp(G->crop_a.x, 0, G->crop_b.x - 1);
+	G->crop_b.x = clamp(G->crop_b.x, G->crop_a.x + 1, img_dim.x);
+	G->crop_a.y = clamp(G->crop_a.y, 0, G->crop_b.y - 1);
+	G->crop_b.y = clamp(G->crop_b.y, G->crop_a.y + 1, img_dim.y);
+
+	if (!keypress(MouseL)) {
+		drag_index = drag_free;
+	}
+
+	if (G->keys.double_click) {
+		G->crop_mode = false;
+		G->force_loop_frames++;
+	}
+	if (G->files.Count > 0 && keyup(Key_C)) {
+		G->crop_mode = !G->crop_mode;
+		G->force_loop_frames++;
+	}
+
     {
         v2 diff = v2(keypress(Key_D) - keypress(Key_A), keypress(Key_S) - keypress(Key_W)) *
                   G->settings_movementmag / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
@@ -2564,9 +3133,6 @@ static void update_logic() {
     G->graphics.aspect_wnd = (float)WW / WH;
     G->graphics.aspect_img = (float)G->graphics.main_image.w / G->graphics.main_image.h;
 
-	if (G->graphics.main_image.orientation == 1 || G->graphics.main_image.orientation == 3)
-		G->graphics.aspect_wnd = 1 / G->graphics.aspect_wnd;
-
     float prev_scale = G->scale;
     v2 prev_Position = G->position;
     bool updatescalebar = false;
@@ -2590,7 +3156,9 @@ static void update_logic() {
             G->truescale = (float)WW / G->graphics.main_image.w * G->scale;
         }
         v2 M = G->keys.Mouse;
-        G->pixel_mouse = (M - (v2(WW, WH) - v2(G->graphics.main_image.w, G->graphics.main_image.h) * G->truescale) * 0.5 - G->position) / G->truescale;
+		v2 img_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
+		v2 wnd = v2(WW, WH);
+		G->pixel_mouse = (M - (wnd - img_dim * G->truescale) * 0.5 - G->position) / G->truescale;
     } 
     {
         v2 Mouse = G->keys.Mouse - v2(WW, WH) / 2;
@@ -2649,6 +3217,51 @@ static void UI_check_mouse() {
 	G->check_mouse_hashes.reset_count();
 }
 
+static void render_histogram() {
+	if (!G->histo_block) return;
+	Graphics* ctx = &G->graphics;
+	UINT stride = sizeof(v2);
+	UINT offset = 0;
+	ctx->device_ctx->OMSetRenderTargets(1, &ctx->frame_buffer_view, ctx->depth_buffer_view);
+	ctx->device_ctx->OMSetDepthStencilState(ctx->depth_stencil_state, 0);
+	ctx->device_ctx->OMSetBlendState(ctx->blend_state, nullptr, 0xffffffff);
+	D3D11_VIEWPORT viewport = { 0.0f, 0.0f, float(WW), float(WH), 0.0f, 1.0f };
+	ctx->device_ctx->RSSetViewports(1, &viewport);
+	ctx->device_ctx->IASetInputLayout(ctx->lines_program.input_layout);
+	ctx->device_ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+	ctx->device_ctx->IASetVertexBuffers(0, 1, &G->graphics.lines_vertex_buffer, &stride, &offset);
+	ctx->device_ctx->VSSetShader(ctx->lines_program.vertex_shader, nullptr, 0);
+	ctx->device_ctx->VSSetConstantBuffers(0, 1, &ctx->lines_program.constants_buffer);
+	ctx->device_ctx->PSSetShader(ctx->lines_program.pixel_shader, nullptr, 0);
+	ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->lines_program.constants_buffer);
+	ctx->device_ctx->ClearDepthStencilView(ctx->depth_buffer_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	for (int i = 0; i < 4; i++) {
+		v2* target = G->p_histo_t;
+		v4 color = v4(1, 1, 1, 1);
+		switch (i) {
+			case 0: if (!G->draw_histo_t) continue; break;
+			case 1: if (!G->draw_histo_b) continue; target = G->p_histo_b; color = v4(0, 0, 1, 1); break;
+			case 2: if (!G->draw_histo_g) continue; target = G->p_histo_g; color = v4(0, 1, 0, 1); break;
+			case 3: if (!G->draw_histo_r) continue; target = G->p_histo_r; color = v4(1, 0, 0, 1); break;
+		}
+
+		D3D11_MAPPED_SUBRESOURCE mapped_data;
+		ctx->device_ctx->Map(G->graphics.lines_vertex_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_data);
+		Vertex* buffer_data = (Vertex*)mapped_data.pData;
+		memcpy(buffer_data, target, sizeof(v2) * 256);
+		ctx->device_ctx->Unmap(G->graphics.lines_vertex_buffer, 0);
+
+
+		Shader_Constants_Lines constants_lines;
+		constants_lines.window = v2(WW, WH);
+		constants_lines.offset = G->histo_block->position + v2(2, 2);
+		constants_lines.color = color;
+		upload_constants(&ctx->lines_program, &constants_lines);
+		ctx->device_ctx->Draw(256, 0);
+	}
+}
+
 static void render() {
 	Graphics* ctx = &G->graphics;
 	ID3D11ShaderResourceView** target_srv = 0;
@@ -2657,18 +3270,26 @@ static void render() {
 	if (G->signals.init_step_2 || G->loaded || G->files.Count == 0) {
 		handle_signal(G->signals.init_step_2) {
 			load_image_post();
+			handle_signal(G->signals.update_orientation_step_2) {
+				if (G->graphics.main_image.orientation % 2 == 1) {
+					swap(int, G->graphics.main_image.w, G->graphics.main_image.h);
+				}
+			}
+			reset_image_edit();
 			send_signal(G->signals.update_pass);
 			G->loaded = true;
 			if (G->loading_dropped_file) {
 				G->loading_dropped_file = false;
-				free(TempPath);
+				free(global_temp_path);
 			}
 		}
 
 		if (G->files.Count > 0 && !G->files[G->current_file_index].failed) { // check if we have a folder open and no failed to load image 
 			if ((G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM) && G->anim_frames > 0) {
 				static uint32_t time = 0;
-				uint32_t delta =get_ticks() - time;
+				uint32_t delta = get_ticks() - time;
+				if (G->anim_play)
+					G->force_loop = true;
 				if (delta >= G->anim_frame_delays[G->anim_index] && G->anim_play) {
 					G->anim_index++;
 					if (G->anim_index == G->anim_frames) {
@@ -2690,8 +3311,6 @@ static void render() {
 
 		G->graphics.aspect_wnd = (float)WW / WH;
 		G->graphics.aspect_img = (float)G->graphics.main_image.w / G->graphics.main_image.h;
-		if (G->graphics.main_image.orientation == 1 || G->graphics.main_image.orientation == 3)
-			G->graphics.aspect_wnd = 1 / G->graphics.aspect_wnd;
 
 		//clear
 		f32 color[4] = { bg_color[0], bg_color[1], bg_color[2], 1.0f };
@@ -2714,7 +3333,7 @@ static void render() {
 
 		//draw checkerboard
 		Shader_Constants_BG constants_bg;
-		constants_bg.Window = v2(WW, WH);
+		constants_bg.window = v2(WW, WH);
 		constants_bg.size = Checkerboard_size;
 		constants_bg.color1 = v3(checkerboard_color_1[0], checkerboard_color_1[1], checkerboard_color_1[2]);
 		constants_bg.color2 = v3(checkerboard_color_2[0], checkerboard_color_2[1], checkerboard_color_2[2]);
@@ -2727,23 +3346,11 @@ static void render() {
 		ctx->device_ctx->Draw(4, 0);
 	
 		//draw image
-		Shader_Constants_Main constants_main;
-		constants_main.aspect_img = G->graphics.aspect_img;
-		constants_main.aspect_wnd = G->graphics.aspect_wnd;
-		constants_main.scale = G->scale;
-		constants_main.position = G->position / v2(WW, -WH) * 2;
-		constants_main.pixel_grid = (G->nearest_filtering && (G->truescale > 5) && G->pixel_grid) ? 1 : 0;
-		constants_main.true_scale = G->truescale;
-		constants_main.image_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
-		constants_main.window = v2(WW, WH);
-		constants_main.rgba_flags = v4((float)RGBAflags[0], (float)RGBAflags[1], (float)RGBAflags[2], (float)RGBAflags[3]);
-		constants_main.rotation = G->graphics.main_image.orientation;
-		constants_main.hue = G->hue;
-		constants_main.saturation = G->saturation;
-		constants_main.contrast = G->contrast;
-		constants_main.brightness = G->brightness;
-		constants_main.srgb = G->srgb;
-		constants_main.gamma = G->gamma;
+		Shader_Constants_Main constants_main = set_main_shader_constants();
+		if (force_nearest) { 
+			constants_main.do_blur = false;
+			constants_main.crop_mode = true; // hack
+		}
 		upload_constants(&ctx->main_program, &constants_main);
 		ctx->device_ctx->VSSetShader(ctx->main_program.vertex_shader, nullptr, 0);
 		ctx->device_ctx->VSSetConstantBuffers(0, 1, &ctx->main_program.constants_buffer);
@@ -2753,11 +3360,30 @@ static void render() {
 			ctx->device_ctx->PSSetShaderResources(0, 1, target_srv); 	
 		ctx->device_ctx->Draw(4, 0);
 
+		if (G->crop_mode) {
+			//draw crop overlay
+			Shader_Constants_Crop constants_crop;
+			v2 image_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
+			constants_crop.window = v2(WW, WH);
+			constants_crop.image_pos = v2(G->position.x, -G->position.y) - G->truescale * image_dim.invert_y() / 2;
+			constants_crop.crop_a = constants_crop.image_pos + _v2(G->crop_a.invert_y()) * 2 * G->truescale;
+			constants_crop.crop_b = constants_crop.image_pos + _v2(G->crop_b.invert_y()) * 2 * G->truescale;
+			constants_crop.scale = G->scale;
+			constants_crop.image_dim = image_dim;
+			upload_constants(&ctx->crop_program, &constants_crop);
+			ctx->device_ctx->VSSetShader(ctx->crop_program.vertex_shader, nullptr, 0);
+			ctx->device_ctx->VSSetConstantBuffers(0, 1, &ctx->crop_program.constants_buffer);
+			ctx->device_ctx->PSSetShader(ctx->crop_program.pixel_shader, nullptr, 0);
+			ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->crop_program.constants_buffer);
+			ctx->device_ctx->Draw(4, 0);
+		}
 	}
 
 	G->imgui_in_frame = false;
 	UI_end_frame(G->ui);
 	UI_render(G->ui);
+
+	render_histogram();
 
 	ctx->swap_chain->Present(1, 0);
 

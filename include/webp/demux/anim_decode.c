@@ -94,17 +94,17 @@ WebPAnimDecoder* WebPAnimDecoderNewInternal(
 
   // Note: calloc() so that the pointer members are initialized to NULL.
   dec = (WebPAnimDecoder*)WebPSafeCalloc(1ULL, sizeof(*dec));
-  if (dec == NULL) goto Error;
+  if (dec == NULL) goto Alert;
 
   if (dec_options != NULL) {
     options = *dec_options;
   } else {
     DefaultDecoderOptions(&options);
   }
-  if (!ApplyDecoderOptions(&options, dec)) goto Error;
+  if (!ApplyDecoderOptions(&options, dec)) goto Alert;
 
   dec->demux_ = WebPDemux(webp_data);
-  if (dec->demux_ == NULL) goto Error;
+  if (dec->demux_ == NULL) goto Alert;
 
   dec->info_.canvas_width = WebPDemuxGetI(dec->demux_, WEBP_FF_CANVAS_WIDTH);
   dec->info_.canvas_height = WebPDemuxGetI(dec->demux_, WEBP_FF_CANVAS_HEIGHT);
@@ -117,16 +117,16 @@ WebPAnimDecoder* WebPAnimDecoderNewInternal(
         dec->info_.canvas_width * NUM_CHANNELS * dec->info_.canvas_height;
     // Note: calloc() because we fill frame with zeroes as well.
     dec->curr_frame_ = (uint8_t*)WebPSafeCalloc(1ULL, canvas_bytes);
-    if (dec->curr_frame_ == NULL) goto Error;
+    if (dec->curr_frame_ == NULL) goto Alert;
 	dec->prev_frame_disposed_ = (uint8_t*)WebPSafeCalloc(1ULL, canvas_bytes);
-    if (dec->prev_frame_disposed_ == NULL) goto Error;
+    if (dec->prev_frame_disposed_ == NULL) goto Alert;
   }
 
   WebPAnimDecoderReset(dec);
 
   return dec;
 
- Error:
+ Alert:
   WebPAnimDecoderDelete(dec);
   return NULL;
 }
@@ -346,7 +346,7 @@ int WebPAnimDecoderGetNext(WebPAnimDecoder* dec,
     buf->rgba = dec->curr_frame_ + out_offset;
 
     if (WebPDecode(in, in_size, config) != VP8_STATUS_OK) {
-      goto Error;
+      goto Alert;
     }
   }
 
@@ -408,7 +408,7 @@ int WebPAnimDecoderGetNext(WebPAnimDecoder* dec,
   *timestamp_ptr = timestamp;
   return 1;
 
- Error:
+ Alert:
   WebPDemuxReleaseIterator(&iter);
   return 0;
 }
