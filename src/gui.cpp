@@ -1510,6 +1510,7 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 			if (ref_frame) {
 				if (UI_mouse_in_block_force(ref_frame)) {
 					G->histo_max_edit *= 1 + G->keys.scroll_y_diff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
+					G->histo_max_edit = max(G->histo_max_edit, 5);
 					if (keyup(MouseR)) {
 						G->histo_max_edit = G->histo_max;
 					}
