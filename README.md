@@ -2,13 +2,14 @@
 # Cactus Image Viewer
 #### by Wassim Alhajomar (@wassimulator)
 A single-file handmade image viewer for Windows, written in C/C++.       
-### Watch the demo featured on the Handmade Network's Wheel Reinvention Jam:
-[![HMN WRJ Demo](https://github.com/Wassimulator/CactusViewer/assets/75145262/4155bc8c-3a2c-415a-b5ee-a47f595f4745)](https://youtu.be/FofjjYWCeX8)
-### Watch it in action:
-[![CactusViewer in action](https://github.com/Wassimulator/CactusViewer/assets/75145262/9279bef8-5f5f-42fd-9bcc-34605fd3e60f)](https://youtu.be/OlJ1ycqpDII)
-![F7HthCRWYAAnZQH](https://github.com/Wassimulator/CactusViewer/assets/75145262/a67dd51c-a61c-4c74-9bbf-0fd07c33594f)
-
+### VIDEO: Watch the demo featured on the Handmade Network's Wheel Reinvention Jam:
+[![Video](https://img.youtube.com/vi/FofjjYWCeX8/maxresdefault.jpg)](https://youtu.be/FofjjYWCeX8)
+### VIDEO: Watch it in action:
+[![Video](https://img.youtube.com/vi/OlJ1ycqpDII/sddefault.jpg)](https://youtu.be/OlJ1ycqpDII)
 -----
+![F7HthCRWYAAnZQH](https://github.com/Wassimulator/CactusViewer/assets/75145262/a67dd51c-a61c-4c74-9bbf-0fd07c33594f)
+-----
+
 [Consider donating if you like this project](https://www.paypal.com/donate/?hosted_button_id=NYKGNB8VZG84Y)
 #### Used libraries:
 Homemade immediate mode UI, a custom D3D11 renderer, [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec), [stb_image](https://github.com/nothings/stb) and [libwebp](https://chromium.googlesource.com/webm/libwebp) for decoding, [cute_files.h](https://github.com/RandyGaul/cute_headers/blob/master/cute_files.h) to manage directories on different platforms, [FreeType](https://freetype.org/) for font loading, and [easyexif](https://github.com/mayanklahiri/easyexif) for fetching image metadata.             
