@@ -2,7 +2,8 @@
 # Cactus Image Viewer
 #### by Wassim Alhajomar (@wassimulator)
 A single-file handmade image viewer for Windows, written in C/C++.       
-### VIDEO: Watch it in action: Featured on the Handmade Network's Wheel Reinvention Jam:
+### VIDEO: Watch it in action: 
+Featured on the Handmade Network's Wheel Reinvention Jam:
 [![Video](https://img.youtube.com/vi/FofjjYWCeX8/maxresdefault.jpg)](https://youtu.be/FofjjYWCeX8)
 -----
 ![F7HthCRWYAAnZQH](https://github.com/Wassimulator/CactusViewer/assets/75145262/a67dd51c-a61c-4c74-9bbf-0fd07c33594f)
