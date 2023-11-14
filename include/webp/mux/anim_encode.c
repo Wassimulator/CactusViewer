@@ -16,11 +16,13 @@
 #include <stdio.h>
 #include <stdlib.h>  // for abs()
 
-#include "../utils/utils.h"
-#include "../webp/decode.h"
-#include "../webp/encode.h"
-#include "../webp/format_constants.h"
-#include "../webp/mux.h"
+#include "src/mux/animi.h"
+#include "src/utils/utils.h"
+#include "src/webp/decode.h"
+#include "src/webp/encode.h"
+#include "src/webp/format_constants.h"
+#include "src/webp/mux.h"
+#include "src/webp/types.h"
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #define snprintf _snprintf
@@ -34,7 +36,7 @@
 // Stores frame rectangle dimensions.
 typedef struct {
   int x_offset_, y_offset_, width_, height_;
-} FrameRect;
+} FrameRectangle;
 
 // Used to store two candidates of encoded data for an animation frame. One of
 // the two will be chosen later.
@@ -49,7 +51,7 @@ struct WebPAnimEncoder {
   const int canvas_height_;                 // Canvas height.
   const WebPAnimEncoderOptions options_;    // Global encoding options.
 
-  FrameRect prev_rect_;               // Previous WebP frame rectangle.
+  FrameRectangle prev_rect_;          // Previous WebP frame rectangle.
   WebPConfig last_config_;            // Cached in case a re-encode is needed.
   WebPConfig last_config_reversed_;   // If 'last_config_' uses lossless, then
                                       // this config uses lossy and vice versa;
@@ -128,14 +130,13 @@ static void SanitizeEncoderOptions(WebPAnimEncoderOptions* const enc_options) {
     DisableKeyframes(enc_options);
   }
 
-  if (enc_options->kmin <= 0) {
-    DisableKeyframes(enc_options);
-    print_warning = 0;
-  }
-  if (enc_options->kmax <= 0) {  // All frames will be key-frames.
+  if (enc_options->kmax == 1) {  // All frames will be key-frames.
     enc_options->kmin = 0;
     enc_options->kmax = 0;
     return;
+  } else if (enc_options->kmax <= 0) {
+    DisableKeyframes(enc_options);
+    print_warning = 0;
   }
 
   if (enc_options->kmin >= enc_options->kmax) {
@@ -206,7 +207,7 @@ static void ClearRectangle(WebPPicture* const picture,
 }
 
 static void WebPUtilClearPic(WebPPicture* const picture,
-                             const FrameRect* const rect) {
+                             const FrameRectangle* const rect) {
   if (rect != NULL) {
     ClearRectangle(picture, rect->x_offset_, rect->y_offset_,
                    rect->width_, rect->height_);
@@ -248,9 +249,6 @@ WebPAnimEncoder* WebPAnimEncoderNewInternal(
 
   enc = (WebPAnimEncoder*)WebPSafeCalloc(1, sizeof(*enc));
   if (enc == NULL) return NULL;
-  // sanity inits, so we can call WebPAnimEncoderDelete():
-  enc->encoded_frames_ = NULL;
-  enc->mux_ = NULL;
   MarkNoError(enc);
 
   // Dimensions and options.
@@ -378,10 +376,10 @@ static WEBP_INLINE int PixelsAreSimilar(uint32_t src, uint32_t dst,
   const int dst_g = (dst >> 8) & 0xff;
   const int dst_b = (dst >> 0) & 0xff;
 
-  return (abs(src_r * src_a - dst_r * dst_a) <= (max_allowed_diff * 255)) &&
-         (abs(src_g * src_a - dst_g * dst_a) <= (max_allowed_diff * 255)) &&
-         (abs(src_b * src_a - dst_b * dst_a) <= (max_allowed_diff * 255)) &&
-         (abs(src_a - dst_a) <= max_allowed_diff);
+  return (src_a == dst_a) &&
+         (abs(src_r - dst_r) * dst_a <= (max_allowed_diff * 255)) &&
+         (abs(src_g - dst_g) * dst_a <= (max_allowed_diff * 255)) &&
+         (abs(src_b - dst_b) * dst_a <= (max_allowed_diff * 255));
 }
 
 // Returns true if 'length' number of pixels in 'src' and 'dst' are within an
@@ -400,7 +398,7 @@ static WEBP_INLINE int ComparePixelsLossy(const uint32_t* src, int src_step,
   return 1;
 }
 
-static int IsEmptyRect(const FrameRect* const rect) {
+static int IsEmptyRect(const FrameRectangle* const rect) {
   return (rect->width_ == 0) || (rect->height_ == 0);
 }
 
@@ -413,7 +411,7 @@ static int QualityToMaxDiff(float quality) {
 // Assumes that an initial valid guess of change rectangle 'rect' is passed.
 static void MinimizeChangeRectangle(const WebPPicture* const src,
                                     const WebPPicture* const dst,
-                                    FrameRect* const rect,
+                                    FrameRectangle* const rect,
                                     int is_lossless, float quality) {
   int i, j;
   const ComparePixelsFunc compare_pixels =
@@ -421,7 +419,7 @@ static void MinimizeChangeRectangle(const WebPPicture* const src,
   const int max_allowed_diff_lossy = QualityToMaxDiff(quality);
   const int max_allowed_diff = is_lossless ? 0 : max_allowed_diff_lossy;
 
-  // Sanity checks.
+  // Assumption/correctness checks.
   assert(src->width == dst->width && src->height == dst->height);
   assert(rect->x_offset_ + rect->width_ <= dst->width);
   assert(rect->y_offset_ + rect->height_ <= dst->height);
@@ -498,7 +496,7 @@ static void MinimizeChangeRectangle(const WebPPicture* const src,
 }
 
 // Snap rectangle to even offsets (and adjust dimensions if needed).
-static WEBP_INLINE void SnapToEvenOffsets(FrameRect* const rect) {
+static WEBP_INLINE void SnapToEvenOffsets(FrameRectangle* const rect) {
   rect->width_ += (rect->x_offset_ & 1);
   rect->height_ += (rect->y_offset_ & 1);
   rect->x_offset_ &= ~1;
@@ -508,9 +506,9 @@ static WEBP_INLINE void SnapToEvenOffsets(FrameRect* const rect) {
 typedef struct {
   int should_try_;               // Should try this set of parameters.
   int empty_rect_allowed_;       // Frame with empty rectangle can be skipped.
-  FrameRect rect_ll_;            // Frame rectangle for lossless compression.
+  FrameRectangle rect_ll_;       // Frame rectangle for lossless compression.
   WebPPicture sub_frame_ll_;     // Sub-frame pic for lossless compression.
-  FrameRect rect_lossy_;         // Frame rectangle for lossy compression.
+  FrameRectangle rect_lossy_;    // Frame rectangle for lossy compression.
                                  // Could be smaller than rect_ll_ as pixels
                                  // with small diffs can be ignored.
   WebPPicture sub_frame_lossy_;  // Sub-frame pic for lossless compression.
@@ -538,7 +536,8 @@ static void SubFrameParamsFree(SubFrameParams* const params) {
 static int GetSubRect(const WebPPicture* const prev_canvas,
                       const WebPPicture* const curr_canvas, int is_key_frame,
                       int is_first_frame, int empty_rect_allowed,
-                      int is_lossless, float quality, FrameRect* const rect,
+                      int is_lossless, float quality,
+                      FrameRectangle* const rect,
                       WebPPicture* const sub_frame) {
   if (!is_key_frame || is_first_frame) {  // Optimize frame rectangle.
     // Note: This behaves as expected for first frame, as 'prev_canvas' is
@@ -586,8 +585,42 @@ static int GetSubRects(const WebPPicture* const prev_canvas,
                     &params->rect_lossy_, &params->sub_frame_lossy_);
 }
 
+static WEBP_INLINE int clip(int v, int min_v, int max_v) {
+  return (v < min_v) ? min_v : (v > max_v) ? max_v : v;
+}
+
+int WebPAnimEncoderRefineRect(
+    const WebPPicture* const prev_canvas, const WebPPicture* const curr_canvas,
+    int is_lossless, float quality, int* const x_offset, int* const y_offset,
+    int* const width, int* const height) {
+  FrameRectangle rect;
+  int right, left, bottom, top;
+  if (prev_canvas == NULL || curr_canvas == NULL ||
+      prev_canvas->width != curr_canvas->width ||
+      prev_canvas->height != curr_canvas->height ||
+      !prev_canvas->use_argb || !curr_canvas->use_argb) {
+    return 0;
+  }
+  right = clip(*x_offset + *width, 0, curr_canvas->width);
+  left = clip(*x_offset, 0, curr_canvas->width - 1);
+  bottom = clip(*y_offset + *height, 0, curr_canvas->height);
+  top = clip(*y_offset, 0, curr_canvas->height - 1);
+  rect.x_offset_ = left;
+  rect.y_offset_ = top;
+  rect.width_ = clip(right - left, 0, curr_canvas->width - rect.x_offset_);
+  rect.height_ = clip(bottom - top, 0, curr_canvas->height - rect.y_offset_);
+  MinimizeChangeRectangle(prev_canvas, curr_canvas, &rect, is_lossless,
+                          quality);
+  SnapToEvenOffsets(&rect);
+  *x_offset = rect.x_offset_;
+  *y_offset = rect.y_offset_;
+  *width = rect.width_;
+  *height = rect.height_;
+  return 1;
+}
+
 static void DisposeFrameRectangle(int dispose_method,
-                                  const FrameRect* const rect,
+                                  const FrameRectangle* const rect,
                                   WebPPicture* const curr_canvas) {
   assert(rect != NULL);
   if (dispose_method == WEBP_MUX_DISPOSE_BACKGROUND) {
@@ -595,13 +628,13 @@ static void DisposeFrameRectangle(int dispose_method,
   }
 }
 
-static uint32_t RectArea(const FrameRect* const rect) {
+static uint32_t RectArea(const FrameRectangle* const rect) {
   return (uint32_t)rect->width_ * rect->height_;
 }
 
 static int IsLosslessBlendingPossible(const WebPPicture* const src,
                                       const WebPPicture* const dst,
-                                      const FrameRect* const rect) {
+                                      const FrameRectangle* const rect) {
   int i, j;
   assert(src->width == dst->width && src->height == dst->height);
   assert(rect->x_offset_ + rect->width_ <= dst->width);
@@ -623,7 +656,7 @@ static int IsLosslessBlendingPossible(const WebPPicture* const src,
 
 static int IsLossyBlendingPossible(const WebPPicture* const src,
                                    const WebPPicture* const dst,
-                                   const FrameRect* const rect,
+                                   const FrameRectangle* const rect,
                                    float quality) {
   const int max_allowed_diff_lossy = QualityToMaxDiff(quality);
   int i, j;
@@ -650,7 +683,7 @@ static int IsLossyBlendingPossible(const WebPPicture* const src,
 // transparent pixels.
 // Returns true if at least one pixel gets modified.
 static int IncreaseTransparency(const WebPPicture* const src,
-                                const FrameRect* const rect,
+                                const FrameRectangle* const rect,
                                 WebPPicture* const dst) {
   int i, j;
   int modified = 0;
@@ -676,7 +709,7 @@ static int IncreaseTransparency(const WebPPicture* const src,
 // Assumes lossy compression is being used.
 // Returns true if at least one pixel gets modified.
 static int FlattenSimilarBlocks(const WebPPicture* const src,
-                                const FrameRect* const rect,
+                                const FrameRectangle* const rect,
                                 WebPPicture* const dst, float quality) {
   const int max_allowed_diff_lossy = QualityToMaxDiff(quality);
   int i, j;
@@ -745,13 +778,13 @@ static int EncodeFrame(const WebPConfig* const config, WebPPicture* const pic,
 typedef struct {
   WebPMemoryWriter  mem_;
   WebPMuxFrameInfo  info_;
-  FrameRect         rect_;
+  FrameRectangle    rect_;
   int               evaluate_;  // True if this candidate should be evaluated.
 } Candidate;
 
 // Generates a candidate encoded frame given a picture and metadata.
 static WebPEncodingError EncodeCandidate(WebPPicture* const sub_frame,
-                                         const FrameRect* const rect,
+                                         const FrameRectangle* const rect,
                                          const WebPConfig* const encoder_config,
                                          int use_blending,
                                          Candidate* const candidate) {
@@ -829,8 +862,8 @@ static WebPEncodingError GenerateCandidates(
   WebPPicture* const curr_canvas = &enc->curr_canvas_copy_;
   const WebPPicture* const prev_canvas =
       is_dispose_none ? &enc->prev_canvas_ : &enc->prev_canvas_disposed_;
-  int use_blending_ll;
-  int use_blending_lossy;
+  int use_blending_ll, use_blending_lossy;
+  int evaluate_ll, evaluate_lossy;
 
   CopyCurrentCanvas(enc);
   use_blending_ll =
@@ -843,16 +876,19 @@ static WebPEncodingError GenerateCandidates(
 
   // Pick candidates to be tried.
   if (!enc->options_.allow_mixed) {
-    candidate_ll->evaluate_ = is_lossless;
-    candidate_lossy->evaluate_ = !is_lossless;
+    evaluate_ll = is_lossless;
+    evaluate_lossy = !is_lossless;
+  } else if (enc->options_.minimize_size) {
+    evaluate_ll = 1;
+    evaluate_lossy = 1;
   } else {  // Use a heuristic for trying lossless and/or lossy compression.
     const int num_colors = WebPGetColorPalette(&params->sub_frame_ll_, NULL);
-    candidate_ll->evaluate_ = (num_colors < MAX_COLORS_LOSSLESS);
-    candidate_lossy->evaluate_ = (num_colors >= MIN_COLORS_LOSSY);
+    evaluate_ll = (num_colors < MAX_COLORS_LOSSLESS);
+    evaluate_lossy = (num_colors >= MIN_COLORS_LOSSY);
   }
 
   // Generate candidates.
-  if (candidate_ll->evaluate_) {
+  if (evaluate_ll) {
     CopyCurrentCanvas(enc);
     if (use_blending_ll) {
       enc->curr_canvas_copy_modified_ =
@@ -862,7 +898,7 @@ static WebPEncodingError GenerateCandidates(
                                  config_ll, use_blending_ll, candidate_ll);
     if (error_code != VP8_ENC_OK) return error_code;
   }
-  if (candidate_lossy->evaluate_) {
+  if (evaluate_lossy) {
     CopyCurrentCanvas(enc);
     if (use_blending_lossy) {
       enc->curr_canvas_copy_modified_ =
@@ -912,7 +948,8 @@ static int IncreasePreviousDuration(WebPAnimEncoder* const enc, int duration) {
   int new_duration;
 
   assert(enc->count_ >= 1);
-  assert(prev_enc_frame->sub_frame_.duration ==
+  assert(!prev_enc_frame->is_key_frame_ ||
+         prev_enc_frame->sub_frame_.duration ==
          prev_enc_frame->key_frame_.duration);
   assert(prev_enc_frame->sub_frame_.duration ==
          (prev_enc_frame->sub_frame_.duration & (MAX_DURATION - 1)));
@@ -922,14 +959,14 @@ static int IncreasePreviousDuration(WebPAnimEncoder* const enc, int duration) {
   if (new_duration >= MAX_DURATION) {  // Special case.
     // Separate out previous frame from earlier merged frames to avoid overflow.
     // We add a 1x1 transparent frame for the previous frame, with blending on.
-    const FrameRect rect = { 0, 0, 1, 1 };
+    const FrameRectangle rect = { 0, 0, 1, 1 };
     const uint8_t lossless_1x1_bytes[] = {
       0x52, 0x49, 0x46, 0x46, 0x14, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
       0x56, 0x50, 0x38, 0x4c, 0x08, 0x00, 0x00, 0x00, 0x2f, 0x00, 0x00, 0x00,
       0x10, 0x88, 0x88, 0x08
     };
     const WebPData lossless_1x1 = {
-        lossless_1x1_bytes, sizeof(lossless_1x1_bytes)
+      lossless_1x1_bytes, sizeof(lossless_1x1_bytes)
     };
     const uint8_t lossy_1x1_bytes[] = {
       0x52, 0x49, 0x46, 0x46, 0x40, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
@@ -1029,6 +1066,8 @@ static WebPEncodingError SetFrame(WebPAnimEncoder* const enc,
   const WebPPicture* const prev_canvas = &enc->prev_canvas_;
   Candidate candidates[CANDIDATE_COUNT];
   const int is_lossless = config->lossless;
+  const int consider_lossless = is_lossless || enc->options_.allow_mixed;
+  const int consider_lossy = !is_lossless || enc->options_.allow_mixed;
   const int is_first_frame = enc->is_first_frame_;
 
   // First frame cannot be skipped as there is no 'previous frame' to merge it
@@ -1066,9 +1105,7 @@ static WebPEncodingError SetFrame(WebPAnimEncoder* const enc,
     return VP8_ENC_ERROR_INVALID_CONFIGURATION;
   }
 
-  for (i = 0; i < CANDIDATE_COUNT; ++i) {
-    candidates[i].evaluate_ = 0;
-  }
+  memset(candidates, 0, sizeof(candidates));
 
   // Change-rectangle assuming previous frame was DISPOSE_NONE.
   if (!GetSubRects(prev_canvas, curr_canvas, is_key_frame, is_first_frame,
@@ -1077,8 +1114,8 @@ static WebPEncodingError SetFrame(WebPAnimEncoder* const enc,
     goto Err;
   }
 
-  if ((is_lossless && IsEmptyRect(&dispose_none_params.rect_ll_)) ||
-      (!is_lossless && IsEmptyRect(&dispose_none_params.rect_lossy_))) {
+  if ((consider_lossless && IsEmptyRect(&dispose_none_params.rect_ll_)) ||
+      (consider_lossy && IsEmptyRect(&dispose_none_params.rect_lossy_))) {
     // Don't encode the frame at all. Instead, the duration of the previous
     // frame will be increased later.
     assert(empty_rect_allowed_none);
@@ -1187,16 +1224,20 @@ static int CacheFrame(WebPAnimEncoder* const enc,
       enc->prev_candidate_undecided_ = 0;
     } else {
       int64_t curr_delta;
+      FrameRectangle prev_rect_key, prev_rect_sub;
 
       // Add this as a frame rectangle to enc.
       error_code = SetFrame(enc, config, 0, encoded_frame, &frame_skipped);
       if (error_code != VP8_ENC_OK) goto End;
       if (frame_skipped) goto Skip;
+      prev_rect_sub = enc->prev_rect_;
+
 
       // Add this as a key-frame to enc, too.
       error_code = SetFrame(enc, config, 1, encoded_frame, &frame_skipped);
       if (error_code != VP8_ENC_OK) goto End;
       assert(frame_skipped == 0);  // Key-frame cannot be an empty rectangle.
+      prev_rect_key = enc->prev_rect_;
 
       // Analyze size difference of the two variants.
       curr_delta = KeyFramePenalty(encoded_frame);
@@ -1207,11 +1248,13 @@ static int CacheFrame(WebPAnimEncoder* const enc,
           old_keyframe->is_key_frame_ = 0;
         }
         encoded_frame->is_key_frame_ = 1;
+        enc->prev_candidate_undecided_ = 1;
         enc->keyframe_ = (int)position;
         enc->best_delta_ = curr_delta;
         enc->flush_count_ = enc->count_ - 1;  // We can flush previous frames.
       } else {
         encoded_frame->is_key_frame_ = 0;
+        enc->prev_candidate_undecided_ = 0;
       }
       // Note: We need '>=' below because when kmin and kmax are both zero,
       // count_since_key_frame will always be > kmax.
@@ -1221,7 +1264,10 @@ static int CacheFrame(WebPAnimEncoder* const enc,
         enc->keyframe_ = KEYFRAME_NONE;
         enc->best_delta_ = DELTA_INFINITY;
       }
-      enc->prev_candidate_undecided_ = 1;
+      if (!enc->prev_candidate_undecided_) {
+        enc->prev_rect_ =
+            encoded_frame->is_key_frame_ ? prev_rect_key : prev_rect_sub;
+      }
     }
   }
 
@@ -1312,6 +1358,12 @@ int WebPAnimEncoderAdd(WebPAnimEncoder* enc, WebPPicture* frame, int timestamp,
     if (!IncreasePreviousDuration(enc, (int)prev_frame_duration)) {
       return 0;
     }
+    // IncreasePreviousDuration() may add a frame to avoid exceeding
+    // MAX_DURATION which could cause CacheFrame() to over read encoded_frames_
+    // before the next flush.
+    if (enc->count_ == enc->size_ && !FlushFrames(enc)) {
+      return 0;
+    }
   } else {
     enc->first_timestamp_ = timestamp;
   }
@@ -1347,7 +1399,10 @@ int WebPAnimEncoderAdd(WebPAnimEncoder* enc, WebPPicture* frame, int timestamp,
     }
     config = *encoder_config;
   } else {
-    WebPConfigInit(&config);
+    if (!WebPConfigInit(&config)) {
+      MarkError(enc, "Cannot Init config");
+      return 0;
+    }
     config.lossless = 1;
   }
   assert(enc->curr_canvas_ == NULL);
@@ -1368,12 +1423,14 @@ int WebPAnimEncoderAdd(WebPAnimEncoder* enc, WebPPicture* frame, int timestamp,
 // -----------------------------------------------------------------------------
 // Bitstream assembly.
 
-static int DecodeFrameOntoCanvas(const WebPMuxFrameInfo* const frame,
-                                 WebPPicture* const canvas) {
+WEBP_NODISCARD static int DecodeFrameOntoCanvas(
+    const WebPMuxFrameInfo* const frame, WebPPicture* const canvas) {
   const WebPData* const image = &frame->bitstream;
   WebPPicture sub_image;
   WebPDecoderConfig config;
-  WebPInitDecoderConfig(&config);
+  if (!WebPInitDecoderConfig(&config)) {
+    return 0;
+  }
   WebPUtilClearPic(canvas, NULL);
   if (WebPGetFeatures(image->bytes, image->size, &config.input) !=
       VP8_STATUS_OK) {
@@ -1490,7 +1547,8 @@ int WebPAnimEncoderAssemble(WebPAnimEncoder* enc, WebPData* webp_data) {
 
   if (!enc->got_null_frame_ && enc->in_frame_count_ > 1 && enc->count_ > 0) {
     // set duration of the last frame to be avg of durations of previous frames.
-    const double delta_time = enc->prev_timestamp_ - enc->first_timestamp_;
+    const double delta_time =
+        (uint32_t)enc->prev_timestamp_ - enc->first_timestamp_;
     const int average_duration = (int)(delta_time / (enc->in_frame_count_ - 1));
     if (!IncreasePreviousDuration(enc, average_duration)) {
       return 0;

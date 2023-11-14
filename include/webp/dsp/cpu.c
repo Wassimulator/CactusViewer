@@ -11,7 +11,7 @@
 //
 // Author: Christian Duvivier (cduvivier@google.com)
 
-#include "./dsp.h"
+#include "src/dsp/cpu.h"
 
 #if defined(WEBP_HAVE_NEON_RTCD)
 #include <stdio.h>
@@ -36,18 +36,6 @@ static WEBP_INLINE void GetCPUInfo(int cpu_info[4], int info_type) {
     : "=a"(cpu_info[0]), "=D"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
     : "a"(info_type), "c"(0));
 }
-#elif defined(__x86_64__) && \
-      (defined(__code_model_medium__) || defined(__code_model_large__)) && \
-      defined(__PIC__)
-static WEBP_INLINE void GetCPUInfo(int cpu_info[4], int info_type) {
-  __asm__ volatile (
-    "xchg{q}\t{%%rbx}, %q1\n"
-    "cpuid\n"
-    "xchg{q}\t{%%rbx}, %q1\n"
-    : "=a"(cpu_info[0]), "=&r"(cpu_info[1]), "=c"(cpu_info[2]),
-      "=d"(cpu_info[3])
-    : "a"(info_type), "c"(0));
-}
 #elif defined(__i386__) || defined(__x86_64__)
 static WEBP_INLINE void GetCPUInfo(int cpu_info[4], int info_type) {
   __asm__ volatile (
@@ -55,12 +43,18 @@ static WEBP_INLINE void GetCPUInfo(int cpu_info[4], int info_type) {
     : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
     : "a"(info_type), "c"(0));
 }
-#elif (defined(_M_X64) || defined(_M_IX86)) && \
-      defined(_MSC_FULL_VER) && _MSC_FULL_VER >= 150030729  // >= VS2008 SP1
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+
+#if defined(_MSC_FULL_VER) && _MSC_FULL_VER >= 150030729  // >= VS2008 SP1
 #include <intrin.h>
 #define GetCPUInfo(info, type) __cpuidex(info, type, 0)  // set ecx=0
-#elif defined(WEBP_MSC_SSE2)
+#define WEBP_HAVE_MSC_CPUID
+#elif _MSC_VER > 1310
+#include <intrin.h>
 #define GetCPUInfo __cpuid
+#define WEBP_HAVE_MSC_CPUID
+#endif
+
 #endif
 
 // NaCl has no support for xgetbv or the raw opcode.
@@ -94,27 +88,63 @@ static WEBP_INLINE uint64_t xgetbv(void) {
 #define xgetbv() 0U  // no AVX for older x64 or unrecognized toolchains.
 #endif
 
-#if defined(__i386__) || defined(__x86_64__) || defined(WEBP_MSC_SSE2)
+#if defined(__i386__) || defined(__x86_64__) || defined(WEBP_HAVE_MSC_CPUID)
+
+// helper function for run-time detection of slow SSSE3 platforms
+static int CheckSlowModel(int info) {
+  // Table listing display models with longer latencies for the bsr instruction
+  // (ie 2 cycles vs 10/16 cycles) and some SSSE3 instructions like pshufb.
+  // Refer to Intel 64 and IA-32 Architectures Optimization Reference Manual.
+  static const uint8_t kSlowModels[] = {
+    0x37, 0x4a, 0x4d,  // Silvermont Microarchitecture
+    0x1c, 0x26, 0x27   // Atom Microarchitecture
+  };
+  const uint32_t model = ((info & 0xf0000) >> 12) | ((info >> 4) & 0xf);
+  const uint32_t family = (info >> 8) & 0xf;
+  if (family == 0x06) {
+    size_t i;
+    for (i = 0; i < sizeof(kSlowModels) / sizeof(kSlowModels[0]); ++i) {
+      if (model == kSlowModels[i]) return 1;
+    }
+  }
+  return 0;
+}
+
 static int x86CPUInfo(CPUFeature feature) {
   int max_cpuid_value;
   int cpu_info[4];
+  int is_intel = 0;
 
   // get the highest feature value cpuid supports
   GetCPUInfo(cpu_info, 0);
   max_cpuid_value = cpu_info[0];
   if (max_cpuid_value < 1) {
     return 0;
+  } else {
+    const int VENDOR_ID_INTEL_EBX = 0x756e6547;  // uneG
+    const int VENDOR_ID_INTEL_EDX = 0x49656e69;  // Ieni
+    const int VENDOR_ID_INTEL_ECX = 0x6c65746e;  // letn
+    is_intel = (cpu_info[1] == VENDOR_ID_INTEL_EBX &&
+                cpu_info[2] == VENDOR_ID_INTEL_ECX &&
+                cpu_info[3] == VENDOR_ID_INTEL_EDX);    // genuine Intel?
   }
 
   GetCPUInfo(cpu_info, 1);
   if (feature == kSSE2) {
-    return 0 != (cpu_info[3] & 0x04000000);
+    return !!(cpu_info[3] & (1 << 26));
   }
   if (feature == kSSE3) {
-    return 0 != (cpu_info[2] & 0x00000001);
+    return !!(cpu_info[2] & (1 << 0));
   }
+  if (feature == kSlowSSSE3) {
+    if (is_intel && (cpu_info[2] & (1 << 9))) {   // SSSE3?
+      return CheckSlowModel(cpu_info[0]);
+    }
+    return 0;
+  }
+
   if (feature == kSSE4_1) {
-    return 0 != (cpu_info[2] & 0x00080000);
+    return !!(cpu_info[2] & (1 << 19));
   }
   if (feature == kAVX) {
     // bits 27 (OSXSAVE) & 28 (256-bit AVX)
@@ -126,26 +156,54 @@ static int x86CPUInfo(CPUFeature feature) {
   if (feature == kAVX2) {
     if (x86CPUInfo(kAVX) && max_cpuid_value >= 7) {
       GetCPUInfo(cpu_info, 7);
-      return ((cpu_info[1] & 0x00000020) == 0x00000020);
+      return !!(cpu_info[1] & (1 << 5));
     }
   }
   return 0;
 }
+WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
 VP8CPUInfo VP8GetCPUInfo = x86CPUInfo;
 #elif defined(WEBP_ANDROID_NEON)  // NB: needs to be before generic NEON test.
 static int AndroidCPUInfo(CPUFeature feature) {
   const AndroidCpuFamily cpu_family = android_getCpuFamily();
   const uint64_t cpu_features = android_getCpuFeatures();
   if (feature == kNEON) {
-    return (cpu_family == ANDROID_CPU_FAMILY_ARM &&
-            0 != (cpu_features & ANDROID_CPU_ARM_FEATURE_NEON));
+    return cpu_family == ANDROID_CPU_FAMILY_ARM &&
+           (cpu_features & ANDROID_CPU_ARM_FEATURE_NEON) != 0;
   }
   return 0;
 }
+WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
 VP8CPUInfo VP8GetCPUInfo = AndroidCPUInfo;
-#elif defined(WEBP_USE_NEON)
-// define a dummy function to enable turning off NEON at runtime by setting
-// VP8DecGetCPUInfo = NULL
+#elif defined(EMSCRIPTEN) // also needs to be before generic NEON test
+// Use compile flags as an indicator of SIMD support instead of a runtime check.
+static int wasmCPUInfo(CPUFeature feature) {
+  switch (feature) {
+#ifdef WEBP_HAVE_SSE2
+    case kSSE2:
+      return 1;
+#endif
+#ifdef WEBP_HAVE_SSE41
+    case kSSE3:
+    case kSlowSSSE3:
+    case kSSE4_1:
+      return 1;
+#endif
+#ifdef WEBP_HAVE_NEON
+    case kNEON:
+      return 1;
+#endif
+    default:
+      break;
+  }
+  return 0;
+}
+WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
+VP8CPUInfo VP8GetCPUInfo = wasmCPUInfo;
+#elif defined(WEBP_HAVE_NEON)
+// In most cases this function doesn't check for NEON support (it's assumed by
+// the configuration), but enables turning off NEON at runtime, for testing
+// purposes, by setting VP8GetCPUInfo = NULL.
 static int armCPUInfo(CPUFeature feature) {
   if (feature != kNEON) return 0;
 #if defined(__linux__) && defined(WEBP_HAVE_NEON_RTCD)
@@ -169,6 +227,7 @@ static int armCPUInfo(CPUFeature feature) {
   return 1;
 #endif
 }
+WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
 VP8CPUInfo VP8GetCPUInfo = armCPUInfo;
 #elif defined(WEBP_USE_MIPS32) || defined(WEBP_USE_MIPS_DSP_R2) || \
       defined(WEBP_USE_MSA)
@@ -180,8 +239,9 @@ static int mipsCPUInfo(CPUFeature feature) {
   }
 
 }
+WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
 VP8CPUInfo VP8GetCPUInfo = mipsCPUInfo;
 #else
+WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
 VP8CPUInfo VP8GetCPUInfo = NULL;
 #endif
-

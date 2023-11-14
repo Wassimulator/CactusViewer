@@ -11,21 +11,21 @@
 //
 
 #ifdef HAVE_CONFIG_H
-#include "../webp/config.h"
+#include "src/webp/config.h"
 #endif
 
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "../utils/utils.h"
-#include "../webp/decode.h"     // WebPGetFeatures
-#include "../webp/demux.h"
-#include "../webp/format_constants.h"
+#include "utils/utils.h"
+#include "webp/decode.h"     // WebPGetFeatures
+#include "webp/demux.h"
+#include "webp/format_constants.h"
 
-#define DMUX_MAJ_VERSION 0
+#define DMUX_MAJ_VERSION 1
 #define DMUX_MIN_VERSION 3
-#define DMUX_REV_VERSION 0
+#define DMUX_REV_VERSION 2
 
 typedef struct {
   size_t start_;        // start location of the data
@@ -205,12 +205,14 @@ static void SetFrameInfo(size_t start_offset, size_t size,
   frame->complete_ = complete;
 }
 
-// Store image bearing chunks to 'frame'.
+// Store image bearing chunks to 'frame'. 'min_size' is an optional size
+// requirement, it may be zero.
 static ParseStatus StoreFrame(int frame_num, uint32_t min_size,
                               MemBuffer* const mem, Frame* const frame) {
   int alpha_chunks = 0;
   int image_chunks = 0;
-  int done = (MemDataSize(mem) < min_size);
+  int done = (MemDataSize(mem) < CHUNK_HEADER_SIZE ||
+              MemDataSize(mem) < min_size);
   ParseStatus status = PARSE_OK;
 
   if (done) return PARSE_NEED_MORE_DATA;
@@ -219,12 +221,16 @@ static ParseStatus StoreFrame(int frame_num, uint32_t min_size,
     const size_t chunk_start_offset = mem->start_;
     const uint32_t fourcc = ReadLE32(mem);
     const uint32_t payload_size = ReadLE32(mem);
-    const uint32_t payload_size_padded = payload_size + (payload_size & 1);
-    const size_t payload_available = (payload_size_padded > MemDataSize(mem))
-                                   ? MemDataSize(mem) : payload_size_padded;
-    const size_t chunk_size = CHUNK_HEADER_SIZE + payload_available;
+    uint32_t payload_size_padded;
+    size_t payload_available;
+    size_t chunk_size;
 
     if (payload_size > MAX_CHUNK_PAYLOAD) return PARSE_ERROR;
+
+    payload_size_padded = payload_size + (payload_size & 1);
+    payload_available = (payload_size_padded > MemDataSize(mem))
+                      ? MemDataSize(mem) : payload_size_padded;
+    chunk_size = CHUNK_HEADER_SIZE + payload_available;
     if (SizeIsInvalid(mem, payload_size_padded)) return PARSE_ERROR;
     if (payload_size_padded > MemDataSize(mem)) status = PARSE_NEED_MORE_DATA;
 
@@ -310,6 +316,7 @@ static ParseStatus ParseAnimationFrame(
   int bits;
   MemBuffer* const mem = &dmux->mem_;
   Frame* frame;
+  size_t start_offset;
   ParseStatus status =
       NewFrame(mem, ANMF_CHUNK_SIZE, frame_chunk_size, &frame);
   if (status != PARSE_OK) return status;
@@ -330,7 +337,11 @@ static ParseStatus ParseAnimationFrame(
 
   // Store a frame only if the animation flag is set there is some data for
   // this frame is available.
+  start_offset = mem->start_;
   status = StoreFrame(dmux->num_frames_ + 1, anmf_payload_size, mem, frame);
+  if (status != PARSE_ERROR && mem->start_ - start_offset > anmf_payload_size) {
+    status = PARSE_ERROR;
+  }
   if (status != PARSE_ERROR && is_animation && frame->frame_num_ > 0) {
     added_frame = AddFrame(dmux, frame);
     if (added_frame) {
@@ -401,9 +412,9 @@ static ParseStatus ParseSingleImage(WebPDemuxer* const dmux) {
   frame = (Frame*)WebPSafeCalloc(1ULL, sizeof(*frame));
   if (frame == NULL) return PARSE_ERROR;
 
-  // For the single image case we allow parsing of a partial frame, but we need
-  // at least CHUNK_HEADER_SIZE for parsing.
-  status = StoreFrame(1, CHUNK_HEADER_SIZE, &dmux->mem_, frame);
+  // For the single image case we allow parsing of a partial frame, so no
+  // minimum size is imposed here.
+  status = StoreFrame(1, 0, &dmux->mem_, frame);
   if (status != PARSE_ERROR) {
     const int has_alpha = !!(dmux->feature_flags_ & ALPHA_FLAG);
     // Clear any alpha when the alpha flag is missing.
@@ -444,9 +455,11 @@ static ParseStatus ParseVP8XChunks(WebPDemuxer* const dmux) {
     const size_t chunk_start_offset = mem->start_;
     const uint32_t fourcc = ReadLE32(mem);
     const uint32_t chunk_size = ReadLE32(mem);
-    const uint32_t chunk_size_padded = chunk_size + (chunk_size & 1);
+    uint32_t chunk_size_padded;
 
     if (chunk_size > MAX_CHUNK_PAYLOAD) return PARSE_ERROR;
+
+    chunk_size_padded = chunk_size + (chunk_size & 1);
     if (SizeIsInvalid(mem, chunk_size_padded)) return PARSE_ERROR;
 
     switch (fourcc) {
@@ -590,7 +603,6 @@ static int CheckFrameBounds(const Frame* const frame, int exact,
 
 static int IsValidExtendedFormat(const WebPDemuxer* const dmux) {
   const int is_animation = !!(dmux->feature_flags_ & ANIMATION_FLAG);
-  const int is_fragmented = !!(dmux->feature_flags_ & FRAGMENTS_FLAG);
   const Frame* f = dmux->frames_;
 
   if (dmux->state_ == WEBP_DEMUX_PARSING_HEADER) return 1;
@@ -598,11 +610,10 @@ static int IsValidExtendedFormat(const WebPDemuxer* const dmux) {
   if (dmux->canvas_width_ <= 0 || dmux->canvas_height_ <= 0) return 0;
   if (dmux->loop_count_ < 0) return 0;
   if (dmux->state_ == WEBP_DEMUX_DONE && dmux->frames_ == NULL) return 0;
-  if (is_fragmented) return 0;
+  if (dmux->feature_flags_ & ~ALL_VALID_FLAGS) return 0;  // invalid bitstream
 
   while (f != NULL) {
     const int cur_frame_set = f->frame_num_;
-    int frame_count = 0;
 
     // Check frame properties.
     for (; f != NULL && f->frame_num_ == cur_frame_set; f = f->next_) {
@@ -637,8 +648,6 @@ static int IsValidExtendedFormat(const WebPDemuxer* const dmux) {
                             dmux->canvas_width_, dmux->canvas_height_)) {
         return 0;
       }
-
-      ++frame_count;
     }
   }
   return 1;
@@ -672,11 +681,11 @@ static ParseStatus CreateRawImageDemuxer(MemBuffer* const mem,
   {
     WebPDemuxer* const dmux = (WebPDemuxer*)WebPSafeCalloc(1ULL, sizeof(*dmux));
     Frame* const frame = (Frame*)WebPSafeCalloc(1ULL, sizeof(*frame));
-    if (dmux == NULL || frame == NULL) goto Alert;
+    if (dmux == NULL || frame == NULL) goto Error;
     InitDemux(dmux, mem);
     SetFrameInfo(0, mem->buf_size_, 1 /*frame_num*/, 1 /*complete*/, &features,
                  frame);
-    if (!AddFrame(dmux, frame)) goto Alert;
+    if (!AddFrame(dmux, frame)) goto Error;
     dmux->state_ = WEBP_DEMUX_DONE;
     dmux->canvas_width_ = frame->width_;
     dmux->canvas_height_ = frame->height_;
@@ -686,7 +695,7 @@ static ParseStatus CreateRawImageDemuxer(MemBuffer* const mem,
     *demuxer = dmux;
     return PARSE_OK;
 
- Alert:
+ Error:
     WebPSafeFree(dmux);
     WebPSafeFree(frame);
     return PARSE_ERROR;

@@ -11,19 +11,19 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include "./dsp.h"
+#include "src/dsp/dsp.h"
 
 #if defined(WEBP_USE_SSE41)
 
 #include <smmintrin.h>
-#include "../dec/vp8i.h"
-#include "../utils/utils.h"
+#include "src/dec/vp8i_dec.h"
+#include "src/utils/utils.h"
 
-static void HE16(uint8_t* dst) {     // horizontal
+static void HE16_SSE41(uint8_t* dst) {     // horizontal
   int j;
   const __m128i kShuffle3 = _mm_set1_epi8(3);
   for (j = 16; j > 0; --j) {
-    const __m128i in = _mm_cvtsi32_si128(WebPMemToUint32(dst - 4));
+    const __m128i in = _mm_cvtsi32_si128(WebPMemToInt32(dst - 4));
     const __m128i values = _mm_shuffle_epi8(in, kShuffle3);
     _mm_storeu_si128((__m128i*)dst, values);
     dst += BPS;
@@ -36,7 +36,7 @@ static void HE16(uint8_t* dst) {     // horizontal
 extern void VP8DspInitSSE41(void);
 
 WEBP_TSAN_IGNORE_FUNCTION void VP8DspInitSSE41(void) {
-  VP8PredLuma16[3] = HE16;
+  VP8PredLuma16[3] = HE16_SSE41;
 }
 
 #else  // !WEBP_USE_SSE41

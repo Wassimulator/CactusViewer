@@ -11,60 +11,10 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include "./yuv.h"
+#include "src/dsp/yuv.h"
 
-#if defined(WEBP_YUV_USE_TABLE)
-
-static int done = 0;
-
-static WEBP_INLINE uint8_t clip(int v, int max_value) {
-  return v < 0 ? 0 : v > max_value ? max_value : v;
-}
-
-int16_t VP8kVToR[256], VP8kUToB[256];
-int32_t VP8kVToG[256], VP8kUToG[256];
-uint8_t VP8kClip[YUV_RANGE_MAX - YUV_RANGE_MIN];
-uint8_t VP8kClip4Bits[YUV_RANGE_MAX - YUV_RANGE_MIN];
-
-WEBP_TSAN_IGNORE_FUNCTION void VP8YUVInit(void) {
-  int i;
-  if (done) {
-    return;
-  }
-#ifndef USE_YUVj
-  for (i = 0; i < 256; ++i) {
-    VP8kVToR[i] = (89858 * (i - 128) + YUV_HALF) >> YUV_FIX;
-    VP8kUToG[i] = -22014 * (i - 128) + YUV_HALF;
-    VP8kVToG[i] = -45773 * (i - 128);
-    VP8kUToB[i] = (113618 * (i - 128) + YUV_HALF) >> YUV_FIX;
-  }
-  for (i = YUV_RANGE_MIN; i < YUV_RANGE_MAX; ++i) {
-    const int k = ((i - 16) * 76283 + YUV_HALF) >> YUV_FIX;
-    VP8kClip[i - YUV_RANGE_MIN] = clip(k, 255);
-    VP8kClip4Bits[i - YUV_RANGE_MIN] = clip((k + 8) >> 4, 15);
-  }
-#else
-  for (i = 0; i < 256; ++i) {
-    VP8kVToR[i] = (91881 * (i - 128) + YUV_HALF) >> YUV_FIX;
-    VP8kUToG[i] = -22554 * (i - 128) + YUV_HALF;
-    VP8kVToG[i] = -46802 * (i - 128);
-    VP8kUToB[i] = (116130 * (i - 128) + YUV_HALF) >> YUV_FIX;
-  }
-  for (i = YUV_RANGE_MIN; i < YUV_RANGE_MAX; ++i) {
-    const int k = i;
-    VP8kClip[i - YUV_RANGE_MIN] = clip(k, 255);
-    VP8kClip4Bits[i - YUV_RANGE_MIN] = clip((k + 8) >> 4, 15);
-  }
-#endif
-
-  done = 1;
-}
-
-#else
-
-WEBP_TSAN_IGNORE_FUNCTION void VP8YUVInit(void) {}
-
-#endif  // WEBP_YUV_USE_TABLE
+#include <assert.h>
+#include <stdlib.h>
 
 //-----------------------------------------------------------------------------
 // Plain-C version
@@ -73,14 +23,14 @@ WEBP_TSAN_IGNORE_FUNCTION void VP8YUVInit(void) {}
 static void FUNC_NAME(const uint8_t* y,                                        \
                       const uint8_t* u, const uint8_t* v,                      \
                       uint8_t* dst, int len) {                                 \
-  const uint8_t* const end = dst + (len & ~1) * XSTEP;                         \
+  const uint8_t* const end = dst + (len & ~1) * (XSTEP);                       \
   while (dst != end) {                                                         \
     FUNC(y[0], u[0], v[0], dst);                                               \
-    FUNC(y[1], u[0], v[0], dst + XSTEP);                                       \
+    FUNC(y[1], u[0], v[0], dst + (XSTEP));                                     \
     y += 2;                                                                    \
     ++u;                                                                       \
     ++v;                                                                       \
-    dst += 2 * XSTEP;                                                          \
+    dst += 2 * (XSTEP);                                                        \
   }                                                                            \
   if (len & 1) {                                                               \
     FUNC(y[0], u[0], v[0], dst);                                               \
@@ -120,16 +70,13 @@ void WebPSamplerProcessPlane(const uint8_t* y, int y_stride,
 
 WebPSamplerRowFunc WebPSamplers[MODE_LAST];
 
+extern VP8CPUInfo VP8GetCPUInfo;
 extern void WebPInitSamplersSSE2(void);
+extern void WebPInitSamplersSSE41(void);
 extern void WebPInitSamplersMIPS32(void);
 extern void WebPInitSamplersMIPSdspR2(void);
 
-static volatile VP8CPUInfo yuv_last_cpuinfo_used =
-    (VP8CPUInfo)&yuv_last_cpuinfo_used;
-
-WEBP_TSAN_IGNORE_FUNCTION void WebPInitSamplers(void) {
-  if (yuv_last_cpuinfo_used == VP8GetCPUInfo) return;
-
+WEBP_DSP_INIT_FUNC(WebPInitSamplers) {
   WebPSamplers[MODE_RGB]       = YuvToRgbRow;
   WebPSamplers[MODE_RGBA]      = YuvToRgbaRow;
   WebPSamplers[MODE_BGR]       = YuvToBgrRow;
@@ -144,11 +91,16 @@ WEBP_TSAN_IGNORE_FUNCTION void WebPInitSamplers(void) {
 
   // If defined, use CPUInfo() to overwrite some pointers with faster versions.
   if (VP8GetCPUInfo != NULL) {
-#if defined(WEBP_USE_SSE2)
+#if defined(WEBP_HAVE_SSE2)
     if (VP8GetCPUInfo(kSSE2)) {
       WebPInitSamplersSSE2();
     }
-#endif  // WEBP_USE_SSE2
+#endif  // WEBP_HAVE_SSE2
+#if defined(WEBP_HAVE_SSE41)
+    if (VP8GetCPUInfo(kSSE4_1)) {
+      WebPInitSamplersSSE41();
+    }
+#endif  // WEBP_HAVE_SSE41
 #if defined(WEBP_USE_MIPS32)
     if (VP8GetCPUInfo(kMIPS32)) {
       WebPInitSamplersMIPS32();
@@ -160,13 +112,12 @@ WEBP_TSAN_IGNORE_FUNCTION void WebPInitSamplers(void) {
     }
 #endif  // WEBP_USE_MIPS_DSP_R2
   }
-  yuv_last_cpuinfo_used = VP8GetCPUInfo;
 }
 
 //-----------------------------------------------------------------------------
 // ARGB -> YUV converters
 
-static void ConvertARGBToY(const uint32_t* argb, uint8_t* y, int width) {
+static void ConvertARGBToY_C(const uint32_t* argb, uint8_t* y, int width) {
   int i;
   for (i = 0; i < width; ++i) {
     const uint32_t p = argb[i];
@@ -218,14 +169,14 @@ void WebPConvertARGBToUV_C(const uint32_t* argb, uint8_t* u, uint8_t* v,
 
 //-----------------------------------------------------------------------------
 
-static void ConvertRGB24ToY(const uint8_t* rgb, uint8_t* y, int width) {
+static void ConvertRGB24ToY_C(const uint8_t* rgb, uint8_t* y, int width) {
   int i;
   for (i = 0; i < width; ++i, rgb += 3) {
     y[i] = VP8RGBToY(rgb[0], rgb[1], rgb[2], YUV_HALF);
   }
 }
 
-static void ConvertBGR24ToY(const uint8_t* bgr, uint8_t* y, int width) {
+static void ConvertBGR24ToY_C(const uint8_t* bgr, uint8_t* y, int width) {
   int i;
   for (i = 0; i < width; ++i, bgr += 3) {
     y[i] = VP8RGBToY(bgr[2], bgr[1], bgr[0], YUV_HALF);
@@ -253,28 +204,42 @@ void (*WebPConvertARGBToY)(const uint32_t* argb, uint8_t* y, int width);
 void (*WebPConvertARGBToUV)(const uint32_t* argb, uint8_t* u, uint8_t* v,
                             int src_width, int do_store);
 
-static volatile VP8CPUInfo rgba_to_yuv_last_cpuinfo_used =
-    (VP8CPUInfo)&rgba_to_yuv_last_cpuinfo_used;
-
 extern void WebPInitConvertARGBToYUVSSE2(void);
+extern void WebPInitConvertARGBToYUVSSE41(void);
+extern void WebPInitConvertARGBToYUVNEON(void);
 
-WEBP_TSAN_IGNORE_FUNCTION void WebPInitConvertARGBToYUV(void) {
-  if (rgba_to_yuv_last_cpuinfo_used == VP8GetCPUInfo) return;
-
-  WebPConvertARGBToY = ConvertARGBToY;
+WEBP_DSP_INIT_FUNC(WebPInitConvertARGBToYUV) {
+  WebPConvertARGBToY = ConvertARGBToY_C;
   WebPConvertARGBToUV = WebPConvertARGBToUV_C;
 
-  WebPConvertRGB24ToY = ConvertRGB24ToY;
-  WebPConvertBGR24ToY = ConvertBGR24ToY;
+  WebPConvertRGB24ToY = ConvertRGB24ToY_C;
+  WebPConvertBGR24ToY = ConvertBGR24ToY_C;
 
   WebPConvertRGBA32ToUV = WebPConvertRGBA32ToUV_C;
 
   if (VP8GetCPUInfo != NULL) {
-#if defined(WEBP_USE_SSE2)
+#if defined(WEBP_HAVE_SSE2)
     if (VP8GetCPUInfo(kSSE2)) {
       WebPInitConvertARGBToYUVSSE2();
     }
-#endif  // WEBP_USE_SSE2
+#endif  // WEBP_HAVE_SSE2
+#if defined(WEBP_HAVE_SSE41)
+    if (VP8GetCPUInfo(kSSE4_1)) {
+      WebPInitConvertARGBToYUVSSE41();
+    }
+#endif  // WEBP_HAVE_SSE41
   }
-  rgba_to_yuv_last_cpuinfo_used = VP8GetCPUInfo;
+
+#if defined(WEBP_HAVE_NEON)
+  if (WEBP_NEON_OMIT_C_CODE ||
+      (VP8GetCPUInfo != NULL && VP8GetCPUInfo(kNEON))) {
+    WebPInitConvertARGBToYUVNEON();
+  }
+#endif  // WEBP_HAVE_NEON
+
+  assert(WebPConvertARGBToY != NULL);
+  assert(WebPConvertARGBToUV != NULL);
+  assert(WebPConvertRGB24ToY != NULL);
+  assert(WebPConvertBGR24ToY != NULL);
+  assert(WebPConvertRGBA32ToUV != NULL);
 }

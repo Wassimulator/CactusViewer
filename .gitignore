@@ -1,0 +1,5 @@
+
+*.vsidx
+*.db
+.vs/*
+bin/*
