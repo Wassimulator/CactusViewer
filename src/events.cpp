@@ -17,14 +17,13 @@ void reset_inputs() {
     K->scroll_y_diff = 0;
 	K->double_click = 0;
 }
-static void set_framebuffer_size(Graphics *ctx, iv2 size);
+static void set_framebuffer_size(Graphics *ctx, iv2 size, bool set_dpi = false);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     Keys *K = &G->keys;
 
     switch (message) {
     case WM_DESTROY:    PostQuitMessage(0); Running = false; break;
-	case WM_DPICHANGED:
  	case WM_SIZE:
     {
         RECT rect;
@@ -32,6 +31,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         WW = rect.right - rect.left;
         WH = rect.bottom - rect.top;
 		set_framebuffer_size(&G->graphics,  iv2(WW, WH));
+
+		G->minimized = false;
+		if (wParam == SIZE_MINIMIZED)
+			G->minimized = true;
+
+		break;
+    }
+	case WM_DPICHANGED:
+    {
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        WW = rect.right - rect.left;
+        WH = rect.bottom - rect.top;
+		set_framebuffer_size(&G->graphics,  iv2(WW, WH), true);
 
 		G->minimized = false;
 		if (wParam == SIZE_MINIMIZED)

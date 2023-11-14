@@ -169,7 +169,7 @@ static void upload_texture(Texture* texture, void* data, u64 size) {
 	G->graphics.device_ctx->Unmap(texture->d3d_texture, 0);
 }
 
-static void set_framebuffer_size(Graphics *ctx, iv2 size) {
+static void set_framebuffer_size(Graphics *ctx, iv2 size, bool set_dpi) {
 	if (ctx == nullptr) 				return;
 	if (ctx->viewport_size == size) 	return;
 	if (ctx->frame_buffer == nullptr) 	return;
@@ -177,8 +177,11 @@ static void set_framebuffer_size(Graphics *ctx, iv2 size) {
 
 	// resize swapchain
 
-	UINT dpi = GetDpiForWindow(hwnd);
-	float dpi_scale_factor = dpi / 96.0f;
+	float dpi_scale_factor = 1;
+	if (set_dpi) {
+		UINT dpi = GetDpiForWindow(hwnd);
+		dpi_scale_factor = dpi / 96.0f;
+	}
 
 	ctx->frame_buffer_view->Release();
 	ctx->frame_buffer->Release();
