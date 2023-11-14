@@ -37,8 +37,8 @@
 
 #define _MAX_FPS 250;
 
-#define VERSION_N "2.1.0"
-#define VERSION VERSION_N" - 28/09/23"
+#define VERSION_N "2.1.2"
+#define VERSION VERSION_N" - 14/11/23"
 
 #define handle_signal(signal) for(int _i_ = (signal); _i_; _i_ = 0, (signal = false))
 #define send_signal(signal) signal = true
