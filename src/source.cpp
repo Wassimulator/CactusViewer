@@ -176,9 +176,13 @@ static void set_framebuffer_size(Graphics *ctx, iv2 size) {
 	if (size.x <= 0 || size.y <= 0) 	return;
 
 	// resize swapchain
+
+	UINT dpi = GetDpiForWindow(hwnd);
+	float dpi_scale_factor = dpi / 96.0f;
+
 	ctx->frame_buffer_view->Release();
 	ctx->frame_buffer->Release();
-	ctx->swap_chain->ResizeBuffers(0, size.x, size.y, DXGI_FORMAT_UNKNOWN, 0);
+	ctx->swap_chain->ResizeBuffers(0, size.x / dpi_scale_factor, size.y / dpi_scale_factor, DXGI_FORMAT_UNKNOWN, 0);
 	ctx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&ctx->frame_buffer);
 	ctx->device->CreateRenderTargetView(ctx->frame_buffer, nullptr, &ctx->frame_buffer_view);
 
@@ -218,7 +222,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	ID3D11DeviceContext* base_device_ctx;
 	UINT createDeviceFlags = 0;
 #if DEBUG_MODE
-	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+	//createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
 	D3D11CreateDevice(
@@ -559,6 +563,8 @@ static void init_all() {
     pfd.cColorBits = 32;
     pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
+
+	SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
 	init_d3d11(hwnd, WW, WH);
 	init_logo_image();
@@ -3289,7 +3295,7 @@ static void render() {
 			if ((G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM) && G->anim_frames > 0) {
 				static uint32_t time = 0;
 				uint32_t delta = get_ticks() - time;
-				if (G->anim_play)
+				if (G->anim_play && !G->minimized)
 					G->force_loop = true;
 				if (delta >= G->anim_frame_delays[G->anim_index] && G->anim_play) {
 					G->anim_index++;

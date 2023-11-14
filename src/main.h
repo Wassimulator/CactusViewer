@@ -32,6 +32,8 @@
 #include <wincodec.h>
 #include <propidl.h>
 #include <dwmapi.h>
+#include <ShellScalingAPI.h>
+#pragma comment(lib, "Shcore.lib")
 
 #define _MAX_FPS 250;
 

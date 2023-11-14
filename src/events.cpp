@@ -24,6 +24,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
     switch (message) {
     case WM_DESTROY:    PostQuitMessage(0); Running = false; break;
+	case WM_DPICHANGED:
  	case WM_SIZE:
     {
         RECT rect;
@@ -31,6 +32,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         WW = rect.right - rect.left;
         WH = rect.bottom - rect.top;
 		set_framebuffer_size(&G->graphics,  iv2(WW, WH));
+
+		G->minimized = false;
+		if (wParam == SIZE_MINIMIZED)
+			G->minimized = true;
+
 		break;
     }
     case WM_DROPFILES:  {

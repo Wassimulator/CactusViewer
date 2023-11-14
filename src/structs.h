@@ -467,6 +467,8 @@ struct Global
 
 	HCURSOR hcursor[Cursor_Type_count];
 
+	bool minimized = false;
+
 	bool force_loop;
 	i32 force_loop_frames;
 	HANDLE loader_event;
