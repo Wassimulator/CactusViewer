@@ -60,7 +60,7 @@ All dependencies are within the repo for your, my, and everyone's convenience.
 Using an MSVC 64 bit developer terminal:
 - run `b.bat` to build the project in debug mode, output in `\bin`
   (the debug version expects the font file in src, so terminal calls need to have bin as the working directory to run
-   also make sure you have D3D11 debug layers installed or remove that flag in `init_d3d11()` when building in debug mode).
+   also make sure you have D3D11 debug layers from [here](https://learn.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features) installed or remove that flag in `init_d3d11()` when building in debug mode).
 - run `b.bat release` to build the project in release mode, output in `\bin`
 
 ## Remarks:
