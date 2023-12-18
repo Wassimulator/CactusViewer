@@ -35,7 +35,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		G->minimized = false;
 		if (wParam == SIZE_MINIMIZED)
 			G->minimized = true;
-
+		SwitchToFiber(G->main_loop_fiber);
 		break;
     }
 	case WM_DPICHANGED:
@@ -248,27 +248,30 @@ void wait_loop(MSG *msg) {
 	}
 }
 
-static void PollEvents() {
+static void CALLBACK poll_events(void* lpParameter) {
     static MSG msg  {};
     Keys *K = &G->keys;
+	while (true)
+	{
+		if (G->force_loop || G->force_loop_frames > 0)
+			run_loop(&msg);
+		else
+			wait_loop(&msg);
 
-	if (G->force_loop || G->force_loop_frames > 0)
-		run_loop(&msg);
-	else
-		wait_loop(&msg);
+		if (G->force_loop_frames > 0)
+			--G->force_loop_frames;
+		G->force_loop = 0;
 
-	if (G->force_loop_frames > 0)
-		--G->force_loop_frames;
-	G->force_loop = 0;
-
-	static POINT prevMousePos { 0 };
-	POINT p;
-	GetCursorPos(&p);
-	ScreenToClient(hwnd, &p);
-	K->Mouse.x = p.x; K->Mouse.y = p.y;
-	K->Mouse_rel.x = p.x - prevMousePos.x;
-	K->Mouse_rel.y = p.y - prevMousePos.y;
-	prevMousePos.x = p.x; prevMousePos.y = p.y;
+		static POINT prevMousePos { 0 };
+		POINT p;
+		GetCursorPos(&p);
+		ScreenToClient(hwnd, &p);
+		K->Mouse.x = p.x; K->Mouse.y = p.y;
+		K->Mouse_rel.x = p.x - prevMousePos.x;
+		K->Mouse_rel.y = p.y - prevMousePos.y;
+		prevMousePos.x = p.x; prevMousePos.y = p.y;
+		SwitchToFiber(G->main_loop_fiber);
+	}
 }
 
 inline bool keypress(int i) {

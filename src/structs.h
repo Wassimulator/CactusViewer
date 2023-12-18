@@ -488,6 +488,9 @@ struct Global
 	i32 force_loop_frames;
 	HANDLE loader_event;
 
+	LPVOID main_loop_fiber = NULL;
+	LPVOID message_loop_fiber = NULL;
+
 	UI_Context *ui;
 	UI_Font* ui_font;
 	UI_Block* tooltip_block;

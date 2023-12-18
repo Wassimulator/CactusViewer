@@ -14,6 +14,9 @@ int wmain(int argc, wchar_t **argv) {
 #endif
 	Loader_Thread_Inputs inputs;
 
+	G->main_loop_fiber =  ConvertThreadToFiber(NULL);
+	G->message_loop_fiber = CreateFiber(0, poll_events, NULL);
+
     init_all();
 	{
 		int scan = scan_folder(argv[1]);
@@ -27,7 +30,7 @@ int wmain(int argc, wchar_t **argv) {
         bool gifmode = false;
 		if (G->files.Count > 0) gifmode = G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM;
         mouse_detection = WH - 140 - 60 * (gifmode);
-        PollEvents();
+		SwitchToFiber(G->message_loop_fiber);
 		UI_begin_frame(G->ui, 60);
 		UI_check_mouse();
         G->show_gui = should_show_gui();
