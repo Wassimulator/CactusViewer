@@ -1765,7 +1765,7 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 		HRESULT hr = pFactory->CreateDecoderFromFilename(file->path, nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &pDecoder);
 		if (SUCCEEDED(hr)) hr = pDecoder->GetThumbnail(&pThumbnail);
 
-		if (FAILED(hr)) hr = pDecoder->GetFrame(0, &pFrame);
+		if (FAILED(hr) && pDecoder) hr = pDecoder->GetFrame(0, &pFrame);
 		if (SUCCEEDED(hr)) pSource = pThumbnail ? pThumbnail : pFrame;
 
 		if (SUCCEEDED(hr)) hr = pFactory->CreateFormatConverter(&pConverter);
