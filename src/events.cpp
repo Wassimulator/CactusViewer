@@ -17,6 +17,12 @@ void reset_inputs() {
     K->scroll_y_diff = 0;
 	K->double_click = 0;
 }
+
+void post_quit() {
+	PostQuitMessage(0);
+	Running = false;
+}
+
 static void set_framebuffer_size(Graphics *ctx, iv2 size, bool set_dpi = false);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -27,7 +33,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_QUIT:
     case WM_DESTROY:    
     {
-        PostQuitMessage(0); Running = false; break;
+        post_quit(); break;
     }
  	case WM_SIZE:
     {

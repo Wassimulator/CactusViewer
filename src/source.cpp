@@ -3301,6 +3301,10 @@ static void update_gui() {
 				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle fullscreen mode.");	
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_text(theme->text_header_2, G->ui_font, 12,"Esc key: ");
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Exit fullscreen mode. Otherwise, quit.");	
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"R key: ");
 				UI_text(theme->text_reg_main, G->ui_font, 12,"Reload current folder, and scan for new files in it.");	
 			}
@@ -3478,6 +3482,7 @@ static void shuffle_folder() {
 
 static void update_logic() {
 	bool WantCaptureMouse = G->ui_want_capture_mouse;
+	bool fullscreen = is_fullscreen(hwnd);
 
     if (G->alert.timer > 0)
         G->alert.timer++;
@@ -3486,8 +3491,10 @@ static void update_logic() {
 
 	if (keyup(Key_F11))
 		toggle_fullscreen(hwnd);
-	if (keyup(Key_Esc) && is_fullscreen(hwnd)) 
+	if (keyup(Key_Esc) && fullscreen) 
 		exit_fullscreen(hwnd);
+	if (keyup(Key_Esc) && !fullscreen)
+		post_quit();
 
 	if (keyup(Key_F)) {
         //send_signal(G->signals.update_filtering);
