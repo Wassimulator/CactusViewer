@@ -23,6 +23,24 @@ void post_quit() {
 	Running = false;
 }
 
+static void mouse_down(int key, HWND hWnd) {
+    Keys *K = &G->keys;
+    K->K[key].dn = true;
+    K->K[key].on = true;
+
+    SetCapture(hWnd);
+}
+
+static void mouse_up(int key, HWND hWnd) {
+    Keys *K = &G->keys;
+    K->K[key].up = true;
+    K->K[key].on = false;
+
+    if (!K->K[MouseL].on && !K->K[MouseR].on && !K->K[MouseM].on && !K->K[MouseBk].on && !K->K[MouseFr].on) {
+        ReleaseCapture();
+    }
+}
+
 static void set_framebuffer_size(Graphics *ctx, iv2 size, bool set_dpi = false);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -85,13 +103,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         K->ScrollY    += scrollValue;
         break;
     }
-	case WM_MOUSELEAVE:  { reset_inputs(); break; };
-    case WM_LBUTTONDOWN: { K->K[MouseL].dn = true; K->K[MouseL].on = true;  break; }
-    case WM_RBUTTONDOWN: { K->K[MouseR].dn = true; K->K[MouseR].on = true;  break; }                                                                
-    case WM_MBUTTONDOWN: { K->K[MouseM].dn = true; K->K[MouseM].on = true;  break; }                                                            
-    case WM_LBUTTONUP:   { K->K[MouseL].up = true; K->K[MouseL].on = false; break; }
-    case WM_RBUTTONUP:   { K->K[MouseR].up = true; K->K[MouseR].on = false; break; }                                                                  
-    case WM_MBUTTONUP:   { K->K[MouseM].up = true; K->K[MouseM].on = false; break; }   
+	case WM_MOUSELEAVE:  { reset_inputs(); break; }
+    case WM_LBUTTONDOWN: { mouse_down(MouseL, hWnd); break; }
+    case WM_RBUTTONDOWN: { mouse_down(MouseR, hWnd); break; }
+    case WM_MBUTTONDOWN: { mouse_down(MouseM, hWnd); break; }
+    case WM_LBUTTONUP:   { mouse_up(MouseL, hWnd);   break; }
+    case WM_RBUTTONUP:   { mouse_up(MouseR, hWnd);   break; }
+    case WM_MBUTTONUP:   { mouse_up(MouseM, hWnd);   break; }
 	case WM_XBUTTONUP:
 	case WM_XBUTTONDOWN:
 	{
@@ -106,8 +124,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			i = MouseFr;
 		}
 
-		if (message == WM_XBUTTONDOWN) { K->K[i].dn = true; K->K[i].on = true; }
-        else { K->K[i].up = true; K->K[i].on = false;}
+		if (message == WM_XBUTTONDOWN) { mouse_down(i, hWnd); }
+        else { mouse_up(i, hWnd); }
         break;
 	}
     case WM_LBUTTONDBLCLK : { K->double_click = true; break; }   
