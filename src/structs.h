@@ -380,6 +380,7 @@ struct Signals
     bool setting_applied = false;
 	bool update_scale_ui = false;
 	bool new_folder = false;
+	bool delete_current_image = false;
 };
 
 #define TYPE_UNKNOWN -1

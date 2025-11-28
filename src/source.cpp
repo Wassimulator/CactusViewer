@@ -3126,6 +3126,28 @@ static void update_gui() {
 							popup_open |= UI_files_reload_menu(&bs, &bsi, "files order");
 						}
 					}
+                    UI_push_parent_defer(ctx, UI_bar(axis_x))
+                    {
+                        UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
+                        UI_Button_Style style = btn_default;
+                        v2 btn_size = v2(75, 20);
+                        style.size = btn_size;
+                        if (UI_button(&style, "copy")) {
+                            if (SUCCEEDED(save_image(Format_Bmp, NULL, true))) {
+                                push_alert("Image copied to clipboard!", Alert_Info);
+                            }
+                        }
+                        UI_tooltip("Copy image to clipboard (Ctrl+C)");
+                        UI_Button_Style del_style = btn_default;
+                        del_style.color_bg.base = theme->neg_btn_0;
+                        del_style.color_bg.hot = theme->neg_btn_1;
+                        del_style.color_bg.active = theme->neg_btn_2;
+                        del_style.size = btn_size;
+                        if (UI_button(&del_style, "delete")) {
+                            send_signal(G->signals.delete_current_image);
+                        }
+                        UI_tooltip("Delete current image (Del)");
+                    }
 				}
 
 				UI_Block *right_menu = UI_push_block(ctx);
@@ -3705,6 +3727,38 @@ enum Drag_index {
 	drag_count,
 };
 
+static bool delete_current_image() {
+	if (G->files.Count == 0) return false;
+	if (G->current_file_index >= G->files.Count) return false;
+
+	wchar_t *file_path = G->files[G->current_file_index].file.path;
+
+	// Double null-terminated string required by SHFileOperation
+	size_t len = wcslen(file_path);
+	wchar_t *path_buffer = (wchar_t *)calloc(len + 2, sizeof(wchar_t));
+	wcscpy(path_buffer, file_path);
+	path_buffer[len] = L'\0';
+	path_buffer[len + 1] = L'\0';
+
+	SHFILEOPSTRUCTW file_op = {0};
+	file_op.hwnd = hwnd;
+	file_op.wFunc = FO_DELETE;
+	file_op.pFrom = path_buffer;
+	file_op.pTo = NULL;
+	file_op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT;
+
+	int result = SHFileOperationW(&file_op);
+	free(path_buffer);
+
+	if (result != 0 || file_op.fAnyOperationsAborted) {
+		push_alert("Failed to delete file", Alert_Error);
+		return false;
+	}
+
+	push_alert("File moved to Recycle Bin", Alert_Info);
+	return true;
+}
+
 static void shuffle_folder() {
 	// Stop current thumbs_thread
 	send_signal(G->signals.new_folder);
@@ -3756,6 +3810,9 @@ static void update_logic() {
     }
 	if (G->files.Count > 0 && keyup(Key_R)) {
 		scan_folder(G->files[G->current_file_index].file.path);
+	}
+	if (G->files.Count > 0 && keyup(Key_Delete)) {
+		send_signal(G->signals.delete_current_image);
 	}
 
 	G->mouse_dragging = false;

@@ -53,7 +53,7 @@ int wmain(int argc, wchar_t **argv) {
     while (Running) {
         bool gifmode = false;
 		if (G->files.Count > 0 && G->current_file_index < G->files.Count) gifmode = G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM;
-        mouse_detection = WH - 140 - 60 * (gifmode) - (3 + THUMBS_DIM) * G->settings_preview_thumbs;
+        mouse_detection = WH - 170 - 60 * (gifmode) - (3 + THUMBS_DIM) * G->settings_preview_thumbs;
 		SwitchToFiber(G->message_loop_fiber);
 		UI_begin_frame(G->ui, 60);
 		UI_check_mouse();
@@ -118,6 +118,46 @@ int wmain(int argc, wchar_t **argv) {
 				G->signals.reload_file = false;
 				inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
 				CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+			}
+			if (G->signals.delete_current_image) {
+				G->signals.delete_current_image = false;
+				wchar_t current_path[CUTE_FILES_MAX_PATH];
+				wcscpy(current_path, G->files[G->current_file_index].file.path);
+				
+				// Determine which file to show after deletion
+				u32 next_index = G->current_file_index;
+				bool has_next = G->current_file_index < G->files.Count - 1;
+				bool has_prev = G->current_file_index > 0;
+				
+				if (delete_current_image()) {
+					// After successful deletion, rescan folder and navigate
+					if (has_next || has_prev) {
+						// Jump to next file, or previous if we were at the end
+						if (!has_next && has_prev) {
+							next_index = G->current_file_index - 1;
+						}
+						// Rescan folder to update file list
+						wchar_t *target_path = nullptr;
+						if (has_next && G->current_file_index + 1 < G->files.Count) {
+							target_path = G->files[G->current_file_index + 1].file.path;
+						} else if (has_prev && G->current_file_index > 0) {
+							target_path = G->files[G->current_file_index - 1].file.path;
+						}
+						if (target_path) {
+							scan_folder(target_path);
+							if (G->files.Count > 0) {
+								G->loaded = false;
+								inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
+								CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+							}
+						}
+					} else {
+						// Last file in folder was deleted
+						G->files.reset_count();
+						set_to_no_file();
+						SetWindowTextW(hwnd, L"CactusViewer");
+					}
+				}
 			}
         }
         reset_inputs();
