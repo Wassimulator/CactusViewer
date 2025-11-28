@@ -52,7 +52,7 @@ int wmain(int argc, wchar_t **argv) {
 
     while (Running) {
         bool gifmode = false;
-		if (G->files.Count > 0) gifmode = G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM;
+		if (G->files.Count > 0 && G->current_file_index < G->files.Count) gifmode = G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM;
         mouse_detection = WH - 140 - 60 * (gifmode) - (3 + THUMBS_DIM) * G->settings_preview_thumbs;
 		SwitchToFiber(G->message_loop_fiber);
 		UI_begin_frame(G->ui, 60);
