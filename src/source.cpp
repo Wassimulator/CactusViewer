@@ -1312,10 +1312,9 @@ static void refresh_display() {
 static void fit_image_in()
 {
 	G->position = v2(0, 0);
-	if (G->graphics.main_image.w > G->graphics.main_image.h)
-		G->req_truescale = (float)WW / G->graphics.main_image.w;
-	else
-		G->req_truescale = (float)WH / G->graphics.main_image.h;
+	f32 scale_w = (float)WW / G->graphics.main_image.w;
+	f32 scale_h = (float)WH / G->graphics.main_image.h;
+	G->req_truescale = (scale_w < scale_h) ? scale_w : scale_h;
 	G->files[G->current_file_index].scaled = true;
 }
 static void fit_image_w()
@@ -3525,7 +3524,7 @@ static void update_gui() {
 
 			char *resetzoom_options[]  {"Do not reset zoom", "Save zoom for each file", "Fit Width", "Fit Height", "Zoom to 1:1"};
 			char *resetpos_options[] { "Do not reset position", "Save position for each file", "Reset to center" };
-			char *new_file_zoom_options[] { "Fill window", "zoom to 1:1" };
+			char *new_file_zoom_options[] { "Fit window", "zoom to 1:1" };
 			UI_text(theme->text_reg_main, G->ui_font, 12,"Persistent zoom and position settings upon file change: ");
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_Block* bar = UI_get_current_parent(ctx);
