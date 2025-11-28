@@ -564,6 +564,7 @@ struct Global
     bool settings_dont_resize = false;
     bool settings_calculate_histograms = false;
     bool settings_preview_thumbs = true;
+    bool settings_esc_to_quit = true;
 	int32_t settings_selected_theme = UI_Theme_Cactus_Green;
 
 	bool mouse_dragging = false;

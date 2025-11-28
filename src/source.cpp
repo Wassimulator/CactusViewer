@@ -511,6 +511,7 @@ static void save_settings() {
     cJSON_AddItemToObject(config_file, "settings_selected_theme", cJSON_CreateNumber(G->settings_selected_theme));
     cJSON_AddItemToObject(config_file, "settings_calculate_histograms", cJSON_CreateBool(G->settings_calculate_histograms));
     cJSON_AddItemToObject(config_file, "settings_preview_thumbs", cJSON_CreateBool(G->settings_preview_thumbs));
+    cJSON_AddItemToObject(config_file, "settings_esc_to_quit", cJSON_CreateBool(G->settings_esc_to_quit));
     cJSON_AddItemToObject(config_file, "settings_hide_status_with_gui", cJSON_CreateBool(G->settings_hide_status_with_gui));
     cJSON_AddItemToObject(config_file, "settings_always_show_gui", cJSON_CreateBool(G->settings_always_show_gui));
     cJSON_AddItemToObject(config_file, "settings_newfilezoom", cJSON_CreateNumber(G->settings_newfilezoom));
@@ -572,6 +573,7 @@ static void load_settings() {
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_selected_theme"); 			if (item) G->settings_selected_theme = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_calculate_histograms"); 		if (item) G->settings_calculate_histograms = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_preview_thumbs"); 			if (item) G->settings_preview_thumbs = item->valueint;
+		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_esc_to_quit"); 				if (item) G->settings_esc_to_quit = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_hide_status_with_gui"); 		if (item) G->settings_hide_status_with_gui = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_always_show_gui"); 			if (item) G->settings_always_show_gui = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_newfilezoom"); 				if (item) G->settings_newfilezoom = item->valueint;
@@ -3624,6 +3626,7 @@ static void update_gui() {
 				UI_checkbox(&checkbox_default, &G->settings_calculate_histograms, "Calculate image histograms (relatively performance intensive on load)");
 				UI_checkbox(&checkbox_default, &G->settings_preview_thumbs, "Show thumbnail bar of images in folder.");
 				UI_tooltip("Generates thumbnails for images in the folder (can be performance intensive with large folders and is limited to 25.600 images.)");
+				UI_checkbox(&checkbox_default, &G->settings_esc_to_quit, "Pressing ESC exits the application (when not in fullscreen)");
 
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -3704,7 +3707,7 @@ static void update_logic() {
 		toggle_fullscreen(hwnd);
 	if (keyup(Key_Esc) && fullscreen)
 		exit_fullscreen(hwnd);
-	if (keyup(Key_Esc) && !fullscreen)
+	if (keyup(Key_Esc) && !fullscreen && G->settings_esc_to_quit)
 		post_quit();
 
 	if (keyup(Key_F)) {
