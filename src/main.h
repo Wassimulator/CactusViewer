@@ -9,9 +9,9 @@
 #include <iostream>
 #define STBI_WINDOWS_UTF8
 #include "stb.c"
-#include <windows.h> 
-#include <windowsx.h> 
-#include <commctrl.h> 
+#include <windows.h>
+#include <windowsx.h>
+#include <commctrl.h>
 #include <shellscalingapi.h>
 #include <stdint.h>
 #include <shlwapi.h>
@@ -41,8 +41,8 @@
 
 #define _MAX_FPS 250;
 
-#define VERSION_N "2.2.1"
-#define VERSION VERSION_N" - 03.06.24"
+#define VERSION_N "2.2.2"
+#define VERSION VERSION_N" - 28.11.2025"
 
 #define handle_signal(signal) for(int _i_ = (signal); _i_; _i_ = 0, (signal = false))
 #define send_signal(signal) signal = true
