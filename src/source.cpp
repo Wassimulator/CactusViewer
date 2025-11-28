@@ -2652,17 +2652,38 @@ static void update_gui() {
 				UI_text(theme->text_info, G->ui_font, font_size_status, "Info: %s", G->alert.string);
 		} else {
 			if (G->files.Count > 0) {
-				UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%i / %i | ", G->current_file_index + 1, G->files.Count);
+				// Variable data in white, static labels in mid-gray for visual distinction
+				UI_Color4 col_value = theme->text_reg_main;   // white for dynamic values
+				UI_Color4 col_label = theme->text_reg_mid;    // gray for static labels/separators
 
-				if (G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM)
-					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d - frames: %i - ", G->graphics.main_image.w, G->graphics.main_image.h, G->anim_frames);
-				else
-					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d - ", G->graphics.main_image.w, G->graphics.main_image.h);
-				UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%i:%i = %.3f - zoom: %.0f%% - Mouse: %i , %i",
-				        G->graphics.main_image.frac1, G->graphics.main_image.frac2, G->graphics.main_image.aspect_ratio, G->truescale * 100,
-				        (int)G->pixel_mouse.x, (int)G->pixel_mouse.y);
+				UI_text(col_value, G->ui_font, font_size_status, "%i", G->current_file_index + 1);
+				UI_text(col_label, G->ui_font, font_size_status, " / ");
+				UI_text(col_value, G->ui_font, font_size_status, "%i", G->files.Count);
+				UI_text(col_label, G->ui_font, font_size_status, "          ");
+
+				UI_text(col_value, G->ui_font, font_size_status, "%d", G->graphics.main_image.w);
+				UI_text(col_label, G->ui_font, font_size_status, " x ");
+				UI_text(col_value, G->ui_font, font_size_status, "%d", G->graphics.main_image.h);
+
+				if (G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM) {
+					UI_text(col_label, G->ui_font, font_size_status, " - frames: ");
+					UI_text(col_value, G->ui_font, font_size_status, "%i", G->anim_frames);
+				}
+
+				UI_text(col_label, G->ui_font, font_size_status, "          ");
+				UI_text(col_value, G->ui_font, font_size_status, "%i", G->graphics.main_image.frac1);
+				UI_text(col_label, G->ui_font, font_size_status, ":");
+				UI_text(col_value, G->ui_font, font_size_status, "%i", G->graphics.main_image.frac2);
+				UI_text(col_label, G->ui_font, font_size_status, " = ");
+				UI_text(col_value, G->ui_font, font_size_status, "%.3f", G->graphics.main_image.aspect_ratio);
+				UI_text(col_label, G->ui_font, font_size_status, " - zoom: ");
+				UI_text(col_value, G->ui_font, font_size_status, "%.0f%%", G->truescale * 100);
+				UI_text(col_label, G->ui_font, font_size_status, " - Mouse: ");
+				UI_text(col_value, G->ui_font, font_size_status, "%i", (int)G->pixel_mouse.x);
+				UI_text(col_label, G->ui_font, font_size_status, " , ");
+				UI_text(col_value, G->ui_font, font_size_status, "%i", (int)G->pixel_mouse.y);
 			} else {
-				UI_text(theme->text_reg_light, G->ui_font, font_size_status, "No file open. Click \"Open\" or drag and drop an image file to view it.");
+				UI_text(theme->text_reg_mid, G->ui_font, font_size_status, "No file open. Click \"Open\" or drag and drop an image file to view it.");
 			}
 		}
 		UI_pop_parent(ctx);
