@@ -150,18 +150,18 @@ static void upload_constants(Shader_Program* program, void* data) {
 	G->graphics.device_ctx->Unmap(program->constants_buffer, 0);
 }
 
-static void upload_texture(Texture* texture, void* data, u64 size) {
+static void upload_texture(Texture* texture, void* data, u32 w, u32 h) {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HRESULT hr = G->graphics.device_ctx->Map(texture->d3d_texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
 	BYTE* dest = static_cast<BYTE*>(mapped.pData);
-	BYTE* src = G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4;
+	BYTE* src = (BYTE*)data;
 
 	int row_pitch = mapped.RowPitch;
-	int row_size = G->graphics.main_image.w * 4; // 4 bytes per pixel as it's RGBA
+	int row_size = w * 4; // 4 bytes per pixel as it's RGBA
 
-	for (int y = 0; y < G->graphics.main_image.h; ++y) {
+	for (int y = 0; y < h; ++y) {
 		memcpy(dest, src, row_size);
 		dest += row_pitch;
 		src += row_size;
@@ -4076,8 +4076,8 @@ static void render() {
 					}
 					time = get_ticks();
 				}
-				upload_texture(&G->anim_texture, G->anim_buffer + u32(G->anim_index * G->anim_texture.size.x * G->anim_texture.size.y * 4),
-				               G->anim_texture.size.x * G->anim_texture.size.y * 4);
+				unsigned char* texture_data_start = G->anim_buffer + u32(G->anim_index * G->anim_texture.size.x * G->anim_texture.size.y * 4);
+				upload_texture(&G->anim_texture, texture_data_start, G->anim_texture.size.x, G->anim_texture.size.y);
 				target_srv = &G->anim_texture.srv;
 			} else {
 				target_srv = &G->graphics.main_image.texture.srv;
