@@ -308,7 +308,7 @@ bool UI_button(UI_Button_Style *style, char* name, ...) {
 		color_background = prev->style.color[c_background];
 		color_inner_bg = prev_inn->style.color[c_background];
 		color_text = prev_inn->style.color[c_text];
-		if (UI_mouse_in_block(prev) || UI_mouse_in_block(prev_inn)  && !disabled) {
+		if ((UI_mouse_in_block(prev) || UI_mouse_in_block(prev_inn) ) && !disabled) {
 			active = keypress(MouseL);
 			if (keydn(MouseL)) {
 				G->mouse_dn_hash = prev->hash;
