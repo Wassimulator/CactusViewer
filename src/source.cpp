@@ -261,7 +261,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	dxgi_factory->CreateSwapChainForHwnd(ctx->device, window_handle, &swap_chain_desc, nullptr, nullptr, &ctx->swap_chain);
 	ctx->swap_chain->GetDesc1(&swap_chain_desc);
 
-	D3D11_TEXTURE2D_DESC frame_buffer_desc = { 0 };;
+	D3D11_TEXTURE2D_DESC frame_buffer_desc = { 0 };
 	frame_buffer_desc.Width = ww ;
 	frame_buffer_desc.Height = wh ;
 	frame_buffer_desc.SampleDesc.Count = 1;
@@ -294,7 +294,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	};
 
 	ctx->lines_program= create_shader_program(ctx, shader_text_lines, strlen(shader_text_lines),
-	                                          "vs_lines", "ps_lines", sizeof(Shader_Constants_Lines), 
+	                                          "vs_lines", "ps_lines", sizeof(Shader_Constants_Lines),
 	                                          1, lines_layout);
 
 	D3D11_BUFFER_DESC lines_vertex_desc = {};
@@ -362,46 +362,46 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 
 static Shader_Constants_Main set_main_shader_constants() {
 	Shader_Constants_Main result = { 0 };
-	result.aspect_img = G->graphics.aspect_img;
-	result.aspect_wnd = G->graphics.aspect_wnd;
-	result.scale = G->scale;
-	result.position = G->position / v2(WW, -WH) * 2;
-	result.pixel_grid = (G->nearest_filtering && (G->truescale > 5) && G->pixel_grid) ? 1 : 0;
-	result.true_scale = G->truescale;
-	result.image_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
-	result.window = v2(WW, WH);
-	result.rgba_flags = v4((float)RGBAflags[0], (float)RGBAflags[1], (float)RGBAflags[2], (float)RGBAflags[3]);
-	result.rotation = G->graphics.main_image.orientation;
-	result.hue = G->hue;
-	result.saturation = G->saturation;
-	result.contrast = G->contrast;
-	result.brightness = G->brightness;
-	result.srgb = G->srgb;
-	result.gamma = G->gamma;
-	result.render_mode = RENDER_MODE_VEIWER;
-	result.do_blur = G->do_blur;
-	result.blur_lod = G->blur_lod;
+	result.aspect_img =   G->graphics.aspect_img;
+	result.aspect_wnd =   G->graphics.aspect_wnd;
+	result.scale =        G->scale;
+	result.position =     G->position / v2(WW, -WH) * 2;
+	result.pixel_grid =   (G->nearest_filtering && (G->truescale > 5) && G->pixel_grid) ? 1 : 0;
+	result.true_scale =   G->truescale;
+	result.image_dim =    v2(G->graphics.main_image.w, G->graphics.main_image.h);
+	result.window =       v2(WW, WH);
+	result.rgba_flags =   v4((float)RGBAflags[0], (float)RGBAflags[1], (float)RGBAflags[2], (float)RGBAflags[3]);
+	result.rotation =     G->graphics.main_image.orientation;
+	result.hue =          G->hue;
+	result.saturation =   G->saturation;
+	result.contrast =     G->contrast;
+	result.brightness =   G->brightness;
+	result.srgb =         G->srgb;
+	result.gamma =        G->gamma;
+	result.render_mode =  RENDER_MODE_VEIWER;
+	result.do_blur =      G->do_blur;
+	result.blur_lod =     G->blur_lod;
 	result.blur_samples = G->blur_samples;
-	result.blur_scale = G->blur_scale;
-	result.crop_a = _v2(G->crop_a);
-	result.crop_b = _v2(G->crop_b);
-	result.crop_mode = G->crop_mode;
+	result.blur_scale =   G->blur_scale;
+	result.crop_a =       _v2(G->crop_a);
+	result.crop_b =       _v2(G->crop_b);
+	result.crop_mode =    G->crop_mode;
 	return result;
 }
 
 static Texture create_texture(u8 *data, int w, int h, bool dynamic) {
 	Graphics *d3d_ctx = &G->graphics;
 	D3D11_TEXTURE2D_DESC texture_desc = {};
-	texture_desc.Width             = w;
-	texture_desc.Height            = h;
-	texture_desc.MipLevels         = dynamic ? 1 : 0; 
-	texture_desc.ArraySize         = 1;
-	texture_desc.SampleDesc.Count  = 1;
-	texture_desc.Format            = DXGI_FORMAT_R8G8B8A8_UNORM;
-	texture_desc.BindFlags         = D3D11_BIND_SHADER_RESOURCE;
-	texture_desc.Usage             = dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
-	if (!dynamic) texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-	if (!dynamic) texture_desc.MiscFlags  = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	texture_desc.Width                         = w;
+	texture_desc.Height                        = h;
+	texture_desc.MipLevels                     = dynamic ? 1 : 0;
+	texture_desc.ArraySize                     = 1;
+	texture_desc.SampleDesc.Count              = 1;
+	texture_desc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texture_desc.BindFlags                     = D3D11_BIND_SHADER_RESOURCE;
+	texture_desc.Usage                         = dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
+	if (!dynamic) texture_desc.BindFlags      |= D3D11_BIND_RENDER_TARGET;
+	if (!dynamic) texture_desc.MiscFlags       = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	if (dynamic)  texture_desc.CPUAccessFlags  = D3D11_CPU_ACCESS_WRITE;
 
 	D3D11_SUBRESOURCE_DATA texture_SRD = {};
@@ -417,7 +417,7 @@ static Texture create_texture(u8 *data, int w, int h, bool dynamic) {
 	result.size = v2(w, h);
 	err(d3d_ctx->device->CreateTexture2D(&texture_desc, 0, &result.d3d_texture));
 	err(d3d_ctx->device->CreateShaderResourceView(result.d3d_texture, &srv_desc, &result.srv));
-	
+
 
 	if (!dynamic && data) {
 		d3d_ctx->device_ctx->UpdateSubresource(result.d3d_texture, 0, NULL, data, w * 4, w * h * 4);
@@ -435,7 +435,7 @@ LONG g_original_window_style;
 void enter_fullscreen(HWND hwnd) {
 	GetWindowRect(hwnd, &g_original_window_rect);
 	g_original_window_style = GetWindowLong(hwnd, GWL_STYLE);
-    
+
 	LONG newWindowStyle = g_original_window_style & ~(WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME);
 	SetWindowLong(hwnd, GWL_STYLE, newWindowStyle);
 
@@ -447,7 +447,7 @@ void enter_fullscreen(HWND hwnd) {
 
 void exit_fullscreen(HWND hwnd) {
 	SetWindowLong(hwnd, GWL_STYLE, g_original_window_style);
-    
+
 	SetWindowPos(hwnd, HWND_NOTOPMOST,
 	             g_original_window_rect.left, g_original_window_rect.top,
 	             g_original_window_rect.right - g_original_window_rect.left,
@@ -536,7 +536,7 @@ static void load_settings() {
 		fclose(F);
 		cJSON *config_file = cJSON_ParseWithLength(data, size);
 		cJSON *item = 0;
-		
+
 		cJSON *j_checkboard_color_1 = cJSON_GetObjectItemCaseSensitive(config_file, "checkerboard_color_1");
 		if (j_checkboard_color_1) {
 			checkerboard_color_1[0] = cJSON_GetArrayItem(j_checkboard_color_1, 0)->valuedouble;
@@ -618,15 +618,24 @@ bool get_font_file_from_system(char* output, int output_size, char* font) {
                 } else {
                     strncpy(output, value, output_size);
                 }
-                output[output_size - 1] = '\0'; 
+                output[output_size - 1] = '\0';
                 if (value[0] != '\0') {
                     result = true;
                 }
-            } 
+            }
             RegCloseKey(hkey);
         }
     }
     return result;
+}
+
+static void set_to_no_file() {
+    G->graphics.main_image.w = 50;
+    G->graphics.main_image.h = 53;
+    G->req_truescale = 4;
+    G->position.x = 0;
+    G->position.y = 0;
+    send_signal(G->signals.update_truescale);
 }
 
 static void init_all() {
@@ -635,7 +644,7 @@ static void init_all() {
 
     HINSTANCE hInstance = GetModuleHandle(NULL);
     const char* szTitle = "CactusViewer";
-   
+
     WNDCLASSEX wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
 	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS ;
@@ -733,7 +742,7 @@ static void init_all() {
 	G->hcursor[(int)Cursor_Type_resize_dr] = LoadCursor(nullptr, IDC_SIZENWSE);
 	G->hcursor[(int)Cursor_Type_resize_dl] = LoadCursor(nullptr, IDC_SIZENESW);
     G->graphics.main_image.texture.d3d_texture = 0;
-	
+
     InitializeCriticalSection(&G->mutex);
     InitializeCriticalSection(&G->sort_mutex);
     InitializeCriticalSection(&G->thumbs_mutex);
@@ -748,13 +757,13 @@ static void init_all() {
 	int ascii_end = 126;
 
 //#if	DEBUG_MODE
-//	G->ui_font = UI_load_font_file(G->ui, "../src/FiraSans-Regular.ttf", 
+//	G->ui_font = UI_load_font_file(G->ui, "../src/FiraSans-Regular.ttf",
 //	                                 ascii_start, ascii_end, sizes, array_size(sizes));
 //#else
 //	u8 font_file[] = {
 //		#include "FiraSans-Regular.ttf.cpp"
 //	};
-//	G->ui_font = UI_load_font_memory(G->ui, font_file, array_size(font_file), 
+//	G->ui_font = UI_load_font_memory(G->ui, font_file, array_size(font_file),
 //	                                 ascii_start, ascii_end, sizes, array_size(sizes));
 //	#endif
 
@@ -762,10 +771,10 @@ static void init_all() {
 	char system_font[512] = {};
 	if (!get_font_file_from_system(system_font, 512, "Segoe UI (TrueType)"))
 		get_font_file_from_system(system_font, 512, "Arial (TrueType)");
-	G->ui_font = UI_load_font_file(G->ui, system_font, 
+	G->ui_font = UI_load_font_file(G->ui, system_font,
 								   ascii_start, ascii_end, sizes, array_size(sizes));
 
-//	G->shapes_texture_id = UI_create_texture(G->ui, 
+//	G->shapes_texture_id = UI_create_texture(G->ui,
 //	                                         (u8*)UI_asset_shape_arrow,
 //	                                         UI_ASSET_SHAPE_ARROW_WIDTH,
 //	                                         UI_ASSET_SHAPE_ARROW_HEIGHT);
@@ -778,11 +787,16 @@ static void init_all() {
 		NULL,               // default security attributes
 		TRUE,               // manual-reset event; false = auto-reset
 		FALSE,              // initial state is nonsignaled
-		TEXT("loader event")     
+		TEXT("loader event")
+	);
+	G->folder_scan_event = CreateEvent(
+		NULL,               // default security attributes
+		TRUE,               // manual-reset event; false = auto-reset
+		FALSE,              // initial state is nonsignaled
+		TEXT("folder scan event")
 	);
 
-
-
+	set_to_no_file(); // Initialize with logo dimensions
 }
 
 static void push_alert(char *string, Alert_Type type = Alert_Error) {
@@ -809,15 +823,6 @@ static void reset_to_no_folder() {
     G->files.reset_count();
 }
 
-static void set_to_no_file() {
-    G->graphics.main_image.w = 50;
-    G->graphics.main_image.h = 53;
-    G->req_truescale = 4;
-    G->position.x = 0;
-    G->position.y = 0;
-    send_signal(G->signals.update_truescale);
-}
-
 void calculate_histogram(unsigned char* data, u64 size) {
 	G->graphics.main_image.has_histo = false;
 	if (!G->settings_calculate_histograms) return;
@@ -828,7 +833,7 @@ void calculate_histogram(unsigned char* data, u64 size) {
 	memset(G->histo_t, 0, 256 * sizeof(u64));
 	G->histo_max = 0;
 	for (int i = 0; i < size - 4; i+=4) {
-		G->histo_r[data[i + 0]]++; G->histo_t[data[i + 0]]++; 
+		G->histo_r[data[i + 0]]++; G->histo_t[data[i + 0]]++;
 		G->histo_g[data[i + 1]]++; G->histo_t[data[i + 1]]++;
 		G->histo_b[data[i + 2]]++; G->histo_t[data[i + 2]]++;
 	}
@@ -853,7 +858,7 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
         push_alert("Loading the file failed");
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
-        
+
         //if (dropped)
         //    reset_to_no_folder();
         set_to_no_file();
@@ -961,7 +966,7 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 		}
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
-        
+
         //if (dropped)
             //reset_to_no_folder();
         set_to_no_file();
@@ -1037,7 +1042,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			push_alert("Loading the file failed");
 			G->files[G->current_file_index].failed = true;
 			G->loaded = true;
-			
+
 			//if (dropped)
 				//reset_to_no_folder();
 			set_to_no_file();
@@ -1309,7 +1314,7 @@ static void fit_image_in()
 	G->position = v2(0, 0);
 	if (G->graphics.main_image.w > G->graphics.main_image.h)
 		G->req_truescale = (float)WW / G->graphics.main_image.w;
-	else 
+	else
 		G->req_truescale = (float)WH / G->graphics.main_image.h;
 	G->files[G->current_file_index].scaled = true;
 }
@@ -1376,7 +1381,7 @@ static void load_image_post() {
 		if (G->anim_texture.d3d_texture == 0)
             refresh_display();
 
-		G->anim_texture = create_texture(G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4, 
+		G->anim_texture = create_texture(G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4,
 		                                G->graphics.main_image.w, G->graphics.main_image.h, true);
     } else {
 		if (G->graphics.main_image.texture.d3d_texture != 0)
@@ -1528,7 +1533,7 @@ static void remove_char(wchar_t *str, wchar_t ch) {
 
 bool is_valid_windows_path(wchar_t* path)  {
     bool isValid = false;
-    
+
     if (PathFileExistsW(path))  {
         if (PathIsRelativeW(path) == FALSE)  {
             wchar_t drive[3];
@@ -1541,11 +1546,11 @@ bool is_valid_windows_path(wchar_t* path)  {
             }
         }
     }
-    
+
     return isValid;
 }
 
-struct Folder_Entry  { 
+struct Folder_Entry  {
     wchar_t wpath[MAX_PATH];
 	char path[MAX_PATH];
 };
@@ -1588,9 +1593,9 @@ int items_in_folder;
 int cmp(const void* a, const void* b)  {
     File_Data* A = (File_Data*)a;
     File_Data* B = (File_Data*)b;
-    if      (A->index > B->index)  return  1; 
-    else if (A->index < B->index)  return -1; 
-    else                           return  0; 
+    if      (A->index > B->index)  return  1;
+    else if (A->index < B->index)  return -1;
+    else                           return  0;
 }
 
 static void sort_folder() {
@@ -1612,25 +1617,29 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
     EnterCriticalSection(&G->sort_mutex);
     G->sorting = true;
 
+    // Reset globals at the start to prevent use-after-free
+    files_in_folder = NULL;
+    items_in_folder = 0;
+
     Folder_Sort_Thread_data *data = (Folder_Sort_Thread_data *)lpParam;
 
     wchar_t *file_path = data->path;
     wchar_t *file_name = data->FileName;
 	wchar_t path_buffer[MAX_PATH + 4];
     static int index_in_folder;
-    
+
 	IShellWindows *shellWindows = NULL;
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	if (S_OK != CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **) &shellWindows)) return 0;
-	
+
 	IDispatch *dispatch = NULL;
 	VARIANT v  {};
 	V_VT(&v) = VT_I4;
-	
+
 	for (V_I4(&v) = 0; S_OK == shellWindows->Item(v, &dispatch); V_I4(&v)++)  {
 		bool success = false;
-		
-		IFolderView *folderView = NULL;	
+
+		IFolderView *folderView = NULL;
 		IWebBrowserApp *webBrowserApp = NULL;
 		IServiceProvider *serviceProvider = NULL;
 		IShellBrowser *shellBrowser = NULL;
@@ -1639,10 +1648,10 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 		ITEMIDLIST *folderPIDL = NULL;
 		ITEMIDLIST *itemPIDL = NULL;
 		PIDLIST_ABSOLUTE fullPIDL = NULL;
-		
+
 		int itemCount = 0, focusedItem = 0;
 		path_buffer[0] = 0;
-		
+
 		if (S_OK != dispatch->QueryInterface(IID_IWebBrowserApp, (void **) &webBrowserApp)) goto Alert;
 		if (S_OK != webBrowserApp->QueryInterface(IID_IServiceProvider, (void **) &serviceProvider)) goto Alert;
 		if (S_OK != serviceProvider->QueryService(SID_STopLevelBrowser, IID_IShellBrowser, (void **) &shellBrowser)) goto Alert;
@@ -1658,7 +1667,7 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 		if (S_OK != folderView->ItemCount(SVGIO_ALLVIEW, &itemCount)) goto Alert;
 
 		if (!(files_in_folder = (Folder_Entry *) malloc(itemCount * sizeof(Folder_Entry)))) goto Alert;
-		
+
 		for (int i = 0; i < itemCount; i++)  {
 			files_in_folder[i].wpath[0] = 0;
 			ITEMIDLIST *itemPIDL = NULL;
@@ -1668,31 +1677,31 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 			CoTaskMemFree(fullPIDL);
 			CoTaskMemFree(itemPIDL);
 		}
-		
+
 		items_in_folder = itemCount;
 		index_in_folder = focusedItem;
-	
+
 		success = true;
 		Alert:;
-		
-		if (fullPIDL) CoTaskMemFree(fullPIDL);
-		if (folderPIDL) CoTaskMemFree(folderPIDL);
-		if (itemPIDL) CoTaskMemFree(itemPIDL);
-		if (persistFolder) persistFolder->Release();
-		if (folderView) folderView->Release();
-		if (shellView) shellView->Release();
-		if (shellBrowser) shellBrowser->Release();
-		if (serviceProvider) serviceProvider->Release();
-		if (webBrowserApp) webBrowserApp->Release();
-		if (dispatch) dispatch->Release();
-		
+
+		if ( fullPIDL       ) CoTaskMemFree(fullPIDL);
+		if ( folderPIDL     ) CoTaskMemFree(folderPIDL);
+		if ( itemPIDL       ) CoTaskMemFree(itemPIDL);
+		if ( persistFolder  ) persistFolder   ->Release();
+		if ( folderView     ) folderView      ->Release();
+		if ( shellView      ) shellView       ->Release();
+		if ( shellBrowser   ) shellBrowser    ->Release();
+		if ( serviceProvider) serviceProvider ->Release();
+		if ( webBrowserApp  ) webBrowserApp   ->Release();
+		if ( dispatch       ) dispatch        ->Release();
+
 		if (success) break;
 	}
-	
+
 	shellWindows->Release();
 
 	if (files_in_folder) {
-    
+
         for(int i = 0; i < items_in_folder; i++) {
 			get_c(files_in_folder[i].wpath, files_in_folder[i].path);
         }
@@ -1708,7 +1717,7 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
             G->files[i].loading = false;
             G->files[i].failed = false;
         }
-    } 
+    }
 
 	free(files_in_folder);
 
@@ -1732,13 +1741,30 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 	pFactory->CreateBitmapClipper(&pClipper);
 	pFactory->CreateFormatConverter(&pConverter);
 
-	i32 index_pro = clamp(G->current_file_index, 0, G->files.Count - 1);
-	i32 index_retro = clamp(G->current_file_index - 1, 0, G->files.Count - 1);
+	i32 index_pro = clamp(G->current_file_index, 0, max(0, G->files.Count - 1));
+	i32 index_retro = clamp(G->current_file_index - 1, 0, max(0, G->files.Count - 1));
 
 	//for (int i = 0; i < G->files.Count; i++)
 	bool turn_pro = 0;
 	while(true)
 	{
+		// Check for abort signal before starting work
+		if(G->signals.new_folder)
+			break;
+
+		EnterCriticalSection(&G->thumbs_mutex);
+
+		// Re-check after acquiring mutex
+		if(G->signals.new_folder) {
+			LeaveCriticalSection(&G->thumbs_mutex);
+			break;
+		}
+
+		// Check bounds - the array may have been modified
+		if (G->files.Count == 0) {
+			LeaveCriticalSection(&G->thumbs_mutex);
+			break;
+		}
 
 		i32 i = turn_pro ? index_pro : index_retro;
 		if (turn_pro && index_pro > G->files.Count - 1) {
@@ -1749,9 +1775,13 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 			turn_pro = true;
 		}
 
-		cf_file_t *file = &G->files[i].file;
+		// Final bounds check
+		if (i < 0 || i >= G->files.Count) {
+			LeaveCriticalSection(&G->thumbs_mutex);
+			break;
+		}
 
-		EnterCriticalSection(&G->thumbs_mutex);
+		cf_file_t *file = &G->files[i].file;
 		i32 thumb_dim = THUMBS_DIM;
 
 		IWICBitmapDecoder* pDecoder = nullptr;
@@ -1824,12 +1854,16 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 
 		turn_pro = !turn_pro;
 
-		G->files[i].thumb_loaded = true;
+		// Mark thumb as loaded (still under mutex protection)
+		if (i >= 0 && i < G->files.Count) {
+			G->files[i].thumb_loaded = true;
+		}
+
+		// Check termination conditions while still under mutex
+		bool should_break = (index_pro > G->files.Count - 1 && index_retro < 0) || G->signals.new_folder;
 		LeaveCriticalSection(&G->thumbs_mutex);
 
-		if (index_pro > G->files.Count - 1 && index_retro < 0)
-			break;
-		if(G->signals.new_folder)
+		if (should_break)
 			break;
 	}
 
@@ -1847,6 +1881,184 @@ Folder_Sort_Thread_data sort_data;
 #define SCAN_FAILED 0
 #define SCAN_FILE 1
 #define SCAN_DIR 2
+
+static bool create_file_data_from_path(wchar_t *full_path, File_Data *out_file) {
+	if (!full_path || !out_file) return false;
+	memset(out_file, 0, sizeof(File_Data));
+	int len = wcslen(full_path);
+	if (len == 0 || PathIsDirectoryW(full_path)) return false;
+
+	wchar_t *last_slash = wcsrchr(full_path, L'\\');
+	if (!last_slash) last_slash = wcsrchr(full_path, L'/');
+	wchar_t *filename = last_slash ? last_slash + 1 : full_path;
+	wchar_t *ext = wcsrchr(filename, L'.');
+	if (!ext) return false;
+
+	int type = check_valid_extention(ext);
+	if (type == TYPE_UNKNOWN) return false;
+	out_file->type = type;
+
+	wcsncpy(out_file->file.path, full_path, CUTE_FILES_MAX_PATH - 1);
+	out_file->file.path[CUTE_FILES_MAX_PATH - 1] = 0;
+	wcsncpy(out_file->file.name, filename, CUTE_FILES_MAX_FILENAME - 1);
+	out_file->file.name[CUTE_FILES_MAX_FILENAME - 1] = 0;
+	wcsncpy(out_file->file.ext, ext, CUTE_FILES_MAX_EXT - 1);
+	out_file->file.ext[CUTE_FILES_MAX_EXT - 1] = 0;
+	stbi_convert_wchar_to_utf8(out_file->file.name_utf8, 1024, out_file->file.name);
+	return true;
+}
+
+struct Folder_Scan_Thread_Data {
+	wchar_t *full_path;
+	wchar_t *filename;
+};
+static Folder_Scan_Thread_Data folder_scan_data;
+
+DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
+	Folder_Scan_Thread_Data *data = (Folder_Scan_Thread_Data *)lpParam;
+	wchar_t *full_path = data->full_path;
+	wchar_t *filename = data->filename;
+	G->scanning_folder = true;
+
+	int len = wcslen(full_path);
+	int newlen = len;
+	for (int i = len - 1; i > 0; i--) {
+		if (full_path[i] == '/' || full_path[i] == '\\') {
+			newlen = i + 1;
+			break;
+		}
+	}
+
+	wchar_t *BasePath = (wchar_t *)malloc((newlen + 1) * sizeof(wchar_t));
+	memcpy(BasePath, full_path, newlen * sizeof(wchar_t));
+	BasePath[newlen] = L'\0';
+
+	if (!is_valid_windows_path(BasePath)) {
+		free(BasePath);
+		G->scanning_folder = false;
+		if (G->folder_scan_event) SetEvent(G->folder_scan_event);
+		return 0;
+	}
+
+	cf_dir_t dir;
+	cf_dir_open(&dir, BasePath);
+	send_signal(G->signals.new_folder);
+	EnterCriticalSection(&G->thumbs_mutex);
+
+	File_Data current_file_state = {0};
+	bool had_current_file = G->files.Count > 0;
+	if (had_current_file) current_file_state = G->files[0];
+	G->files.reset_count();
+
+	while (dir.has_next) {
+		cf_file_t file_0;
+		cf_read_file(&dir, &file_0);
+		if (file_0.is_dir) { cf_dir_next(&dir); continue; }
+		remove_char(file_0.path, '/');
+
+		int type = check_valid_extention(file_0.ext);
+		if (type == TYPE_UNKNOWN) { cf_dir_next(&dir); continue; }
+
+		File_Data new_file;
+		G->files.push_back(new_file);
+		G->files.back().type = type;
+		cf_file_t *file = &G->files.back().file;
+		*file = file_0;
+		stbi_convert_wchar_to_utf8(file->name_utf8, 1024, file->name);
+		cf_dir_next(&dir);
+	}
+	cf_dir_close(&dir);
+
+	if (!G->sorting && G->settings_sort) {
+		sort_data.FileName = (wchar_t*)malloc((wcslen(filename) + 1) * sizeof(wchar_t));
+		memcpy(sort_data.FileName, filename, (wcslen(filename) + 1) * sizeof(wchar_t));
+		sort_data.path = (wchar_t*)malloc((wcslen(full_path) + 1) * sizeof(wchar_t));
+		memcpy(sort_data.path, full_path, (wcslen(full_path) + 1) * sizeof(wchar_t));
+		folder_sort_thread((LPVOID)&sort_data);
+	} else {
+		EnterCriticalSection(&G->id_mutex);
+		G->current_file_index = 0;
+		for (int i = 0; i < G->files.Count; i++) {
+			if (wcscmp(filename, G->files[i].file.name) == 0) {
+				G->current_file_index = i;
+				break;
+			}
+		}
+		LeaveCriticalSection(&G->id_mutex);
+	}
+
+	// Restore view state of the immediately-loaded file
+	if (had_current_file && G->current_file_index < G->files.Count) {
+		EnterCriticalSection(&G->id_mutex);
+		G->files[G->current_file_index].scaled = current_file_state.scaled;
+		G->files[G->current_file_index].scale = current_file_state.scale;
+		G->files[G->current_file_index].pos = current_file_state.pos;
+		LeaveCriticalSection(&G->id_mutex);
+	}
+
+	LeaveCriticalSection(&G->thumbs_mutex);
+	free(BasePath);
+	free(data->full_path);
+	free(data->filename);
+	G->scanning_folder = false;
+	G->signals.new_folder = false;
+
+	if (G->settings_preview_thumbs)
+		CreateThread(NULL, 0, thumbs_thread, 0, 0, NULL);
+	if (G->folder_scan_event) SetEvent(G->folder_scan_event);
+	return 0;
+}
+
+static bool load_image_immediate(wchar_t *full_path) {
+	if (!full_path || PathIsDirectoryW(full_path)) return false;
+
+	File_Data temp_file;
+	if (!create_file_data_from_path(full_path, &temp_file)) return false;
+
+	send_signal(G->signals.new_folder);
+	EnterCriticalSection(&G->thumbs_mutex);
+
+	G->files.reset_count();
+	G->files.push_back(temp_file);
+	G->current_file_index = 0;
+	G->loaded = false;
+	G->scanning_folder = false;
+
+	int path_len = wcslen(full_path);
+	if (G->pending_folder_scan_path) free(G->pending_folder_scan_path);
+	G->pending_folder_scan_path = (wchar_t*)malloc((path_len + 1) * sizeof(wchar_t));
+	memcpy(G->pending_folder_scan_path, full_path, (path_len + 1) * sizeof(wchar_t));
+	G->pending_folder_scan = true;
+	G->signals.new_folder = false;
+
+	LeaveCriticalSection(&G->thumbs_mutex);
+
+	static Loader_Thread_Inputs immediate_inputs;
+	immediate_inputs.path = full_path;
+	immediate_inputs.id = 0;
+	immediate_inputs.file_data = &G->files[0];
+	immediate_inputs.dropped = true;
+	CreateThread(NULL, 0, loader_thread, (LPVOID)&immediate_inputs, 0, NULL);
+	return true;
+}
+
+static void start_deferred_folder_scan(wchar_t *full_path) {
+	if (!full_path || PathIsDirectoryW(full_path)) return;
+
+	wchar_t *last_slash = wcsrchr(full_path, L'\\');
+	if (!last_slash) last_slash = wcsrchr(full_path, L'/');
+	wchar_t *filename = last_slash ? last_slash + 1 : full_path;
+
+	int path_len = wcslen(full_path);
+	folder_scan_data.full_path = (wchar_t*)malloc((path_len + 1) * sizeof(wchar_t));
+	memcpy(folder_scan_data.full_path, full_path, (path_len + 1) * sizeof(wchar_t));
+
+	int name_len = wcslen(filename);
+	folder_scan_data.filename = (wchar_t*)malloc((name_len + 1) * sizeof(wchar_t));
+	memcpy(folder_scan_data.filename, filename, (name_len + 1) * sizeof(wchar_t));
+
+	CreateThread(NULL, 0, folder_scan_thread, (LPVOID)&folder_scan_data, 0, NULL);
+}
 
 static int scan_folder(wchar_t *path) {
 
@@ -1888,7 +2100,7 @@ static int scan_folder(wchar_t *path) {
 		memcpy(BasePath, path, newlen * sizeof(wchar_t));
 		BasePath[newlen] = '\0';
 		FileName[len - newlen] = '\0';
-        
+
         if (BasePath[0] && !FileName[0]) {
             // When user executes program with something like: "C:\path\CactusViewer.exe" SomeImage.png
             // FileName will be empty and BasePath will be the image name... swap and set BasePath to current working directory.
@@ -1905,7 +2117,7 @@ static int scan_folder(wchar_t *path) {
             swprintf(BasePath, name_len, L"%ls\\%ls%lc", CURRENT_FOLDER, Tmp, L'\\');
             free(Tmp);
         }
-		
+
 		const size_t name_len = wcslen(BasePath) + wcslen(FileName) + 1;
         FullPath = (wchar_t *)malloc(name_len * sizeof(wchar_t));
         swprintf(FullPath, name_len, L"%ls%ls%lc", BasePath, FileName, L'\0');
@@ -1934,7 +2146,7 @@ static int scan_folder(wchar_t *path) {
         }
         remove_char(file_0.path, '/');
 
-		int type = check_valid_extention(file_0.ext); 
+		int type = check_valid_extention(file_0.ext);
 		if (type == TYPE_UNKNOWN) {
 			if (wcscmp(FileName, file_0.name) == 0) {
 				char err[128] = { 0 };
@@ -1961,7 +2173,7 @@ static int scan_folder(wchar_t *path) {
 	if (result == SCAN_FAILED)
 		goto cleanup;
 
-    if (!G->sorting && G->settings_sort) {   
+    if (!G->sorting && G->settings_sort) {
         sort_data.FileName = (wchar_t*)malloc((wcslen(FileName) + 1) * sizeof(wchar_t));
         memcpy(sort_data.FileName, FileName,  (wcslen(FileName) + 1) * sizeof(wchar_t));
         sort_data.path =     (wchar_t*)malloc((wcslen(FullPath) + 1) * sizeof(wchar_t));
@@ -1979,16 +2191,16 @@ static int scan_folder(wchar_t *path) {
 		}
 	}
 	cleanup:
-    free(BasePath);    
-    free(FileName);  
-	
+    free(BasePath);
+    free(FileName);
+
 	LeaveCriticalSection(&G->thumbs_mutex);
 
 	G->signals.new_folder = false;
 
 	if (G->settings_preview_thumbs)
 		CreateThread(NULL, 0, thumbs_thread, 0, 0, NULL);
-	
+
     return result;
 }
 
@@ -2038,12 +2250,12 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 
 	// create an offscreen texture
 	D3D11_TEXTURE2D_DESC tex_desc = { };
-	tex_desc.Width =  new_size.x; 
+	tex_desc.Width =  new_size.x;
 	tex_desc.Height =  new_size.y;
 	tex_desc.MipLevels = 1;
 	tex_desc.ArraySize = 1;
 	tex_desc.Format = image_format;
-	tex_desc.SampleDesc.Count = 1; 
+	tex_desc.SampleDesc.Count = 1;
 	tex_desc.SampleDesc.Quality = 0;
 	tex_desc.Usage = D3D11_USAGE_DEFAULT;
 	tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
@@ -2156,7 +2368,7 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 	CoInitialize(NULL);
 	IPropertyBag2 *property_bag = NULL;
 	WICPixelFormatGUID req_pixel_format = GUID_WICPixelFormat32bppBGRA; // Direct3D defaults to BGRA for some reason
-	WICPixelFormatGUID pixel_format = req_pixel_format; 
+	WICPixelFormatGUID pixel_format = req_pixel_format;
 	hr = CoCreateInstance(CLSID_WICImagingFactory,
 	                      NULL,
 	                      CLSCTX_INPROC_SERVER,
@@ -2210,8 +2422,8 @@ HRESULT save_as_dialogue() {
 	UINT selected_encoder_index = 0;
 
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-	HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL, 
-	                              IID_IFileSaveDialog, reinterpret_cast<void**>(&dialogue));	
+	HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
+	                              IID_IFileSaveDialog, reinterpret_cast<void**>(&dialogue));
 
 	if (dialogue == 0)
 		goto cleanup;
@@ -2249,12 +2461,12 @@ void file_open_dialogue() {
 	PWSTR file_path = 0;
 
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, 
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
             IID_IFileOpenDialog, reinterpret_cast<void**>(&dialogue));
 	COMDLG_FILTERSPEC extensions[] = {  { L"Images", L"*.3fr;*.ari;*.arw;*.avci;*.avcs;*.avif;*.avifs;*.bay;*.bmp;*.cap;*.cr2;*.cr3;*.crw;*.cur;*.dcr;*.dcs;*.dds;*.dib;*.dng;*.drf;*.eip;*.erf;*.exif;*.fff;*.gif;*.heic;*.heics;*.heif;*.heifs;*.hif;*.ico;*.icon;*.iiq;*.jfif;*.jpe;*.jpeg;*.jpg;*.jxr;*.k25;*.kdc;*.mef;*.mos;*.mrw;*.nef;*.nrw;*.orf;*.ori;*.pef;*.png;*.ptx;*.pxn;*.raf;*.raw;*.rle;*.rw2;*.rwl;*.sr2;*.srf;*.srw;*.tif;*.tiff;*.wdp;*.webp;*.x3f" },
     };
 
-	if (dialogue == 0) 
+	if (dialogue == 0)
 		goto cleanup;
 	if (SUCCEEDED(hr))
 		hr = dialogue->SetFileTypes(1, extensions);
@@ -2275,7 +2487,7 @@ void file_open_dialogue() {
 	}
 
 	cleanup:
-		
+
 	if (item) 		item->Release();
 	if (dialogue) 	dialogue->Release();
 
@@ -2510,7 +2722,7 @@ static void update_gui() {
 		UI_pop_parent(ctx);
 
 	}
-	
+
 	if (keypress(Key_Ctrl) || keypress(MouseM)) {
 		v4 px = G->read_px;
 		v2 mouse = UI_get_mouse();
@@ -2568,7 +2780,7 @@ static void update_gui() {
                             sprintf(color_str, "%c%.4f, %.4f, %.4f%s%c", e0, px.r, px.g, px.b, alpha_str, e1);
                         else
                             sprintf(color_str, "%c%d, %d, %d%s%c", e0, r, g, b, alpha_str, e1);
-                        
+
                     } else if (G->settings_copy_color_format == 2) {
                         // HSV
                         if (copy_alpha) sprintf(alpha_str, ", %.4f", px.a);
@@ -2846,19 +3058,19 @@ static void update_gui() {
 					if (UI_slider(&slider_style, axis_x, &G->truescale_edit, 0.1, 500, UI_hash_djb2(ctx, "zoom slider"))) {
 						send_signal(G->signals.update_scale_ui);
 					}
-	
+
 					slider_style.logarithmic = false;
 					UI_push_parent_defer(ctx, UI_bar(axis_x))
 					{
 						UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
 						UI_Button_Style style = btn_default;
 						style.size = v2(75, 42);
-						UI_set_disabled_defer((G->files.Count == 0) || G->sorting || !(G->current_file_index > 0)) {
+						UI_set_disabled_defer((G->files.Count == 0) || G->sorting || G->scanning_folder || !(G->current_file_index > 0)) {
 							if (UI_button(&style, "<< Prev")) {
 								send_signal(G->signals.prev_image);
 							}
 						}
-						UI_set_disabled_defer((G->files.Count == 0) || G->sorting || !(G->current_file_index < G->files.Count - 1)) {
+						UI_set_disabled_defer((G->files.Count == 0) || G->sorting || G->scanning_folder || !(G->current_file_index < G->files.Count - 1)) {
 							if (UI_button(&style, "Next >>")) {
 								send_signal(G->signals.next_image);
 							}
@@ -3255,58 +3467,58 @@ static void update_gui() {
 			UI_separator(2.5, theme->separator);
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_1, G->ui_font, 12,"Supported codecs: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"BMP, GIF, ICO, JPEG, JPEG XR, PNG, TIFF, DDS, WEBP");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"BMP, GIF, ICO, JPEG, JPEG XR, PNG, TIFF, DDS, WEBP");
 			}
-			UI_text(theme->text_reg_main, G->ui_font, 10,"(Supports installed codecs for WIC as well, check Microsoft Store to get codecs like HEIF, RAW, or AVIF)");	
+			UI_text(theme->text_reg_main, G->ui_font, 10,"(Supports installed codecs for WIC as well, check Microsoft Store to get codecs like HEIF, RAW, or AVIF)");
 			UI_separator(2, theme->separator);
 			UI_text(theme->text_header_1, G->ui_font, 13,"Controls:");
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Left Mouse button / WASD keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"pan image.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"pan image.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Mouse wheel / Q/E keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"zoom image.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"zoom image.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Shift key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"fine pan and zoom mode.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"fine pan and zoom mode.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Middle Mouse button/ Ctrl key (hold): ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"pixel inspector (right click to copy).");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"pixel inspector (right click to copy).");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Left/Right Arrow keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"next/ previous image.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"next/ previous image.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Up/Down Arrow keys: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: next/ previous image.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: next/ previous image.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Space key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: play/ pause.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"GIF control: play/ pause.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"F key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle between linear and nearest neighbor filtering.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle between linear and nearest neighbor filtering.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"G key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle pixel grid (if in nearest neighbor filtering is on).");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle pixel grid (if in nearest neighbor filtering is on).");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"F11 key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle fullscreen mode.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Toggle fullscreen mode.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"Esc key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Exit fullscreen mode. Otherwise, quit.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Exit fullscreen mode. Otherwise, quit.");
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_text(theme->text_header_2, G->ui_font, 12,"R key: ");
-				UI_text(theme->text_reg_main, G->ui_font, 12,"Reload current folder, and scan for new files in it.");	
+				UI_text(theme->text_reg_main, G->ui_font, 12,"Reload current folder, and scan for new files in it.");
 			}
 			UI_separator(2, theme->separator);
 			UI_text(theme->text_header_1, G->ui_font, 13,"Settings:");
@@ -3451,7 +3663,7 @@ static void update_gui() {
 			UI_reset_disabled();
 		}
 	}
-	
+
 	G->gui_disabled = false;
 }
 
@@ -3491,7 +3703,7 @@ static void update_logic() {
 
 	if (keyup(Key_F11))
 		toggle_fullscreen(hwnd);
-	if (keyup(Key_Esc) && fullscreen) 
+	if (keyup(Key_Esc) && fullscreen)
 		exit_fullscreen(hwnd);
 	if (keyup(Key_Esc) && !fullscreen)
 		post_quit();
@@ -3558,38 +3770,38 @@ static void update_logic() {
 	if (G->crop_mode) {
 		v2 new_pixel = G->pixel_mouse + 0.5f;
 		switch (drag_index) {
-			case drag_crop_a_x: 
+			case drag_crop_a_x:
 				SetCursor(G->hcursor[Cursor_Type_resize_h]);
-				G->crop_a.x = new_pixel.x; 
+				G->crop_a.x = new_pixel.x;
 				break;
-			case drag_crop_b_x: 
+			case drag_crop_b_x:
 				SetCursor(G->hcursor[Cursor_Type_resize_h]);
 				G->crop_b.x = new_pixel.x;
 				break;
-			case drag_crop_a_y: 
+			case drag_crop_a_y:
 				SetCursor(G->hcursor[Cursor_Type_resize_v]);
 				G->crop_a.y = new_pixel.y;
 				break;
-			case drag_crop_b_y: 
+			case drag_crop_b_y:
 				SetCursor(G->hcursor[Cursor_Type_resize_v]);
 				G->crop_b.y = new_pixel.y;
 				break;
-			case drag_crop_a_x_a_y: 
+			case drag_crop_a_x_a_y:
 				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
-				G->crop_a.x = new_pixel.x; 
+				G->crop_a.x = new_pixel.x;
 				G->crop_a.y = new_pixel.y;
 				break;
-			case drag_crop_a_x_b_y: 
+			case drag_crop_a_x_b_y:
 				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
-				G->crop_a.x = new_pixel.x; 
+				G->crop_a.x = new_pixel.x;
 				G->crop_b.y = new_pixel.y;
 				break;
-			case drag_crop_b_x_a_y: 
+			case drag_crop_b_x_a_y:
 				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
 				G->crop_b.x = new_pixel.x;
 				G->crop_a.y = new_pixel.y;
 				break;
-			case drag_crop_b_x_b_y: 
+			case drag_crop_b_x_b_y:
 				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
 				G->crop_b.x = new_pixel.x;
 				G->crop_b.y = new_pixel.y;
@@ -3602,7 +3814,7 @@ static void update_logic() {
 				}
 				break;
 		}
-		if (drag_index != drag_free) 
+		if (drag_index != drag_free)
 			G->mouse_dragging = true;
 	}
 	v2 img_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
@@ -3676,7 +3888,7 @@ static void update_logic() {
 		if (G->keys.scroll_y_diff > 0)
 			G->files[G->current_file_index].scaled = true;
     }
-    
+
     if (G->graphics.main_image.w > 0) {
         if (G->graphics.aspect_img < G->graphics.aspect_wnd) {
             G->truescale = (float)WH / G->graphics.main_image.h * G->scale;
@@ -3687,7 +3899,7 @@ static void update_logic() {
 		v2 img_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
 		v2 wnd = v2(WW, WH);
 		G->pixel_mouse = (M - (wnd - img_dim * G->truescale) * 0.5 - G->position) / G->truescale;
-    } 
+    }
     {
         v2 Mouse = G->keys.Mouse - v2(WW, WH) / 2;
 
@@ -3804,7 +4016,7 @@ static void render() {
 				}
 			}
 			reset_image_edit();
-			
+
 			G->loaded = true;
 			if (G->loading_dropped_file) {
 				G->loading_dropped_file = false;
@@ -3812,7 +4024,7 @@ static void render() {
 			}
 		}
 
-		if (G->files.Count > 0 && !G->files[G->current_file_index].failed) { // check if we have a folder open and no failed to load image 
+		if (G->files.Count > 0 && !G->files[G->current_file_index].failed) { // check if we have a folder open and no failed to load image
 			if ((G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM) && G->anim_frames > 0) {
 				static uint32_t time = 0;
 				uint32_t delta = get_ticks() - time;
@@ -3834,7 +4046,8 @@ static void render() {
 		} else {
 			target_srv = &G->graphics.logo_image.srv;
 			force_nearest = true;
-			set_to_no_file();
+			// Don't call set_to_no_file() here - it's called from the render loop every frame
+			// and will reset dimensions during transitions. Only call it when an actual load fails.
 		}
 
 		G->graphics.aspect_wnd = (float)WW / WH;
@@ -3854,9 +4067,9 @@ static void render() {
 		ctx->device_ctx->RSSetState(ctx->raster_state);
 		ctx->device_ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		ctx->device_ctx->IASetInputLayout(nullptr);
-		if (G->nearest_filtering || force_nearest) 
+		if (G->nearest_filtering || force_nearest)
 			ctx->device_ctx->PSSetSamplers(0, 1, &ctx->sampler_nearest);
-		else 
+		else
 			ctx->device_ctx->PSSetSamplers(0, 1, &ctx->sampler_linear);
 
 		//draw checkerboard
@@ -3872,10 +4085,10 @@ static void render() {
 		ctx->device_ctx->PSSetShader(ctx->bg_program.pixel_shader, nullptr, 0);
 		ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->bg_program.constants_buffer);
 		ctx->device_ctx->Draw(4, 0);
-	
+
 		//draw image
 		Shader_Constants_Main constants_main = set_main_shader_constants();
-		if (force_nearest) { 
+		if (force_nearest) {
 			constants_main.do_blur = false;
 			constants_main.crop_mode = true; // hack
 		}
@@ -3885,7 +4098,7 @@ static void render() {
 		ctx->device_ctx->PSSetShader(ctx->main_program.pixel_shader, nullptr, 0);
 		ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->main_program.constants_buffer);
 		if (target_srv)
-			ctx->device_ctx->PSSetShaderResources(0, 1, target_srv); 	
+			ctx->device_ctx->PSSetShaderResources(0, 1, target_srv);
 		ctx->device_ctx->Draw(4, 0);
 
 		if (G->crop_mode) {

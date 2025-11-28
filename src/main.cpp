@@ -35,10 +35,18 @@ int wmain(int argc, wchar_t **argv) {
 	if (G->settings_start_in_fullscreen)
 		enter_fullscreen(hwnd);
 	{
-		int scan = scan_folder(argv[1]);
-		if (argc > 1 && scan != SCAN_FAILED) {
-			inputs = { argv[1], G->current_file_index, &G->files[G->current_file_index] };
-			CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+		// Use immediate loading for startup - load the image first, then scan folder in background
+		if (argc > 1 && !PathIsDirectoryW(argv[1])) {
+			if (!load_image_immediate(argv[1])) {
+				push_alert("File type not supported");
+			}
+		} else {
+			// Directory or no argument - use the old flow
+			int scan = scan_folder(argv[1]);
+			if (argc > 1 && scan != SCAN_FAILED) {
+				inputs = { argv[1], G->current_file_index, &G->files[G->current_file_index] };
+				CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+			}
 		}
 	}
 
@@ -54,27 +62,38 @@ int wmain(int argc, wchar_t **argv) {
 
         if (G->dropped_file) {
             G->loading_dropped_file = true;
-			int scan = scan_folder(global_temp_path);
-			if (scan != SCAN_FAILED) {
-				bool is_dir = scan == SCAN_DIR;
-					G->loaded = false;
-				inputs = { global_temp_path, G->current_file_index, &G->files[G->current_file_index], true };
-				if (is_dir) {
-					inputs.path = G->files[0].file.path;
+			// Use immediate loading for dropped files - load image first, scan folder in background
+			if (!PathIsDirectoryW(global_temp_path)) {
+				if (!load_image_immediate(global_temp_path)) {
+					push_alert("File type not supported");
+					G->loading_dropped_file = false;
 				}
-				CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+			} else {
+				// Directory dropped - use old flow
+				int scan = scan_folder(global_temp_path);
+				if (scan != SCAN_FAILED) {
+					G->loaded = false;
+					inputs = { G->files[0].file.path, 0, &G->files[0], true };
+					CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+				}
 			}
 			G->dropped_file = false;
         } 
 
         get_window_size();
 
+		// Start deferred folder scan once the immediate load completes
+		if (G->pending_folder_scan && G->loaded) {
+			G->pending_folder_scan = false;
+			start_deferred_folder_scan(G->pending_folder_scan_path);
+		}
+
         update_gui();
 		update_logic();
         render();
 
         if (G->files.Count > 0) {
-            if ((!G->sorting && (keyup(Key_Right) || keyup(MouseFr))) || G->signals.next_image) {
+            if ((!G->sorting && !G->scanning_folder && (keyup(Key_Right) || keyup(MouseFr))) || G->signals.next_image) {
                 G->signals.next_image = false;
 
                 if (G->current_file_index < G->files.Count - 1) {
@@ -84,7 +103,7 @@ int wmain(int argc, wchar_t **argv) {
                     CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
                 }
             }
-            if ((!G->sorting && (keyup(Key_Left) || keyup(MouseBk)))|| G->signals.prev_image) {
+            if ((!G->sorting && !G->scanning_folder && (keyup(Key_Left) || keyup(MouseBk)))|| G->signals.prev_image) {
                 G->signals.prev_image = false;
 
                 if (G->current_file_index > 0) {

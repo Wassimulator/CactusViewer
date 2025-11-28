@@ -480,12 +480,16 @@ struct Global
     bool keep_menu = false;
     bool loaded = false;
     bool sorting = false;
+    bool scanning_folder = false;
+    bool pending_folder_scan = false;
+    wchar_t *pending_folder_scan_path = nullptr;
     bool settings_applied = false;
     bool unicode_font_loaded = false;
     bool imgui_in_frame = false;
     bool show_gui = false;
 	bool gui_disabled = false; //inter-frame value, not cross-frame! used by gui functions
 	bool gui_disabled_backup = false;
+	HANDLE folder_scan_event = NULL;
 
     float scale = 1;
     float truescale = 1;
