@@ -3706,13 +3706,29 @@ enum Drag_index {
 };
 
 static void shuffle_folder() {
+	// Stop current thumbs_thread
+	send_signal(G->signals.new_folder);
+	EnterCriticalSection(&G->thumbs_mutex);
 
 	for (int i = G->files.Count - 1; i > 0; i--) {
 		int j = rand() % (i + 1);
 		swap(File_Data, G->files[i], G->files[j]);
-		G->current_file_index = 0;
-		G->signals.reload_file = true;
 	}
+	// Reset thumb_loaded flags since atlas positions no longer match
+	for (int i = 0; i < G->files.Count; i++) {
+		G->files[i].thumb_loaded = false;
+	}
+
+	LeaveCriticalSection(&G->thumbs_mutex);
+	G->signals.new_folder = false;
+
+	G->current_file_index = 0;
+	G->signals.reload_file = true;
+	G->req_file_index = 0;
+
+	// Restart thumbnail loading
+	if (G->settings_preview_thumbs)
+		CreateThread(NULL, 0, thumbs_thread, 0, 0, NULL);
 }
 
 static void update_logic() {

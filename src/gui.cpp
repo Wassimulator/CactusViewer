@@ -1551,9 +1551,11 @@ bool UI_files_reload_menu(UI_Button_Style *button_style, UI_Button_Style *button
 				scan_folder(G->files[G->current_file_index].file.path);
 				metadata->open = false;
 			}
-			if (UI_button(button_style_inside, "shuffle file order")) {
-				shuffle_folder();
-				metadata->open = false;
+			UI_set_disabled_defer(G->scanning_folder) {
+				if (UI_button(button_style_inside, "shuffle file order")) {
+					shuffle_folder();
+					metadata->open = false;
+				}
 			}
 		}
 		popup->style.size[axis_x] = { UI_Size_t::sum_of_children, 1, 1.0f };
