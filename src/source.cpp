@@ -1718,7 +1718,20 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
             G->files[i].loading = false;
             G->files[i].failed = false;
         }
-    }
+    } else {
+		// Fallback when no Explorer window is found (e.g., file opened from Chrome/ShareX)
+		// Still need to set current_file_index by matching filename
+		EnterCriticalSection(&G->id_mutex);
+		for (int i = 0; i < G->files.Count; i++) {
+			if (wcscmp(file_name, G->files[i].file.name) == 0) {
+				G->current_file_index = i;
+				break;
+			}
+			G->files[i].loading = false;
+			G->files[i].failed = false;
+		}
+		LeaveCriticalSection(&G->id_mutex);
+	}
 
 	free(files_in_folder);
 
