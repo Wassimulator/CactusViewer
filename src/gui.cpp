@@ -125,7 +125,7 @@ UI_Theme *UI_get_theme() {
 		themes[UI_Theme_Crimson_Black].neg_btn_2 = 		UI_color4_sld_u32(0x591313ff);
 
 		// light
-																
+
 		themes[UI_Theme_Polar_White].bg_main_0 = 		UI_color4_sld_u32(0xffffffff);
 		themes[UI_Theme_Polar_White].bg_main_1 = 		UI_color4_sld_u32(0xe1d8e3ff);
 		themes[UI_Theme_Polar_White].bg_main_2 = 		UI_color4_sld_u32(0xcdbed0ff);
@@ -173,20 +173,20 @@ void UI_reset_disabled() {
 
 UI_Block* UI_bar(Axis2 axis) {
 	UI_Context *ctx = G->ui;
-	UI_Block *bar = UI_push_block(ctx);                             
-	bar->style.layout.axis = axis;								  
-	bar->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 }; 
-	bar->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 }; 
+	UI_Block *bar = UI_push_block(ctx);
+	bar->style.layout.axis = axis;
+	bar->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
+	bar->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
 	return bar;
 }
 
 UI_Block* UI_text(UI_Color4 color, UI_Font* font, u32 size, char* text, ...) {
 	UI_Context *ctx = G->ui;
 	char string[UI_MAX_STRING_LEN] = {0};
-	va_list args;   
-	va_start(args, text);   
-	vsnprintf(string, ARRAY_SIZE(string), text, args); 
-	va_end(args); 
+	va_list args;
+	va_start(args, text);
+	vsnprintf(string, ARRAY_SIZE(string), text, args);
+	va_end(args);
 
 	UI_Block* content = UI_push_block(ctx);
 	content->style.size[axis_x] = { UI_Size_t::text_content, 0, 1 };
@@ -249,10 +249,10 @@ bool UI_mouse_in_block_force(UI_Block* block) {
 bool UI_button(UI_Button_Style *style, char* name, ...) {
 	UI_Context *ctx = G->ui;
 	char formatted_name[UI_MAX_STRING_LEN] = {0};
-	va_list args;   
-	va_start(args, name);   
-	vsnprintf(formatted_name, ARRAY_SIZE(formatted_name), name, args); 
-	va_end(args); 
+	va_list args;
+	va_start(args, name);
+	vsnprintf(formatted_name, ARRAY_SIZE(formatted_name), name, args);
+	va_end(args);
 
 	UI_Block *box = 0;
 	UI_Block *inner_block = 0;
@@ -276,7 +276,7 @@ bool UI_button(UI_Button_Style *style, char* name, ...) {
 
 	if (style->size.x > 0) box->style.size[axis_x] = {UI_Size_t::pixels, style->size.x, 1};
 	if (style->size.y > 0) box->style.size[axis_y] = {UI_Size_t::pixels, style->size.y, 1};
-//	if (strlen(formatted_name) < 2) 
+//	if (strlen(formatted_name) < 2)
 //		box->style.size[axis_x] = {UI_Size_t::pixels, style->font_size * 2 - box->style.layout.padding.x, 1};
 	inner_block->hash = UI_hash_formatted(ctx, "%s__TEXT__", formatted_name);
 	UI_Color4 color_text;
@@ -308,7 +308,7 @@ bool UI_button(UI_Button_Style *style, char* name, ...) {
 		color_background = prev->style.color[c_background];
 		color_inner_bg = prev_inn->style.color[c_background];
 		color_text = prev_inn->style.color[c_text];
-		if (UI_mouse_in_block(prev) || UI_mouse_in_block(prev_inn)  && !disabled) {
+		if ((UI_mouse_in_block(prev) || UI_mouse_in_block(prev_inn) ) && !disabled) {
 			active = keypress(MouseL);
 			if (keydn(MouseL)) {
 				G->mouse_dn_hash = prev->hash;
@@ -349,11 +349,11 @@ bool UI_checkbox(UI_Checkbox_Style *style, bool *data, char* name, ...) {
 	UI_Context *ctx = G->ui;
 	char formatted_name[UI_MAX_STRING_LEN] = {0};
 	u32 off_mask = 0xFFFFFF00;
-    
-	va_list args;   
-	va_start(args, name);   
-	vsnprintf(formatted_name, ARRAY_SIZE(formatted_name), name, args); 
-	va_end(args); 
+
+	va_list args;
+	va_start(args, name);
+	vsnprintf(formatted_name, ARRAY_SIZE(formatted_name), name, args);
+	va_end(args);
 
 	i32 box_padding = 4;
 
@@ -421,7 +421,7 @@ bool UI_checkbox(UI_Checkbox_Style *style, bool *data, char* name, ...) {
 
 	check_outer_box->style.color[c_border] = UI_animate_color_4(col_check_outer_box, hot, active, disabled,style->color);
 	label->style.color[c_text] = UI_animate_color_4(col_label, hot, active, disabled, style->color_text);
-	dot->style.color[c_background] = 
+	dot->style.color[c_background] =
 		UI_animate_color_4(
 			col_dot, hot, active, disabled,
 			!(*data) ? (style->color.base 		& off_mask) : style->color.base,
@@ -660,7 +660,7 @@ bool UI_color_picker(UI_Color_Picker_Style *style, u32 *color, bool with_alpha, 
 										 | UI_Block_Flags_render_srgb;
 						alpha_box->style.color[c_border] = UI_color4_sld_u32(0xFFFFFFFF);
 						alpha_box->style.border_size = 1;
-				
+
 						alpha_picker = UI_push_block(ctx);
 					}
 				}
@@ -812,14 +812,14 @@ bool UI_color_picker(UI_Color_Picker_Style *style, u32 *color, bool with_alpha, 
 	button->style.color[c_border] = UI_animate_color_4(color_border, hot, active, disabled, style->col_border);
 
 	G->tooltip_block = button;
-		
+
 	return popup_open;
 }
 
 f32 lin_to_log(f32 x, f32 min_val, f32 max_val) {
 	f32 log_min = log(min_val);
 	f32 log_max = log(max_val);
-    
+
 	f32 log_val = x * (log_max - log_min) + log_min;
 
 	return exp(log_val);
@@ -828,7 +828,7 @@ f32 lin_to_log(f32 x, f32 min_val, f32 max_val) {
 f32 log_to_lin(f32 y, f32 min_val, f32 max_val) {
 	f32 log_min = log(min_val);
 	f32 log_max = log(max_val);
-    
+
 	f32 log_val_y = log(y);
 
 	return (log_val_y - log_min) / (log_max - log_min);
@@ -848,7 +848,7 @@ struct UI_Slider_Style {
 
 	bool pad_style;
 	bool logarithmic;
-	
+
 	bool snap;
 	f32 snap_value;
 	f32 snap_range;
@@ -941,9 +941,9 @@ bool UI_slider(UI_Slider_Style* style, Axis2 axis, f32* data, f32 min, f32 max, 
 				if (abs(*data - style->snap_value) < style->snap_range) {
 					*data = style->snap_value;
 				}
-			} 
+			}
 		}
-	} 
+	}
 	if (style->pad_style) {
 		if (style->logarithmic)
 			button->style.position[axis_l] = { UI_Position_t::percent_of_parent, log_to_lin(*data , min, max) * (1 - size_fracture) };
@@ -1029,7 +1029,7 @@ bool UI_slider_fill(UI_Slider_Style* style, Axis2 axis,f32* data, f32 min, f32 m
 		f32 mouse_rel = (UI_get_mouse()[axis_l] - ref->position[axis_l]) / (ref->size[axis_l]);
 		mouse_rel = clamp(mouse_rel, 0, 1);
 		*data = min + (max - min) * mouse_rel;
-	} 
+	}
 
 	button->style.size[axis_l] = { UI_Size_t::percent_of_parent, f32(*data - min) / (max - min)};
 	button->style.position[axis_l] = { UI_Position_t::pixels_from_parent, f32(padding) };
@@ -1058,7 +1058,7 @@ void UI_spacer_ver(f32 pixels = 0) {
 }
 void UI_spacer_hor(f32 pixels = 0) {
 	UI_Context *ctx = G->ui;
-	UI_Block* spacer = UI_push_block(ctx); 
+	UI_Block* spacer = UI_push_block(ctx);
 	if (pixels == 0)
 		spacer->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1, 0 };
 	else
@@ -1067,7 +1067,7 @@ void UI_spacer_hor(f32 pixels = 0) {
 }
 void UI_separator(f32 thickness, UI_Color4 color) {
 	UI_Context *ctx = G->ui;
-	UI_Block* separator = UI_push_block(ctx); 
+	UI_Block* separator = UI_push_block(ctx);
 	separator->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1, 0 };
 	separator->style.size[axis_y] = { UI_Size_t::pixels, thickness, 0 };
 	separator->style.color[c_background] = color;
@@ -1116,7 +1116,7 @@ void UI_tooltip(char* string, u32 time = 30) {
 			}
 		}
 	}
-	
+
 	G->tooltip_block = 0;
 }
 
@@ -1154,7 +1154,7 @@ UI_Combo_Return UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**
 	box->style.roundness = v4(style->roundness);
 	box->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_hit_test;
 	UI_Color4 col_box = box->style.color[c_background] = style->col_box.base;
-	
+
 	UI_push_parent_defer(ctx, box) {
 		//UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 			label_block = UI_text(style->col_text.base, G->ui_font, style->font_size, style->show_selected_item ? items[*index] : label);
@@ -1252,8 +1252,8 @@ UI_Combo_Return UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**
 		if (hot && keydn(MouseL)) {
 			G->mouse_dn_hash = prv_box->hash;
 		}
-		if (hot && G->mouse_dn_hash == prv_box->hash && keydn(MouseL)) { 
-			metadata->open = !metadata->open; 
+		if (hot && G->mouse_dn_hash == prv_box->hash && keydn(MouseL)) {
+			metadata->open = !metadata->open;
 			G->force_loop_frames += 2;
 		}
 		if (!hot && !in_container && keydn(MouseL)) {
@@ -1275,7 +1275,7 @@ UI_Combo_Return UI_combo(UI_Combo_Style* style, char* label,  i32 *index, char**
 	box->style.size[axis_y] = {UI_Size_t::pixels, style->btn_size.y, 1};
 	box->style.layout.align[axis_x] = align_center;
 	box->style.layout.align[axis_y] = align_center;
-	
+
 	box->style.layout.padding = v2(5);
 
 	UI_Color4 col_text = label_block->style.color[c_text];
@@ -1323,7 +1323,7 @@ bool UI_image_edit(UI_Image_Edit_Style *style, char* label) {
 		UI_find_else_allocate_data(ctx, hash, sizeof(UI_Popup_Data)).buffer;
 
 	if (UI_button(&style->button_style, label)) {
-		metadata->open = !metadata->open; 
+		metadata->open = !metadata->open;
 		G->force_loop_frames += 2;
 		spawn_pos = UI_get_mouse();
 	}
@@ -1527,7 +1527,7 @@ bool UI_files_reload_menu(UI_Button_Style *button_style, UI_Button_Style *button
 		UI_find_else_allocate_data(ctx, hash, sizeof(UI_Popup_Data)).buffer;
 
 	if (UI_button(button_style, "...")) {
-		metadata->open = !metadata->open; 
+		metadata->open = !metadata->open;
 		G->force_loop_frames += 2;
 		spawn_pos = UI_get_mouse();
 	}
@@ -1551,9 +1551,11 @@ bool UI_files_reload_menu(UI_Button_Style *button_style, UI_Button_Style *button
 				scan_folder(G->files[G->current_file_index].file.path);
 				metadata->open = false;
 			}
-			if (UI_button(button_style_inside, "shuffle file order")) {
-				shuffle_folder();
-				metadata->open = false;
+			UI_set_disabled_defer(G->scanning_folder) {
+				if (UI_button(button_style_inside, "shuffle file order")) {
+					shuffle_folder();
+					metadata->open = false;
+				}
 			}
 		}
 		popup->style.size[axis_x] = { UI_Size_t::sum_of_children, 1, 1.0f };
@@ -1640,7 +1642,7 @@ bool UI_histogram(UI_Histogram_Style *style, char* label) {
 			}
 		}
 		UI_push_parent_defer(ctx, popup) {
-			UI_text(style->color_text, style->button_style.font, 10, 
+			UI_text(style->color_text, style->button_style.font, 10,
 			        "Use mouse wheel to adjust scale, right click to reset");
 			UI_Block* hframe = UI_push_block(ctx);
 			hframe->style.size[axis_x] = { UI_Size_t::pixels, 258, 1 };

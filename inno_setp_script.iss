@@ -1,6 +1,6 @@
 [Setup]
 AppName=CactusViewer
-AppVersion=2.2.0
+AppVersion=2.2.2
 DefaultDirName={autopf}\CactusViewer
 DefaultGroupName=CactusViewer
 OutputBaseFilename=CactusViewer_Setup
