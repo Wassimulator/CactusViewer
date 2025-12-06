@@ -655,12 +655,14 @@ static void set_to_no_file() {
 }
 
 static void init_all() {
+    DLOG_INIT("init_all START");
     WW  = 700;
     WH = 800;
 
     HINSTANCE hInstance = GetModuleHandle(NULL);
     const char* szTitle = "CactusViewer";
-   
+
+    DLOG_INIT("Registering window class");
     WNDCLASSEX wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
 	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS ;
@@ -692,11 +694,14 @@ static void init_all() {
 
 	SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
+	DLOG_INIT("Starting GDI+");
 	Gdiplus::GdiplusStartupInput gdipsi;
 	ULONG_PTR gdipt;
 	Gdiplus::GdiplusStartup(&gdipt, &gdipsi, NULL);
 
+	DLOG_INIT("Initializing D3D11");
 	init_d3d11(hwnd, WW, WH);
+	DLOG_INIT("Initializing logo image");
 	init_logo_image();
 
 	bg_color[0] = 0.15;
@@ -742,7 +747,8 @@ static void init_all() {
     G->paint_brush_size   = 5.0f;
     G->paint_brush_aa     = true;
     G->paint_mode_toggled = false;
-    
+
+	DLOG_INIT("Loading settings");
 	load_settings();
 
     //	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
@@ -764,12 +770,14 @@ static void init_all() {
 	G->hcursor[(int)Cursor_Type_resize_dl] = LoadCursor(nullptr, IDC_SIZENESW);
 	G->hcursor[(int)Cursor_Type_pen] = LoadCursor(nullptr, MAKEINTRESOURCE(32631));
     G->graphics.main_image.texture.d3d_texture = 0;
-	
+
+    DLOG_INIT("Initializing critical sections");
     InitializeCriticalSection(&G->mutex);
     InitializeCriticalSection(&G->sort_mutex);
     InitializeCriticalSection(&G->thumbs_mutex);
     InitializeCriticalSection(&G->id_mutex);
 
+	DLOG_INIT("Initializing UI context");
 	G->ui = UI_init_context();
 	UI_d3d11_init(G->ui, G->graphics.device, G->graphics.device_ctx);
 	UI_init_platform_win32(G->ui);
@@ -790,10 +798,12 @@ static void init_all() {
     //	#endif
 
 	// just getting the font from the system now:
+	DLOG_INIT("Loading system font");
 	char system_font[512] = {};
 	if (!get_font_file_from_system(system_font, 512, "Segoe UI (TrueType)"))
 		get_font_file_from_system(system_font, 512, "Arial (TrueType)");
-	G->ui_font = UI_load_font_file(G->ui, system_font, 
+    DLOG_INIT("Using font: %s", system_font);
+	G->ui_font = UI_load_font_file(G->ui, system_font,
 								   ascii_start, ascii_end, sizes, array_size(sizes));
 
     //	G->shapes_texture_id = UI_create_texture(G->ui, 
@@ -805,12 +815,14 @@ static void init_all() {
     // CreateThread(NULL, 0, FontLoadThread, NULL, 0, NULL);
 
 	G->force_loop_frames = 2;
+	DLOG_INIT("Creating loader_event");
 	G->loader_event = CreateEvent(
 		NULL,               // default security attributes
 		TRUE,               // manual-reset event; false = auto-reset
 		FALSE,              // initial state is nonsignaled
 		TEXT("loader event")     
 	);
+	DLOG_INIT("Creating folder_scan_event");
 	G->folder_scan_event = CreateEvent(
 		NULL,               // default security attributes
 		TRUE,               // manual-reset event; false = auto-reset
@@ -818,7 +830,9 @@ static void init_all() {
 		TEXT("folder scan event")
 	);
 
+	DLOG_INIT("Setting to no file state");
 	set_to_no_file(); // Initialize with logo dimensions
+    DLOG_INIT("init_all END");
 }
 
 static void push_alert(char *string, Alert_Type type = Alert_Error) {
@@ -827,6 +841,13 @@ static void push_alert(char *string, Alert_Type type = Alert_Error) {
     G->alert.timer = 1;
 	G->alert.type = type;
 	G->force_loop_frames += 310;
+
+    // Always log alerts to debug file
+    if (type == Alert_Error) {
+        DLOG_ERROR("ALERT: %s", string);
+    } else {
+        DLOG_UI("ALERT (info): %s", string);
+    }
 
 #if DEBUG_MODE
 	printf("%s\n",string);
@@ -867,16 +888,23 @@ void calculate_histogram(unsigned char* data, u64 size) {
 }
 
 static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
+    DLOG_LOADER("load_image_pre START - id=%u, dropped=%d", id, dropped);
+    debug_log_wstr("LOADER", "Path", path);
+    
     int w, h, n;
     int result = 0;
     G->files[id].loading = true;
+    DLOG_LOADER("Set files[%u].loading = true", id);
 
     int size = stbi_convert_wchar_to_utf8(0, 0, path);
 	char *filename_utf8 = (char *)malloc(size);
 	stbi_convert_wchar_to_utf8(filename_utf8, size, path);
+    DLOG_LOADER("Calling stbi_load for: %s", filename_utf8);
     unsigned char *data = stbi_load(filename_utf8, &w, &h, &n, 4);
+    DLOG_LOADER("stbi_load returned data=%p, w=%d, h=%d, n=%d", data, w, h, n);
     G->files[id].loading = false;
     if (data == nullptr) {
+        DLOG_ERROR("stbi_load FAILED for id=%u", id);
         push_alert("Loading the file failed");
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
@@ -886,43 +914,58 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
         set_to_no_file();
     } else {
         if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
+            DLOG_ERROR("Image too large: %dx%d, MAX_GPU=%d", w, h, G->graphics.MAX_GPU);
             push_alert("Image is too large.");
         }
         else {
+            DLOG_MUTEX("Entering G->mutex for load_image_pre");
             EnterCriticalSection(&G->mutex);
+            DLOG_LOADER("id=%u, current_file_index=%u, match=%d", id, G->current_file_index, id == G->current_file_index);
             if (id == G->current_file_index) {
                 G->graphics.main_image.w = w;
                 G->graphics.main_image.h = h;
                 G->graphics.main_image.n = n;
 				if (G->graphics.main_image.data) {
+                    DLOG_LOADER("Freeing old main_image.data");
 					wfree(G->graphics.main_image.data);
 					G->graphics.main_image.data = 0;
 				}
                 G->graphics.main_image.data = data;
+                DLOG_SIGNAL("Sending init_step_2 signal");
                 send_signal(G->signals.init_step_2);
             }
             else {
+                DLOG_LOADER("id mismatch, freeing data (stale load)");
                 free(data);
             }
             LeaveCriticalSection(&G->mutex);
+            DLOG_MUTEX("Left G->mutex for load_image_pre");
             result = 1;
         }
     }
+    DLOG_LOADER("load_image_pre END - result=%d", result);
     return result;
 }
 
 static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* file_data) {
+    DLOG_WIC("load_image_wic_pre START - id=%u, dropped=%d", id, dropped);
+    debug_log_wstr("WIC", "Path", path);
+    
     u32 w, h;
     int result = 0;
     G->files[id].loading = true;
+    DLOG_WIC("Set files[%u].loading = true", id);
+    
 	IWICBitmapDecoder* decoder = NULL;
 	IWICBitmapFrameDecode* frame = NULL;
 	IWICFormatConverter* converter = NULL;
 
 	// Initialize the COM library
+    DLOG_WIC("Calling CoInitialize");
 	CoInitialize(NULL);
 
 	// Create WIC factory
+    DLOG_WIC("Creating WIC factory");
 	err(CoCreateInstance(CLSID_WICImagingFactory,
 	                     NULL,
 	                     CLSCTX_INPROC_SERVER,
@@ -930,17 +973,23 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 	                     (LPVOID*) & G->wic_factory));
 
 	unsigned char *data = 0;
+    DLOG_WIC("Creating decoder from filename");
 	HRESULT hr = G->wic_factory->CreateDecoderFromFilename(path, NULL, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder);
-	if(SUCCEEDED(hr)) hr = decoder->GetFrame(0, &frame);
-	if(SUCCEEDED(hr)) hr =G->wic_factory->CreateFormatConverter(&converter);
-	if(SUCCEEDED(hr)) hr = converter->Initialize(frame, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, NULL, 0.0, WICBitmapPaletteTypeCustom);
+    DLOG_WIC("CreateDecoderFromFilename hr=0x%08X", hr);
+	if(SUCCEEDED(hr)) { hr = decoder->GetFrame(0, &frame); DLOG_WIC("GetFrame hr=0x%08X", hr); }
+	if(SUCCEEDED(hr)) { hr = G->wic_factory->CreateFormatConverter(&converter); DLOG_WIC("CreateFormatConverter hr=0x%08X", hr); }
+	if(SUCCEEDED(hr)) { hr = converter->Initialize(frame, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, NULL, 0.0, WICBitmapPaletteTypeCustom); DLOG_WIC("Converter Initialize hr=0x%08X", hr); }
 	if (SUCCEEDED(hr)) {
 		converter->GetSize(&w, &h);
+        DLOG_WIC("Image size: %ux%u", w, h);
 		data = (unsigned char *)walloc(w * h * 4);
+        DLOG_WIC("Allocated buffer, calling CopyPixels");
 		converter->CopyPixels(NULL, w * 4, w * h * 4, data);
+        DLOG_WIC("CopyPixels completed");
 
 		// expensive, but requested:
 		if (G->settings_exif) {
+            DLOG_WIC("Reading EXIF data");
 			FILE* temp_file = _wfopen(path, L"rb");
 			if (temp_file) {
 				fseek(temp_file, 0, SEEK_END);
@@ -952,7 +1001,9 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 				int exif_result = G->graphics.main_image.exif_info.parseFrom(file_data, file_size);
 				free(file_data);
 				G->graphics.main_image.has_exif = exif_result == PARSE_EXIF_SUCCESS;
+                DLOG_WIC("EXIF parse result: %d, has_exif=%d", exif_result, G->graphics.main_image.has_exif);
 				if (G->graphics.main_image.has_exif) {
+                    DLOG_WIC("EXIF Orientation: %d", G->graphics.main_image.exif_info.Orientation);
 					switch (G->graphics.main_image.exif_info.Orientation) {
 						case 3:
 							G->graphics.main_image.orientation = 2; break;
@@ -967,7 +1018,9 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 		}
 	}
 	G->files[id].loading = false;
+    DLOG_WIC("Set files[%u].loading = false", id);
 	if (FAILED(hr) || data == 0) {
+        DLOG_ERROR("WIC loading FAILED: hr=0x%08X, data=%p", hr, data);
 		if (hr == WINCODEC_ERR_COMPONENTNOTFOUND) {
 			push_alert(UI_sprintf(&G->ui->strings, "Component not found: File type '%s' not supported.", UI_sprintf(&G->ui->strings, "%S", file_data->file.ext)));
 		} else if (hr == WINCODEC_ERR_COMPONENTINITIALIZEFAILURE) {
@@ -983,6 +1036,7 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 				MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 				(LPSTR) & lpMsgBuf,
 				0, NULL);
+            DLOG_ERROR("WIC error message: %s", (char*)lpMsgBuf);
 			push_alert((char*)lpMsgBuf);
 			LocalFree(lpMsgBuf);
 		}
@@ -994,9 +1048,12 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
         set_to_no_file();
     } else {
         if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
+            DLOG_ERROR("Image too large: %ux%u, MAX_GPU=%d", w, h, G->graphics.MAX_GPU);
             push_alert("Image is too large.");
         } else {
+            DLOG_MUTEX("Entering G->mutex for load_image_wic_pre");
             EnterCriticalSection(&G->mutex);
+            DLOG_WIC("id=%u, current_file_index=%u, match=%d", id, G->current_file_index, id == G->current_file_index);
             if (id == G->current_file_index) {
                 G->graphics.main_image.w = w;
                 G->graphics.main_image.h = h;
@@ -1006,23 +1063,29 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 			//		G->graphics.main_image.data = 0;
 			//	}
 				G->graphics.main_image.data = data;
+                DLOG_WIC("Calculating histogram");
 				calculate_histogram(data, w * h * 4);
+                DLOG_SIGNAL("Sending init_step_2 signal");
                 send_signal(G->signals.init_step_2);
             } else {
+                DLOG_WIC("id mismatch, freeing data (stale load)");
                 wfree(data);
             }
             LeaveCriticalSection(&G->mutex);
+            DLOG_MUTEX("Left G->mutex for load_image_wic_pre");
 			result = 1;
         }
     }
 
 	cleanup:
+    DLOG_WIC("Cleanup: releasing WIC objects");
 
 	if (frame) frame->Release();
 	if (decoder) decoder->Release();
 	if (converter) converter->Release();
 	CoUninitialize();
 
+    DLOG_WIC("load_image_wic_pre END - result=%d", result);
     return result;
 }
 
@@ -1035,32 +1098,43 @@ static void unload_anim_image() {
 }
 
 static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
+    DLOG_WEBP("load_webp_pre START - id=%u, dropped=%d", id, dropped);
+    debug_log_wstr("WEBP", "Path", path);
+    
     int w, h;
     int result = 0;
     int size = stbi_convert_wchar_to_utf8(0, 0, path);
 	char *filename_utf8 = (char *)malloc(size);
 	stbi_convert_wchar_to_utf8(filename_utf8, size, path);
 	// Read the WebP file into memory.
+    DLOG_WEBP("Opening file: %s", filename_utf8);
 	FILE* file = _wfopen(path, L"rb");
 	if (!file) {
+        DLOG_ERROR("Failed to open WebP file");
 		perror("Failed to open file");
 		return result;
 	}
 	fseek(file, 0, SEEK_END);
 	size_t file_size = ftell(file);
 	fseek(file, 0, SEEK_SET);
+    DLOG_WEBP("File size: %zu bytes", file_size);
 	uint8_t* file_data = (uint8_t*)malloc(file_size);
 	fread(file_data, 1, file_size, file);
 	fclose(file);
 
 	WebPBitstreamFeatures features;
 	WebPGetFeatures(file_data, file_size, &features);
+    DLOG_WEBP("WebP features: has_animation=%d, width=%d, height=%d", 
+              features.has_animation, features.width, features.height);
 
 	if (!features.has_animation) {
+        DLOG_WEBP("Loading static WebP");
 		G->files[id].loading = true;
 		unsigned char *data = WebPDecodeRGBA(file_data, file_size, &w, &h);
+        DLOG_WEBP("WebPDecodeRGBA returned data=%p, w=%d, h=%d", data, w, h);
 		G->files[id].loading = false;
 		if (data == nullptr) {
+            DLOG_ERROR("WebPDecodeRGBA FAILED");
 			push_alert("Loading the file failed");
 			G->files[G->current_file_index].failed = true;
 			G->loaded = true;
@@ -1070,10 +1144,13 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			set_to_no_file();
 		} else {
 			if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
+                DLOG_ERROR("WebP image too large: %dx%d", w, h);
 				push_alert("Image is too large.");
 			}
 			else {
+                DLOG_MUTEX("Entering G->mutex for load_webp_pre (static)");
 				EnterCriticalSection(&G->mutex);
+                DLOG_WEBP("id=%u, current_file_index=%u, match=%d", id, G->current_file_index, id == G->current_file_index);
 				if (id == G->current_file_index) {
 					G->graphics.main_image.w = w;
 					G->graphics.main_image.h = h;
@@ -1084,21 +1161,29 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 					//}
 					G->graphics.main_image.data = data;
 					calculate_histogram(data, w * h * 4);
+                    DLOG_SIGNAL("Sending init_step_2 signal");
 					send_signal(G->signals.init_step_2);
 				} else {
+                    DLOG_WEBP("id mismatch, freeing data (stale load)");
 					wfree(data);
 				}
 				LeaveCriticalSection(&G->mutex);
+                DLOG_MUTEX("Left G->mutex for load_webp_pre (static)");
 				result = 1;
 			}
 		}
 	} else {
+        DLOG_ANIM("Loading animated WebP");
 		unload_anim_image();
 		WebPData webp_data = { file_data, file_size };
 		Animated_Image webp_anim_image;
 		*type = TYPE_WEBP_ANIM;
 
+        DLOG_ANIM("Calling webp_anim_read_file");
 		if (webp_anim_read_file(&webp_data, &webp_anim_image)) {
+            DLOG_ANIM("Animated WebP loaded: %dx%d, %d frames", 
+                      webp_anim_image.canvas_width, webp_anim_image.canvas_height, webp_anim_image.num_frames);
+            DLOG_MUTEX("Entering G->mutex for load_webp_pre (animated)");
 			EnterCriticalSection(&G->mutex);
 			G->graphics.main_image.w = webp_anim_image.canvas_width;
 			G->graphics.main_image.h = webp_anim_image.canvas_height;
@@ -1109,12 +1194,16 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			G->anim_index = 0;
 			G->anim_play = G->settings_autoplayGIFs;
 
-			if (id != G->current_file_index)
+			if (id != G->current_file_index) {
+                DLOG_ANIM("id mismatch, unloading animated image");
 				unload_anim_image();
-			else
+			} else {
+                DLOG_SIGNAL("Sending init_step_2 signal");
 				send_signal(G->signals.init_step_2);
+			}
 			result = 1;
 		} else {
+            DLOG_ERROR("webp_anim_read_file FAILED");
 			push_alert("Loading animated WebP file failed");
 			G->files[G->current_file_index].failed = true;
 			G->loaded = true;
@@ -1123,14 +1212,19 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			set_to_no_file();
 		}
 		LeaveCriticalSection(&G->mutex);
+        DLOG_MUTEX("Left G->mutex for load_webp_pre (animated)");
 
 	}
 	free(file_data);
 	free(filename_utf8);
+    DLOG_WEBP("load_webp_pre END - result=%d", result);
     return result;
 }
 
 static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
+    DLOG_LOADER("load_ppm_pre START - id=%u, dropped=%d", id, dropped);
+    debug_log_wstr("LOADER", "Path", path);
+    
 	int result = 0;
 	unsigned int width = 0;
 	unsigned int height = 0;
@@ -1142,10 +1236,13 @@ static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 	size_t cur_write = 0;
 	FILE* f = NULL;
 	G->files[id].loading = true;
+    DLOG_LOADER("Set files[%u].loading = true", id);
 	if (!(f = _wfopen(path, L"rb"))) {
+        DLOG_ERROR("Failed to open PPM file");
 		goto cleanup;
 	}
 	if (!fgets(header, sizeof(header), f) || strncmp(header, "P6\n", 3)) {
+        DLOG_ERROR("Invalid PPM header: %s", header);
 		goto cleanup;
 	}
 	// Skip header comments
@@ -1154,9 +1251,12 @@ static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 	}
 	fseek(f, -1, SEEK_CUR);
 	if (fscanf(f, "%u %u\n", &width, &height) < 2) {
+        DLOG_ERROR("Failed to read PPM dimensions");
 		goto cleanup;
 	}
+    DLOG_LOADER("PPM dimensions: %ux%u", width, height);
 	if (fscanf(f, "%u", &depth) < 1 || depth != 255) {
+        DLOG_ERROR("Invalid PPM depth: %u", depth);
 		goto cleanup;
 	}
 	fseek(f, 1, SEEK_CUR);
@@ -1164,9 +1264,11 @@ static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 	for (size_t i = 0; i < width * height * 4; ++i) {
 		data[i] = 0xFF;
 	}
+    DLOG_LOADER("Converting RGB to RGBA");
 	// RRGGBB -> RRGGBBAA
 	while ((block_read = fread(block, 1, sizeof(block), f)) > 0) {
 		if (block_read % 3 != 0 || cur_write + (block_read / 3 * 4) > width * height * 4) {
+            DLOG_ERROR("PPM data read error");
 			goto cleanup;
 		}
 		for (size_t i = 0; i < block_read / 3; ++i) {
@@ -1177,11 +1279,15 @@ static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 		}
 	}
 	G->files[id].loading = false;
+    DLOG_LOADER("Set files[%u].loading = false", id);
 	if (width > G->graphics.MAX_GPU || height > G->graphics.MAX_GPU) {
+        DLOG_ERROR("PPM image too large: %ux%u", width, height);
 		push_alert("Image is too large.");
 		goto cleanup;
 	}
+    DLOG_MUTEX("Entering G->mutex for load_ppm_pre");
 	EnterCriticalSection(&G->mutex);
+    DLOG_LOADER("id=%u, current_file_index=%u, match=%d", id, G->current_file_index, id == G->current_file_index);
 	if (id == G->current_file_index) {
 		G->graphics.main_image.w = width;
 		G->graphics.main_image.h = height;
@@ -1195,15 +1301,19 @@ static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 		}
 #endif
 		G->graphics.main_image.data = data;
+        DLOG_SIGNAL("Sending init_step_2 signal");
 		send_signal(G->signals.init_step_2);
 	} else {
+        DLOG_LOADER("id mismatch, freeing data (stale load)");
 		wfree(data);
 	}
 	LeaveCriticalSection(&G->mutex);
+    DLOG_MUTEX("Left G->mutex for load_ppm_pre");
 	result = 1;
     cleanup:
 	// if (data) free(data);
 	if (f) fclose(f);
+    DLOG_LOADER("load_ppm_pre END - result=%d", result);
 	return result;
 }
 
@@ -1223,18 +1333,26 @@ void save_PPM() {
 }
 
 static int load_GIF_pre(wchar_t *File, u32 id, bool dropped) {
+    DLOG_GIF("load_GIF_pre START - id=%u, dropped=%d", id, dropped);
+    debug_log_wstr("GIF", "Path", File);
+    
     int w, h;
     int frames;
     int *delays;
     int result = 0;
 
+    DLOG_GIF("Unloading previous animation");
     unload_anim_image();
 
     G->files[id].loading = true;
+    DLOG_GIF("Set files[%u].loading = true", id);
+    DLOG_GIF("Calling stbi_xload_file");
     unsigned char *data = stbi_xload_file(File, &w, &h, &frames, &delays);
+    DLOG_GIF("stbi_xload_file returned data=%p, w=%d, h=%d, frames=%d", data, w, h, frames);
     G->files[id].loading = false;
 
     if (data != nullptr) {
+        DLOG_GIF("GIF loaded successfully: %dx%d, %d frames", w, h, frames);
         G->graphics.main_image.w = w;
         G->graphics.main_image.h = h;
         G->anim_frames = frames;
@@ -1244,12 +1362,17 @@ static int load_GIF_pre(wchar_t *File, u32 id, bool dropped) {
         G->anim_index = 0;
         G->anim_play = G->settings_autoplayGIFs;
 
-        if (id != G->current_file_index)
+        DLOG_GIF("id=%u, current_file_index=%u, match=%d", id, G->current_file_index, id == G->current_file_index);
+        if (id != G->current_file_index) {
+            DLOG_GIF("id mismatch, unloading animation");
             unload_anim_image();
-        else
+        } else {
+            DLOG_SIGNAL("Sending init_step_2 signal");
             send_signal(G->signals.init_step_2);
+        }
         result = 1;
     } else {
+        DLOG_ERROR("stbi_xload_file FAILED for GIF");
         push_alert("Loading GIF file failed");
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
@@ -1257,6 +1380,7 @@ static int load_GIF_pre(wchar_t *File, u32 id, bool dropped) {
             //reset_to_no_folder();
         set_to_no_file();
     }
+    DLOG_GIF("load_GIF_pre END - result=%d", result);
     return result;
 }
 
@@ -1396,23 +1520,41 @@ static void apply_settings() {
 }
 #include <d3d11.h>
 static void load_image_post() {
+    DLOG_IMAGE("load_image_post START");
+    DLOG_IMAGE("current_file_index=%u, file_type=%d", G->current_file_index, G->files[G->current_file_index].type);
+    
     if (G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM) {
-		if (G->anim_texture.d3d_texture != 0)
+        DLOG_ANIM("Processing animated image (GIF or animated WebP)");
+		if (G->anim_texture.d3d_texture != 0) {
+            DLOG_D3D("Releasing old anim_texture");
 			G->anim_texture.d3d_texture->Release();
-		if (G->anim_texture.d3d_texture == 0)
+        }
+		if (G->anim_texture.d3d_texture == 0) {
+            DLOG_IMAGE("Calling refresh_display for animation");
             refresh_display();
+        }
 
-		G->anim_texture = create_texture(G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4, 
+        DLOG_D3D("Creating animation texture %dx%d", G->graphics.main_image.w, G->graphics.main_image.h);
+		G->anim_texture = create_texture(G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4,
 		                                G->graphics.main_image.w, G->graphics.main_image.h, true);
+        DLOG_D3D("Animation texture created: d3d_texture=%p", G->anim_texture.d3d_texture);
     } else {
-		if (G->graphics.main_image.texture.d3d_texture != 0)
+        DLOG_IMAGE("Processing static image");
+		if (G->graphics.main_image.texture.d3d_texture != 0) {
+            DLOG_D3D("Releasing old main_image.texture");
 			G->graphics.main_image.texture.d3d_texture->Release();
+        }
 
-		if (G->graphics.main_image.texture.d3d_texture == 0)
+		if (G->graphics.main_image.texture.d3d_texture == 0) {
+            DLOG_IMAGE("Calling refresh_display for static image");
             refresh_display();
+        }
 
+        DLOG_D3D("Creating main texture %dx%d", G->graphics.main_image.w, G->graphics.main_image.h);
 		G->graphics.main_image.texture = create_texture(G->graphics.main_image.data, G->graphics.main_image.w, G->graphics.main_image.h, false);
+        DLOG_D3D("Main texture created: d3d_texture=%p", G->graphics.main_image.texture.d3d_texture);
 		if (G->graphics.main_image.data) {
+            DLOG_IMAGE("Freeing main_image.data after texture upload");
 			wfree(G->graphics.main_image.data);
 			//SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
 			G->graphics.main_image.data = 0;
@@ -1423,11 +1565,13 @@ static void load_image_post() {
     G->graphics.main_image.frac1 = frac.n1;
     G->graphics.main_image.frac2 = frac.n2;
     G->graphics.main_image.aspect_ratio = (float)frac.n1 / frac.n2;
+    DLOG_IMAGE("Aspect ratio: %d:%d = %f", frac.n1, frac.n2, G->graphics.main_image.aspect_ratio);
 
     wchar_t title[512];
     swprintf(title, array_size(title), L"CactusViewer %hs - %ws", VERSION, G->files[G->current_file_index].file.name);
     SetWindowTextW(hwnd, title);
 
+    DLOG_IMAGE("Applying settings");
     apply_settings();
     
     {
@@ -1486,25 +1630,57 @@ static void load_image_post() {
         G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_uav, c);
         G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_preview_uav, c);
     }
+    DLOG_IMAGE("load_image_post END");
 }
 
 DWORD WINAPI loader_thread(LPVOID lpParam) {
+    DLOG_THREAD("loader_thread STARTED");
+    DLOG_MUTEX("Entering G->id_mutex for loader_thread");
 	EnterCriticalSection(&G->id_mutex);
     Loader_Thread_Inputs *inputs = (Loader_Thread_Inputs *)lpParam;
+    DLOG_THREAD("Loader thread inputs: id=%u, dropped=%d, type=%d", 
+                inputs->id, inputs->dropped, inputs->file_data->type);
+    debug_log_wstr("THREAD", "File path", inputs->file_data->file.path);
+    
 	G->alert.timer = 0;
 	G->graphics.main_image.has_exif = 0;
 	G->graphics.main_image.orientation = 0;
+    DLOG_THREAD("files[%u].loading=%d", inputs->id, G->files[inputs->id].loading);
     if (!G->files[inputs->id].loading) {
+        DLOG_LOADER("Dispatching to loader based on type=%d", inputs->file_data->type);
 		switch (inputs->file_data->type) {
-			case TYPE_STB_IMAGE:  	load_image_pre(inputs->file_data->file.path, inputs->id, inputs->dropped); 							break;
-			case TYPE_GIF: 			load_GIF_pre(inputs->file_data->file.path, inputs->id, inputs->dropped); 							break;
-			case TYPE_WEBP: 		load_webp_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, &inputs->file_data->type); break;
-			case TYPE_PPM: 			load_ppm_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, &inputs->file_data->type); break;
-			case TYPE_MISC: 		load_image_wic_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, inputs->file_data); 	break;
+			case TYPE_STB_IMAGE:  	
+                DLOG_LOADER("Calling load_image_pre (TYPE_STB_IMAGE)");
+                load_image_pre(inputs->file_data->file.path, inputs->id, inputs->dropped); 							
+                break;
+			case TYPE_GIF: 			
+                DLOG_LOADER("Calling load_GIF_pre (TYPE_GIF)");
+                load_GIF_pre(inputs->file_data->file.path, inputs->id, inputs->dropped); 							
+                break;
+			case TYPE_WEBP: 		
+                DLOG_LOADER("Calling load_webp_pre (TYPE_WEBP)");
+                load_webp_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, &inputs->file_data->type); 
+                break;
+			case TYPE_PPM: 			
+                DLOG_LOADER("Calling load_ppm_pre (TYPE_PPM)");
+                load_ppm_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, &inputs->file_data->type); 
+                break;
+			case TYPE_MISC: 		
+                DLOG_LOADER("Calling load_image_wic_pre (TYPE_MISC)");
+                load_image_wic_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, inputs->file_data); 	
+                break;
+            default:
+                DLOG_ERROR("Unknown file type: %d", inputs->file_data->type);
+                break;
 		}
+    } else {
+        DLOG_THREAD("Skipping load - file already loading");
     }
 	LeaveCriticalSection(&G->id_mutex);
+    DLOG_MUTEX("Left G->id_mutex for loader_thread");
+    DLOG_THREAD("Setting loader_event");
 	SetEvent(G->loader_event);
+    DLOG_THREAD("loader_thread ENDED");
     return 0;
 }
 
@@ -1692,8 +1868,11 @@ struct Folder_Sort_Thread_data {
 };
 
 DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
+    DLOG_SORT("folder_sort_thread STARTED");
+    DLOG_MUTEX("Entering G->sort_mutex");
     EnterCriticalSection(&G->sort_mutex);
     G->sorting = true;
+    DLOG_SORT("G->sorting = true");
 
     // Reset globals at the start to prevent use-after-free
     files_in_folder = NULL;
@@ -1703,13 +1882,20 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 
     wchar_t *file_path = data->path;
     wchar_t *file_name = data->FileName;
+    debug_log_wstr("SORT", "file_path", file_path);
+    debug_log_wstr("SORT", "file_name", file_name);
+    
 	wchar_t path_buffer[MAX_PATH + 4];
     static int index_in_folder;
-    
+
+    DLOG_SORT("Initializing COM and ShellWindows");
 	IShellWindows *shellWindows = NULL;
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-	if (S_OK != CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **) &shellWindows)) return 0;
-	
+	if (S_OK != CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **) &shellWindows)) {
+        DLOG_ERROR("Failed to create ShellWindows instance");
+        return 0;
+    }
+
 	IDispatch *dispatch = NULL;
 	VARIANT v  {};
 	V_VT(&v) = VT_I4;
@@ -1778,29 +1964,38 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 	
 	shellWindows->Release();
 
+    DLOG_SORT("ShellWindows released, files_in_folder=%p, items_in_folder=%d", files_in_folder, items_in_folder);
 	if (files_in_folder) {
-    
+        DLOG_SORT("Processing %d items from Explorer window", items_in_folder);
+
         for(int i = 0; i < items_in_folder; i++) {
 			get_c(files_in_folder[i].wpath, files_in_folder[i].path);
         }
 
+        DLOG_SORT("Calling sort_folder");
         sort_folder();
+        DLOG_SORT("sort_folder completed");
 
         for (int i = 0; i < G->files.Count; i++) {
             if (wcscmp(file_name, G->files[i].file.name) == 0) {
+                DLOG_SORT("Found matching file at index %d", i);
+                DLOG_MUTEX("Entering G->id_mutex for sort");
 				EnterCriticalSection(&G->id_mutex);
                 G->current_file_index = i;
 				LeaveCriticalSection(&G->id_mutex);
+                DLOG_MUTEX("Left G->id_mutex for sort");
 			}
             G->files[i].loading = false;
             G->files[i].failed = false;
         }
     } else {
 		// Fallback when no Explorer window is found (e.g., file opened from Chrome/ShareX)
+        DLOG_SORT("No Explorer window found, using fallback");
 		// Still need to set current_file_index by matching filename
 		EnterCriticalSection(&G->id_mutex);
 		for (int i = 0; i < G->files.Count; i++) {
 			if (wcscmp(file_name, G->files[i].file.name) == 0) {
+                DLOG_SORT("Found matching file at index %d (fallback)", i);
 				G->current_file_index = i;
 				break;
     } 
@@ -1810,17 +2005,21 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 		LeaveCriticalSection(&G->id_mutex);
 	}
 
+    DLOG_SORT("Freeing files_in_folder");
 	free(files_in_folder);
 
     free(data->FileName);
     free(data->path);
     G->sorting = false;
     LeaveCriticalSection(&G->sort_mutex);
+    DLOG_MUTEX("Left G->sort_mutex");
 	CoUninitialize();
+    DLOG_SORT("folder_sort_thread ENDED");
     return 0;
 }
 
 DWORD WINAPI thumbs_thread(LPVOID lpParam) {
+    DLOG_THUMB("thumbs_thread STARTED");
 
 	IWICImagingFactory* pFactory = nullptr;
 	IWICBitmapScaler* pScaler = nullptr;
@@ -1834,15 +2033,19 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 
 	i32 index_pro = clamp(G->current_file_index, 0, max(0, G->files.Count - 1));
 	i32 index_retro = clamp(G->current_file_index - 1, 0, max(0, G->files.Count - 1));
+    DLOG_THUMB("Starting from index_pro=%d, index_retro=%d, files.Count=%u", index_pro, index_retro, G->files.Count);
 
 	//for (int i = 0; i < G->files.Count; i++)
 	bool turn_pro = 0;
 	while(true)
 	{
 		// Check for abort signal before starting work
-		if(G->signals.new_folder)
+		if(G->signals.new_folder) {
+            DLOG_THUMB("Aborting: new_folder signal detected");
 			break;
+        }
 
+        DLOG_MUTEX("Entering G->thumbs_mutex");
 		EnterCriticalSection(&G->thumbs_mutex);
 
 		// Re-check after acquiring mutex
@@ -1947,22 +2150,28 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 
 		// Mark thumb as loaded (still under mutex protection)
 		if (i >= 0 && i < G->files.Count) {
-		G->files[i].thumb_loaded = true;
+			G->files[i].thumb_loaded = true;
+            DLOG_THUMB("Marked file[%d].thumb_loaded = true", i);
 		}
 
 		// Check termination conditions while still under mutex
 		bool should_break = (index_pro > G->files.Count - 1 && index_retro < 0) || G->signals.new_folder;
 		LeaveCriticalSection(&G->thumbs_mutex);
+        DLOG_MUTEX("Left G->thumbs_mutex");
 
-		if (should_break)
+		if (should_break) {
+            DLOG_THUMB("Breaking: index_pro=%d, index_retro=%d, new_folder=%d", index_pro, index_retro, G->signals.new_folder);
 			break;
+        }
 	}
 
+    DLOG_THUMB("Cleaning up WIC objects");
 	if (pClipper) pClipper->Release();
 	if (pScaler) pScaler->Release();
 	if (pFactory) pFactory->Release();
 	CoUninitialize();
 
+    DLOG_THUMB("thumbs_thread ENDED");
     return 0;
 }
 
@@ -2006,10 +2215,14 @@ struct Folder_Scan_Thread_Data {
 static Folder_Scan_Thread_Data folder_scan_data;
 
 DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
+    DLOG_SCAN("folder_scan_thread STARTED");
 	Folder_Scan_Thread_Data *data = (Folder_Scan_Thread_Data *)lpParam;
 	wchar_t *full_path = data->full_path;
 	wchar_t *filename = data->filename;
+    debug_log_wstr("SCAN", "full_path", full_path);
+    debug_log_wstr("SCAN", "filename", filename);
 	G->scanning_folder = true;
+    DLOG_SCAN("G->scanning_folder = true");
 
 	int len = wcslen(full_path);
 	int newlen = len;
@@ -2023,8 +2236,10 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 	wchar_t *BasePath = (wchar_t *)malloc((newlen + 1) * sizeof(wchar_t));
 	memcpy(BasePath, full_path, newlen * sizeof(wchar_t));
 	BasePath[newlen] = L'\0';
+    debug_log_wstr("SCAN", "BasePath", BasePath);
 
 	if (!is_valid_windows_path(BasePath)) {
+        DLOG_ERROR("Invalid Windows path");
 		free(BasePath);
 		G->scanning_folder = false;
 		if (G->folder_scan_event) SetEvent(G->folder_scan_event);
@@ -2032,15 +2247,20 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 	}
 
 	cf_dir_t dir;
+    DLOG_SCAN("Opening directory");
 	cf_dir_open(&dir, BasePath);
+    DLOG_SIGNAL("Sending new_folder signal");
 	send_signal(G->signals.new_folder);
+    DLOG_MUTEX("Entering G->thumbs_mutex for folder_scan");
 	EnterCriticalSection(&G->thumbs_mutex);
 
 	File_Data current_file_state = {0};
 	bool had_current_file = G->files.Count > 0;
 	if (had_current_file) current_file_state = G->files[0];
+    DLOG_SCAN("Resetting files array, had_current_file=%d", had_current_file);
 	G->files.reset_count();
 
+    int files_found = 0;
 	while (dir.has_next) {
 		cf_file_t file_0;
 		cf_read_file(&dir, &file_0);
@@ -2057,21 +2277,26 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 		*file = file_0;
 		stbi_convert_wchar_to_utf8(file->name_utf8, 1024, file->name);
 		cf_dir_next(&dir);
+        files_found++;
 	}
 	cf_dir_close(&dir);
+    DLOG_SCAN("Found %d valid files", files_found);
 
 	if (!G->sorting && G->settings_sort) {
+        DLOG_SORT("Starting folder sort");
 		sort_data.FileName = (wchar_t*)malloc((wcslen(filename) + 1) * sizeof(wchar_t));
 		memcpy(sort_data.FileName, filename, (wcslen(filename) + 1) * sizeof(wchar_t));
 		sort_data.path = (wchar_t*)malloc((wcslen(full_path) + 1) * sizeof(wchar_t));
 		memcpy(sort_data.path, full_path, (wcslen(full_path) + 1) * sizeof(wchar_t));
 		folder_sort_thread((LPVOID)&sort_data);
 	} else {
+        DLOG_SCAN("Skipping sort, finding current file index manually");
 		EnterCriticalSection(&G->id_mutex);
 		G->current_file_index = 0;
 		for (int i = 0; i < G->files.Count; i++) {
 			if (wcscmp(filename, G->files[i].file.name) == 0) {
 				G->current_file_index = i;
+                DLOG_SCAN("Found current file at index %d", i);
 				break;
 			}
 		}
@@ -2080,6 +2305,7 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 
 	// Restore view state of the immediately-loaded file
 	if (had_current_file && G->current_file_index < G->files.Count) {
+        DLOG_SCAN("Restoring view state for current file");
 		EnterCriticalSection(&G->id_mutex);
 		G->files[G->current_file_index].scaled = current_file_state.scaled;
 		G->files[G->current_file_index].scale = current_file_state.scale;
@@ -2088,27 +2314,46 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 	}
 
 	LeaveCriticalSection(&G->thumbs_mutex);
+    DLOG_MUTEX("Left G->thumbs_mutex for folder_scan");
 	free(BasePath);
 	free(data->full_path);
 	free(data->filename);
 	G->scanning_folder = false;
 	G->signals.new_folder = false;
+    DLOG_SCAN("G->scanning_folder = false");
 
-	if (G->settings_preview_thumbs)
+	if (G->settings_preview_thumbs) {
+        DLOG_THUMB("Creating thumbs_thread");
 		CreateThread(NULL, 0, thumbs_thread, 0, 0, NULL);
+    }
 	if (G->folder_scan_event) SetEvent(G->folder_scan_event);
+    DLOG_SCAN("folder_scan_thread ENDED");
 	return 0;
 }
 
 static bool load_image_immediate(wchar_t *full_path) {
-	if (!full_path || PathIsDirectoryW(full_path)) return false;
+    DLOG_FILE("load_image_immediate START");
+    debug_log_wstr("FILE", "full_path", full_path);
+    
+	if (!full_path || PathIsDirectoryW(full_path)) {
+        DLOG_ERROR("Invalid path or is directory");
+        return false;
+    }
 
 	File_Data temp_file;
-	if (!create_file_data_from_path(full_path, &temp_file)) return false;
+    DLOG_FILE("Creating file data from path");
+	if (!create_file_data_from_path(full_path, &temp_file)) {
+        DLOG_ERROR("create_file_data_from_path failed");
+        return false;
+    }
+    DLOG_FILE("File type: %d", temp_file.type);
 
+    DLOG_SIGNAL("Sending new_folder signal");
 	send_signal(G->signals.new_folder);
+    DLOG_MUTEX("Entering G->thumbs_mutex for immediate load");
 	EnterCriticalSection(&G->thumbs_mutex);
 
+    DLOG_FILE("Resetting files array and adding temp_file");
 	G->files.reset_count();
 	G->files.push_back(temp_file);
 	G->current_file_index = 0;
@@ -2120,25 +2365,36 @@ static bool load_image_immediate(wchar_t *full_path) {
 	G->pending_folder_scan_path = (wchar_t*)malloc((path_len + 1) * sizeof(wchar_t));
 	memcpy(G->pending_folder_scan_path, full_path, (path_len + 1) * sizeof(wchar_t));
 	G->pending_folder_scan = true;
+    DLOG_FILE("Set pending_folder_scan = true");
 	G->signals.new_folder = false;
 
 	LeaveCriticalSection(&G->thumbs_mutex);
+    DLOG_MUTEX("Left G->thumbs_mutex for immediate load");
 
+    DLOG_LOADER("Creating loader thread for immediate load");
 	static Loader_Thread_Inputs immediate_inputs;
 	immediate_inputs.path = full_path;
 	immediate_inputs.id = 0;
 	immediate_inputs.file_data = &G->files[0];
 	immediate_inputs.dropped = true;
 	CreateThread(NULL, 0, loader_thread, (LPVOID)&immediate_inputs, 0, NULL);
+    DLOG_FILE("load_image_immediate END - returning true");
 	return true;
 }
 
 static void start_deferred_folder_scan(wchar_t *full_path) {
-	if (!full_path || PathIsDirectoryW(full_path)) return;
+    DLOG_SCAN("start_deferred_folder_scan START");
+    debug_log_wstr("SCAN", "full_path", full_path);
+    
+	if (!full_path || PathIsDirectoryW(full_path)) {
+        DLOG_ERROR("Invalid path or is directory");
+        return;
+    }
 
 	wchar_t *last_slash = wcsrchr(full_path, L'\\');
 	if (!last_slash) last_slash = wcsrchr(full_path, L'/');
 	wchar_t *filename = last_slash ? last_slash + 1 : full_path;
+    debug_log_wstr("SCAN", "filename", filename);
 
 	int path_len = wcslen(full_path);
 	folder_scan_data.full_path = (wchar_t*)malloc((path_len + 1) * sizeof(wchar_t));
@@ -2148,14 +2404,19 @@ static void start_deferred_folder_scan(wchar_t *full_path) {
 	folder_scan_data.filename = (wchar_t*)malloc((name_len + 1) * sizeof(wchar_t));
 	memcpy(folder_scan_data.filename, filename, (name_len + 1) * sizeof(wchar_t));
 
+    DLOG_SCAN("Creating folder_scan_thread");
 	CreateThread(NULL, 0, folder_scan_thread, (LPVOID)&folder_scan_data, 0, NULL);
+    DLOG_SCAN("start_deferred_folder_scan END");
 }
 
 static int scan_folder(wchar_t *path) {
-
+    DLOG_SCAN("scan_folder START");
+    if (path) debug_log_wstr("SCAN", "path", path);
+    else DLOG_SCAN("path is NULL");
 
 	int result = SCAN_FILE;
     if (path == nullptr) {
+        DLOG_SCAN("path is NULL, resetting files");
         G->files.reset_count();
 		return SCAN_DIR;
     }
@@ -2417,6 +2678,11 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 	staging_desc.BindFlags = 0;
 	staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
+	// Declare these early to avoid goto skipping initialization warnings
+	IPropertyBag2 *property_bag = NULL;
+	WICPixelFormatGUID req_pixel_format = GUID_WICPixelFormat32bppBGRA; // Direct3D defaults to BGRA for some reason
+	WICPixelFormatGUID pixel_format = req_pixel_format;
+
 	ID3D11Texture2D* staging_texture = nullptr;
 	hr = ctx->device->CreateTexture2D(&staging_desc, nullptr, &staging_texture);
 	if (FAILED(hr)) {
@@ -2479,9 +2745,6 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 
 	// Read the pixel value BGRA (!)
 	CoInitialize(NULL);
-	IPropertyBag2 *property_bag = NULL;
-	WICPixelFormatGUID req_pixel_format = GUID_WICPixelFormat32bppBGRA; // Direct3D defaults to BGRA for some reason
-	WICPixelFormatGUID pixel_format = req_pixel_format; 
 	hr = CoCreateInstance(CLSID_WICImagingFactory,
 	                      NULL,
 	                      CLSCTX_INPROC_SERVER,
@@ -4412,18 +4675,23 @@ static void render() {
 
 	if (G->signals.init_step_2 || G->loaded || G->files.Count == 0) {
 		handle_signal(G->signals.init_step_2) {
+            DLOG_SIGNAL("HANDLING init_step_2 signal");
 			load_image_post();
 			handle_signal(G->signals.update_orientation_step_2) {
+                DLOG_SIGNAL("HANDLING update_orientation_step_2 signal");
 				if (G->graphics.main_image.orientation % 2 == 1) {
+                    DLOG_IMAGE("Swapping dimensions due to orientation");
 					swap(int, G->graphics.main_image.w, G->graphics.main_image.h);
 				}
 			}
 			reset_image_edit();
 			
 			G->loaded = true;
+            DLOG_IMAGE("G->loaded = true, current_file_index=%u, files.Count=%u", G->current_file_index, G->files.Count);
 			if (G->loading_dropped_file) {
 				G->loading_dropped_file = false;
 				free(global_temp_path);
+                DLOG_FILE("Cleared loading_dropped_file flag");
 			}
 		}
 
