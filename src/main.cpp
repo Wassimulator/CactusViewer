@@ -31,7 +31,6 @@ int wmain(int argc, wchar_t **argv) {
     APPDATA_FOLDER = "./";
     // TODO(): Store exe folder and current working directory for other platforms.
 #endif
-	Loader_Thread_Inputs inputs;
 
 	DLOG_INIT("Converting thread to fiber");
 	G->main_loop_fiber =  ConvertThreadToFiber(NULL);
@@ -63,8 +62,8 @@ int wmain(int argc, wchar_t **argv) {
 			DLOG_SCAN("scan_folder returned %d", scan);
 			if (argc > 1 && scan != SCAN_FAILED) {
 				DLOG_LOADER("Creating loader thread for initial file, index=%u", G->current_file_index);
-				inputs = { argv[1], G->current_file_index, &G->files[G->current_file_index] };
-				CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+				Loader_Thread_Inputs *heap_inputs = create_loader_inputs(argv[1], G->current_file_index, &G->files[G->current_file_index], false);
+				CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
 			}
 		}
 	}
@@ -101,8 +100,8 @@ int wmain(int argc, wchar_t **argv) {
 				if (scan != SCAN_FAILED) {
 					G->loaded = false;
 					DLOG_LOADER("Creating loader thread for first file in dropped directory");
-					inputs = { G->files[0].file.path, 0, &G->files[0], true };
-					CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
+					Loader_Thread_Inputs *heap_inputs = create_loader_inputs(G->files[0].file.path, 0, &G->files[0], true);
+					CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
 				}
 			}
 			G->dropped_file = false;
@@ -132,8 +131,8 @@ int wmain(int argc, wchar_t **argv) {
                     G->current_file_index++;
                     G->loaded = false;
                     debug_log_wstr("NAV", "Loading file", G->files[G->current_file_index].file.path);
-                    inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
-                    CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+                    Loader_Thread_Inputs *heap_inputs = create_loader_inputs(G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false);
+                    CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
                 }
             }
             if ((!G->sorting && !G->scanning_folder && (keyup(Key_Left) || keyup(MouseBk)))|| G->signals.prev_image) {
@@ -145,8 +144,8 @@ int wmain(int argc, wchar_t **argv) {
                     G->current_file_index--;
                     G->loaded = false;
                     debug_log_wstr("NAV", "Loading file", G->files[G->current_file_index].file.path);
-					inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
-                    CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+                    Loader_Thread_Inputs *heap_inputs = create_loader_inputs(G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false);
+                    CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
                 }
             }
 			if (G->signals.reload_file) {
@@ -154,8 +153,8 @@ int wmain(int argc, wchar_t **argv) {
 				G->current_file_index = G->req_file_index;
 				G->signals.reload_file = false;
 				debug_log_wstr("NAV", "Reloading file", G->files[G->current_file_index].file.path);
-				inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
-				CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+				Loader_Thread_Inputs *heap_inputs = create_loader_inputs(G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false);
+				CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
 			}
 			if (G->signals.delete_current_image) {
 				G->signals.delete_current_image = false;
@@ -185,8 +184,8 @@ int wmain(int argc, wchar_t **argv) {
 							scan_folder(target_path);
 							if (G->files.Count > 0) {
 								G->loaded = false;
-								inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
-								CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
+								Loader_Thread_Inputs *heap_inputs = create_loader_inputs(G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false);
+								CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
 							}
 						}
 					} else {

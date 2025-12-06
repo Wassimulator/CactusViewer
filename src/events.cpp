@@ -18,6 +18,18 @@ void reset_inputs() {
 	K->double_click = 0;
 }
 
+// Called when window loses focus - clears all button states including held buttons
+void reset_inputs_on_focus_loss() {
+    Keys *K = &G->keys;
+    for (int i = 0; i < key_COUNT; i++) {
+        K->K[i].up = false;
+        K->K[i].dn = false;
+        K->K[i].on = false;
+    }
+    K->scroll_y_diff = 0;
+	K->double_click = 0;
+}
+
 void post_quit() {
 	PostQuitMessage(0);
 	Running = false;
@@ -104,6 +116,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
         }
         case WM_MOUSELEAVE:  { reset_inputs(); break; }
+        case WM_KILLFOCUS:   { reset_inputs_on_focus_loss(); ReleaseCapture(); break; }
+        case WM_ACTIVATE:    { if (LOWORD(wParam) == WA_INACTIVE) { reset_inputs_on_focus_loss(); ReleaseCapture(); } break; }
         case WM_LBUTTONDOWN: { mouse_down(MouseL, hWnd); break; }
         case WM_RBUTTONDOWN: { mouse_down(MouseR, hWnd); break; }
         case WM_MBUTTONDOWN: { mouse_down(MouseM, hWnd); break; }

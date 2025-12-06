@@ -858,7 +858,19 @@ struct Loader_Thread_Inputs {
     u32 id;
 	File_Data* file_data;
     bool dropped;
+	bool heap_allocated;  // If true, this struct was allocated on heap and should be freed by the thread
 };
+
+// Helper to create heap-allocated loader inputs (thread will free it)
+static Loader_Thread_Inputs* create_loader_inputs(wchar_t *path, u32 id, File_Data* file_data, bool dropped) {
+	Loader_Thread_Inputs *inputs = (Loader_Thread_Inputs*)malloc(sizeof(Loader_Thread_Inputs));
+	inputs->path = path;
+	inputs->id = id;
+	inputs->file_data = file_data;
+	inputs->dropped = dropped;
+	inputs->heap_allocated = true;
+	return inputs;
+}
 
 static void reset_to_no_folder() {
     if (G->loading_dropped_file)
@@ -1201,6 +1213,8 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
                 DLOG_SIGNAL("Sending init_step_2 signal");
 				send_signal(G->signals.init_step_2);
 			}
+			LeaveCriticalSection(&G->mutex);
+			DLOG_MUTEX("Left G->mutex for load_webp_pre (animated)");
 			result = 1;
 		} else {
             DLOG_ERROR("webp_anim_read_file FAILED");
@@ -1211,8 +1225,6 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 				//reset_to_no_folder();
 			set_to_no_file();
 		}
-		LeaveCriticalSection(&G->mutex);
-        DLOG_MUTEX("Left G->mutex for load_webp_pre (animated)");
 
 	}
 	free(file_data);
@@ -1641,6 +1653,7 @@ DWORD WINAPI loader_thread(LPVOID lpParam) {
     DLOG_MUTEX("Entering G->id_mutex for loader_thread");
 	EnterCriticalSection(&G->id_mutex);
     Loader_Thread_Inputs *inputs = (Loader_Thread_Inputs *)lpParam;
+	bool should_free_inputs = inputs->heap_allocated;
     DLOG_THREAD("Loader thread inputs: id=%u, dropped=%d, type=%d", 
                 inputs->id, inputs->dropped, inputs->file_data->type);
     debug_log_wstr("THREAD", "File path", inputs->file_data->file.path);
@@ -1660,8 +1673,9 @@ DWORD WINAPI loader_thread(LPVOID lpParam) {
                 DLOG_LOADER("Calling load_GIF_pre (TYPE_GIF)");
                 load_GIF_pre(inputs->file_data->file.path, inputs->id, inputs->dropped); 							
                 break;
-			case TYPE_WEBP: 		
-                DLOG_LOADER("Calling load_webp_pre (TYPE_WEBP)");
+			case TYPE_WEBP:
+			case TYPE_WEBP_ANIM:
+                DLOG_LOADER("Calling load_webp_pre (TYPE_WEBP/TYPE_WEBP_ANIM)");
                 load_webp_pre(inputs->file_data->file.path, inputs->id, inputs->dropped, &inputs->file_data->type); 
                 break;
 			case TYPE_PPM: 			
@@ -1679,6 +1693,9 @@ DWORD WINAPI loader_thread(LPVOID lpParam) {
     } else {
         DLOG_THREAD("Skipping load - file already loading");
     }
+	if (should_free_inputs) {
+		free(inputs);
+	}
 	LeaveCriticalSection(&G->id_mutex);
     DLOG_MUTEX("Left G->id_mutex for loader_thread");
     DLOG_THREAD("Setting loader_event");
@@ -2313,6 +2330,8 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 		G->files[G->current_file_index].scaled = current_file_state.scaled;
 		G->files[G->current_file_index].scale = current_file_state.scale;
 		G->files[G->current_file_index].pos = current_file_state.pos;
+		// Restore the file type in case it was updated during loading (e.g., TYPE_WEBP -> TYPE_WEBP_ANIM)
+		G->files[G->current_file_index].type = current_file_state.type;
 		LeaveCriticalSection(&G->id_mutex);
 	}
 
@@ -2375,12 +2394,8 @@ static bool load_image_immediate(wchar_t *full_path) {
     DLOG_MUTEX("Left G->thumbs_mutex for immediate load");
 
     DLOG_LOADER("Creating loader thread for immediate load");
-	static Loader_Thread_Inputs immediate_inputs;
-	immediate_inputs.path = full_path;
-	immediate_inputs.id = 0;
-	immediate_inputs.file_data = &G->files[0];
-	immediate_inputs.dropped = true;
-	CreateThread(NULL, 0, loader_thread, (LPVOID)&immediate_inputs, 0, NULL);
+	Loader_Thread_Inputs *heap_inputs = create_loader_inputs(full_path, 0, &G->files[0], true);
+	CreateThread(NULL, 0, loader_thread, (LPVOID)heap_inputs, 0, NULL);
     DLOG_FILE("load_image_immediate END - returning true");
 	return true;
 }
