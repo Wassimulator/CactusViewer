@@ -17,14 +17,14 @@ void d3d11_get_last_error(bool message = false) {
 	if (errorCode == 0) return;
 	LPSTR errorString = NULL;
 	FormatMessageA(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		errorCode,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPSTR)&errorString,
-		0,
-		NULL
-	);
+                   FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   NULL,
+                   errorCode,
+                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                   (LPSTR)&errorString,
+                   0,
+                   NULL
+                   );
 	if (errorString != NULL) {
 		if (message)
 		{
@@ -65,33 +65,33 @@ bool win32_get_error(HRESULT hresult, bool message = false) {
 #define err(x) win32_get_error(x)
 
 static ID3DBlob *compile_shader_memory(
-	char *shader_code,
-	size_t shader_code_size,
-	const char *entry_point,
-	const char *target) {
-
+                                       char *shader_code,
+                                       size_t shader_code_size,
+                                       const char *entry_point,
+                                       const char *target) {
+    
 	ID3DBlob* blob;
 	ID3DBlob* errors;
-
+    
 	HRESULT result = D3DCompile(
-		shader_code, shader_code_size,
-		nullptr,
-		nullptr,   // defines
-		nullptr,   // includes
-		entry_point,
-		target,
-		0, 0,
-		&blob,
-		&errors
-	);
-
+                                shader_code, shader_code_size,
+                                nullptr,
+                                nullptr,   // defines
+                                nullptr,   // includes
+                                entry_point,
+                                target,
+                                0, 0,
+                                &blob,
+                                &errors
+                                );
+    
 	int error_count = 0;
 	if (errors) {
 		error_count = int(errors->GetBufferSize());
 		printf("%*s\n", error_count, (char *)errors->GetBufferPointer());
 		fflush(stdout);
 	}
-
+    
 	if (FAILED(result)) {
 		blob = nullptr;
 	}
@@ -100,45 +100,45 @@ static ID3DBlob *compile_shader_memory(
 
 static ID3D11Buffer * create_constants_buffer(Graphics *ctx, size_t bytes) {
 	D3D11_BUFFER_DESC desc = {};
-
+    
 	// round constant buffer size to 16 byte boundary
 	desc.ByteWidth = (bytes + 0xf) & 0xfffffff0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
 	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
+    
 	ID3D11Buffer *buffer;
 	ctx->device->CreateBuffer(&desc, nullptr, &buffer);
-
+    
 	return buffer;
 }
 
 static Shader_Program create_shader_program(
-	Graphics *ctx, char *shader_string, size_t shader_string_size,
-	char * vs_entry_point, char * ps_entry_point, size_t constants_size,
-	int input_elements, D3D11_INPUT_ELEMENT_DESC *input_desc) {
-
+                                            Graphics *ctx, char *shader_string, size_t shader_string_size,
+                                            char * vs_entry_point, char * ps_entry_point, size_t constants_size,
+                                            int input_elements, D3D11_INPUT_ELEMENT_DESC *input_desc) {
+    
 	Shader_Program shader = { 0 };
-
+    
 	ID3DBlob *vs_blob = compile_shader_memory(shader_string, shader_string_size, vs_entry_point, "vs_5_0");
 	ctx->device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &shader.vertex_shader);
-
+    
 	ID3DBlob *ps_blob = compile_shader_memory(shader_string, shader_string_size, ps_entry_point, "ps_5_0");
 	ctx->device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &shader.pixel_shader);
-
+    
 	if (input_desc) {
 		ctx->device->CreateInputLayout(
-			input_desc, input_elements,
-			vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(),
-			&shader.input_layout);
+                                       input_desc, input_elements,
+                                       vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(),
+                                       &shader.input_layout);
 	}
-
+    
 	if (constants_size) {
 		shader.constants_buffer = create_constants_buffer(ctx, constants_size);
 	}
-
+    
 	shader.constants_buffer_size = constants_size;
-
+    
 	return shader;
 }
 
@@ -154,13 +154,13 @@ static void upload_texture(Texture* texture, void* data, u64 size) {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HRESULT hr = G->graphics.device_ctx->Map(texture->d3d_texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
+    
 	BYTE* dest = static_cast<BYTE*>(mapped.pData);
 	BYTE* src = G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4;
-
+    
 	int row_pitch = mapped.RowPitch;
 	int row_size = G->graphics.main_image.w * 4; // 4 bytes per pixel as it's RGBA
-
+    
 	for (int y = 0; y < G->graphics.main_image.h; ++y) {
 		memcpy(dest, src, row_size);
 		dest += row_pitch;
@@ -174,47 +174,47 @@ static void set_framebuffer_size(Graphics *ctx, iv2 size, bool set_dpi) {
 	if (ctx->viewport_size == size) 	return;
 	if (ctx->frame_buffer == nullptr) 	return;
 	if (size.x <= 0 || size.y <= 0) 	return;
-
+    
 	// resize swapchain
-
+    
 	float dpi_scale_factor = 1;
 	if (set_dpi) {
 		UINT dpi = GetDpiForWindow(hwnd);
 		dpi_scale_factor = dpi / 96.0f;
 	}
-
+    
 	ctx->frame_buffer_view->Release();
 	ctx->frame_buffer->Release();
 	ctx->swap_chain->ResizeBuffers(0, size.x / dpi_scale_factor, size.y / dpi_scale_factor, DXGI_FORMAT_UNKNOWN, 0);
 	ctx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&ctx->frame_buffer);
 	ctx->device->CreateRenderTargetView(ctx->frame_buffer, nullptr, &ctx->frame_buffer_view);
-
+    
 	//resize depthbuffer
 	D3D11_TEXTURE2D_DESC depth_buffer_desc;
 	ctx->depth_buffer->GetDesc(&depth_buffer_desc);
-
+    
 	ctx->depth_buffer_view->Release();
 	ctx->depth_buffer->Release();
-
+    
 	depth_buffer_desc.Width = size.x;
 	depth_buffer_desc.Height = size.y;
-
+    
 	ctx->device->CreateTexture2D(&depth_buffer_desc, nullptr, &ctx->depth_buffer);
 	ctx->device->CreateDepthStencilView(ctx->depth_buffer, nullptr, &ctx->depth_buffer_view);
-
+    
 	ctx->viewport_size = size;
 }
 
 
 static void init_d3d11(HWND window_handle, int ww, int wh) {
-
+    
 	Graphics *ctx = &G->graphics;
-
+    
 	RECT rect;
 	GetClientRect(hwnd, &rect);
 	ww = rect.right - rect.left;
 	wh = rect.bottom - rect.top;
-
+    
 	D3D_FEATURE_LEVEL feature_levels[] = {
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
@@ -227,24 +227,24 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 #if DEBUG_MODE
 	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-
+    
 	D3D11CreateDevice(
-		nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags,
-		feature_levels, array_size(feature_levels),
-		D3D11_SDK_VERSION, &base_device,
-		nullptr, &base_device_ctx
-	);
-
+                      nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags,
+                      feature_levels, array_size(feature_levels),
+                      D3D11_SDK_VERSION, &base_device,
+                      nullptr, &base_device_ctx
+                      );
+    
 	base_device->QueryInterface(__uuidof(ID3D11Device1), (void**)&ctx->device);
 	base_device_ctx->QueryInterface(__uuidof(ID3D11DeviceContext1), (void**)&ctx->device_ctx);
-
+    
 	IDXGIDevice1* dxgi_device;
 	(ctx->device)->QueryInterface(__uuidof(IDXGIDevice1), (void**)&dxgi_device);
 	IDXGIAdapter* dxgi_adapter;
 	dxgi_device->GetAdapter(&dxgi_adapter);
 	IDXGIFactory2* dxgi_factory;
 	dxgi_adapter->GetParent(__uuidof(IDXGIFactory2), (void**)&dxgi_factory);
-
+    
 	DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = { 0 };
 	swap_chain_desc.Width = 0;
 	swap_chain_desc.Height = 0;
@@ -260,7 +260,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	swap_chain_desc.Flags = 0;
 	dxgi_factory->CreateSwapChainForHwnd(ctx->device, window_handle, &swap_chain_desc, nullptr, nullptr, &ctx->swap_chain);
 	ctx->swap_chain->GetDesc1(&swap_chain_desc);
-
+    
 	D3D11_TEXTURE2D_DESC frame_buffer_desc = { 0 };;
 	frame_buffer_desc.Width = ww ;
 	frame_buffer_desc.Height = wh ;
@@ -270,40 +270,51 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	frame_buffer_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	frame_buffer_desc.Usage = D3D11_USAGE_DEFAULT;
 	frame_buffer_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-
+    
 	D3D11_TEXTURE2D_DESC depth_buffer_desc = frame_buffer_desc;
 	depth_buffer_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	depth_buffer_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
+    
 	err(ctx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&ctx->frame_buffer)); // substitutes needing to call createtexture since we're using the swap chain's texture
 	err(ctx->device->CreateRenderTargetView(ctx->frame_buffer, nullptr, &ctx->frame_buffer_view));
-
+    
 	err(ctx->device->CreateTexture2D(&depth_buffer_desc, nullptr, &ctx->depth_buffer));
 	err(ctx->device->CreateDepthStencilView(ctx->depth_buffer, nullptr, &ctx->depth_buffer_view));
-
-
+    
+    
 	ctx->main_program = create_shader_program(ctx, shader_text_main, strlen(shader_text_main),
 	                                          "vs_main", "ps_main", sizeof(Shader_Constants_Main), 0, 0);
 	ctx->bg_program   = create_shader_program(ctx, shader_text_bg, strlen(shader_text_bg),
 	                                          "vs_bg", "ps_bg", sizeof(Shader_Constants_BG), 0, 0);
 	ctx->crop_program = create_shader_program(ctx, shader_text_crop, strlen(shader_text_crop),
 	                                          "vs_crop", "ps_crop", sizeof(Shader_Constants_Crop), 0, 0);
-
+    
 	D3D11_INPUT_ELEMENT_DESC lines_layout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
-
+    
 	ctx->lines_program= create_shader_program(ctx, shader_text_lines, strlen(shader_text_lines),
 	                                          "vs_lines", "ps_lines", sizeof(Shader_Constants_Lines), 
 	                                          1, lines_layout);
-
+    
+	//~ Create paint shaders.
+    {
+        ctx->paint_program = create_shader_program(ctx, shader_text_main, strlen(shader_text_main),
+                                                   "vs_main", "ps_paint", 0, 0, 0);
+        
+        ID3DBlob *cs_blob = compile_shader_memory(shader_text_paint, strlen(shader_text_paint), "cs_paint", "cs_5_0");
+        ctx->device->CreateComputeShader(cs_blob->GetBufferPointer(), cs_blob->GetBufferSize(), nullptr, &ctx->paint_cs_shader);
+        
+        ctx->paint_constants_buffer = create_constants_buffer(ctx, sizeof(Shader_Constants_Paint));
+    }
+    
 	D3D11_BUFFER_DESC lines_vertex_desc = {};
 	lines_vertex_desc.Usage = D3D11_USAGE_DYNAMIC;
 	lines_vertex_desc.ByteWidth = sizeof(v2) * 256;
 	lines_vertex_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	lines_vertex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	ctx->device->CreateBuffer(&lines_vertex_desc, 0, &G->graphics.lines_vertex_buffer);
-
+    
 	D3D11_BLEND_DESC blend_desc = { 0 };
 	blend_desc.AlphaToCoverageEnable = false;
 	blend_desc.RenderTarget[0].BlendEnable = true;
@@ -315,7 +326,10 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	err(ctx->device->CreateBlendState(&blend_desc, &ctx->blend_state));
-
+    
+    blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+    err(ctx->device->CreateBlendState(&blend_desc, &ctx->paint_blend_state));
+    
 	D3D11_RASTERIZER_DESC rast_desc = { 0 };
 	rast_desc.CullMode = D3D11_CULL_NONE;
 	rast_desc.FillMode = D3D11_FILL_SOLID;
@@ -323,7 +337,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	rast_desc.DepthClipEnable = false;
 	rast_desc.FrontCounterClockwise = true;
 	err(ctx->device->CreateRasterizerState(&rast_desc, &ctx->raster_state));
-
+    
 	D3D11_DEPTH_STENCIL_DESC depth_desc = { 0 };
 	depth_desc.DepthEnable = false;
 	depth_desc.StencilEnable = false;
@@ -333,7 +347,7 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	depth_desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 	depth_desc.BackFace = depth_desc.FrontFace;
 	err(ctx->device->CreateDepthStencilState(&depth_desc, &ctx->depth_stencil_state));
-
+    
 	D3D11_SAMPLER_DESC sampler_desc = { 0 };
 	sampler_desc.Filter = 			D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	sampler_desc.AddressU = 		D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -343,14 +357,14 @@ static void init_d3d11(HWND window_handle, int ww, int wh) {
 	sampler_desc.MinLOD = 			0;
 	sampler_desc.MaxLOD = 			D3D11_FLOAT32_MAX;
 	err(ctx->device->CreateSamplerState(&sampler_desc, &ctx->sampler_linear));
-
+    
 	sampler_desc.Filter = 			D3D11_FILTER_MIN_MAG_MIP_POINT;
 	err(ctx->device->CreateSamplerState(&sampler_desc, &ctx->sampler_nearest));
-
+    
 	set_framebuffer_size(ctx, iv2(ww, wh));
-
+    
 	G->graphics.MAX_GPU = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-
+    
 	ID3D10Multithread* multi_thread = nullptr;
     HRESULT hr = ctx->device->QueryInterface(__uuidof(ID3D10Multithread), reinterpret_cast<void**>(&multi_thread));
     if (SUCCEEDED(hr) && multi_thread)
@@ -403,27 +417,27 @@ static Texture create_texture(u8 *data, int w, int h, bool dynamic) {
 	if (!dynamic) texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 	if (!dynamic) texture_desc.MiscFlags  = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	if (dynamic)  texture_desc.CPUAccessFlags  = D3D11_CPU_ACCESS_WRITE;
-
+    
 	D3D11_SUBRESOURCE_DATA texture_SRD = {};
 	texture_SRD.pSysMem     = data;
 	texture_SRD.SysMemPitch = w * 4;
-
+    
 	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 	srv_desc.Format = texture_desc.Format;
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MipLevels = UINT_MAX;
-
+    
 	Texture result;
 	result.size = v2(w, h);
 	err(d3d_ctx->device->CreateTexture2D(&texture_desc, 0, &result.d3d_texture));
 	err(d3d_ctx->device->CreateShaderResourceView(result.d3d_texture, &srv_desc, &result.srv));
 	
-
+    
 	if (!dynamic && data) {
 		d3d_ctx->device_ctx->UpdateSubresource(result.d3d_texture, 0, NULL, data, w * 4, w * h * 4);
 		d3d_ctx->device_ctx->GenerateMips(result.srv);
 	}
-
+    
 	return result;
 }
 
@@ -438,10 +452,10 @@ void enter_fullscreen(HWND hwnd) {
     
 	LONG newWindowStyle = g_original_window_style & ~(WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME);
 	SetWindowLong(hwnd, GWL_STYLE, newWindowStyle);
-
+    
 	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
+    
 	SetWindowPos(hwnd, HWND_TOP, 0, 0, screenWidth, screenHeight, SWP_FRAMECHANGED);
 }
 
@@ -476,50 +490,50 @@ static void save_settings() {
     snprintf(buffer, sizeof(buffer), "%s\\config.json", APPDATA_FOLDER);
     FILE *F = fopen(buffer, "w");
     cJSON *config_file = cJSON_CreateObject();
-
+    
     if (F) {
-	cJSON *j_checkboard_color_1 = cJSON_CreateArray();
-	cJSON_AddItemToArray(j_checkboard_color_1, cJSON_CreateNumber(checkerboard_color_1[0]));
-	cJSON_AddItemToArray(j_checkboard_color_1, cJSON_CreateNumber(checkerboard_color_1[1]));
-	cJSON_AddItemToArray(j_checkboard_color_1, cJSON_CreateNumber(checkerboard_color_1[2]));
-	cJSON *j_checkboard_color_2 = cJSON_CreateArray();
-	cJSON_AddItemToArray(j_checkboard_color_2, cJSON_CreateNumber(checkerboard_color_2[0]));
-	cJSON_AddItemToArray(j_checkboard_color_2, cJSON_CreateNumber(checkerboard_color_2[1]));
-	cJSON_AddItemToArray(j_checkboard_color_2, cJSON_CreateNumber(checkerboard_color_2[2]));
-	cJSON *j_bg_color = cJSON_CreateArray();
-	cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[0]));
-	cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[1]));
-	cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[2]));
-	cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[3]));
-
-	cJSON_AddItemToObject(config_file, "settings_resetpos", cJSON_CreateNumber(G->settings_resetpos));
-    cJSON_AddItemToObject(config_file, "settings_resetzoom", cJSON_CreateNumber(G->settings_resetzoom));
-	cJSON_AddItemToObject(config_file, "checkerboard_color_1", j_checkboard_color_1);
-	cJSON_AddItemToObject(config_file, "checkerboard_color_2", j_checkboard_color_2);
-	cJSON_AddItemToObject(config_file, "bg_color", j_bg_color);
-    cJSON_AddItemToObject(config_file, "settings_autoplayGIFs", cJSON_CreateBool(G->settings_autoplayGIFs));
-    cJSON_AddItemToObject(config_file, "settings_movementmag", cJSON_CreateNumber(G->settings_movementmag));
-    cJSON_AddItemToObject(config_file, "settings_shiftslowmag", cJSON_CreateNumber(G->settings_shiftslowmag));
-    cJSON_AddItemToObject(config_file, "settings_movementinvert", cJSON_CreateBool(G->settings_movementinvert));
-    cJSON_AddItemToObject(config_file, "nearest_filtering", cJSON_CreateBool(G->nearest_filtering));
-    cJSON_AddItemToObject(config_file, "pixel_grid", cJSON_CreateBool(G->pixel_grid));
-    cJSON_AddItemToObject(config_file, "settings_sort", cJSON_CreateBool(G->settings_sort));
-    cJSON_AddItemToObject(config_file, "settings_exif", cJSON_CreateBool(G->settings_exif));
-    cJSON_AddItemToObject(config_file, "settings_hide_status_fullscreen", cJSON_CreateBool(G->settings_hide_status_fullscreen));
-    cJSON_AddItemToObject(config_file, "settings_start_in_fullscreen", cJSON_CreateBool(G->settings_start_in_fullscreen));
-    cJSON_AddItemToObject(config_file, "settings_dont_resize", cJSON_CreateBool(G->settings_dont_resize));
-    cJSON_AddItemToObject(config_file, "settings_selected_theme", cJSON_CreateNumber(G->settings_selected_theme));
-    cJSON_AddItemToObject(config_file, "settings_calculate_histograms", cJSON_CreateBool(G->settings_calculate_histograms));
-    cJSON_AddItemToObject(config_file, "settings_preview_thumbs", cJSON_CreateBool(G->settings_preview_thumbs));
-    cJSON_AddItemToObject(config_file, "settings_hide_status_with_gui", cJSON_CreateBool(G->settings_hide_status_with_gui));
-    cJSON_AddItemToObject(config_file, "settings_always_show_gui", cJSON_CreateBool(G->settings_always_show_gui));
-    cJSON_AddItemToObject(config_file, "settings_newfilezoom", cJSON_CreateNumber(G->settings_newfilezoom));
-    cJSON_AddItemToObject(config_file, "settings_copy_color_format", cJSON_CreateNumber(G->settings_copy_color_format));
-    cJSON_AddItemToObject(config_file, "settings_copy_color_enclose_type", cJSON_CreateNumber(G->settings_copy_color_enclose_type));
-    cJSON_AddItemToObject(config_file, "settings_copy_color_include_alpha", cJSON_CreateBool(G->settings_copy_color_include_alpha));
-    cJSON_AddItemToObject(config_file, "settings_copy_color_normalize_rgb", cJSON_CreateBool(G->settings_copy_color_normalize_rgb));
-    fprintf(F, cJSON_Print(config_file));
-	fclose(F);
+        cJSON *j_checkboard_color_1 = cJSON_CreateArray();
+        cJSON_AddItemToArray(j_checkboard_color_1, cJSON_CreateNumber(checkerboard_color_1[0]));
+        cJSON_AddItemToArray(j_checkboard_color_1, cJSON_CreateNumber(checkerboard_color_1[1]));
+        cJSON_AddItemToArray(j_checkboard_color_1, cJSON_CreateNumber(checkerboard_color_1[2]));
+        cJSON *j_checkboard_color_2 = cJSON_CreateArray();
+        cJSON_AddItemToArray(j_checkboard_color_2, cJSON_CreateNumber(checkerboard_color_2[0]));
+        cJSON_AddItemToArray(j_checkboard_color_2, cJSON_CreateNumber(checkerboard_color_2[1]));
+        cJSON_AddItemToArray(j_checkboard_color_2, cJSON_CreateNumber(checkerboard_color_2[2]));
+        cJSON *j_bg_color = cJSON_CreateArray();
+        cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[0]));
+        cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[1]));
+        cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[2]));
+        cJSON_AddItemToArray(j_bg_color, cJSON_CreateNumber(bg_color[3]));
+        
+        cJSON_AddItemToObject(config_file, "settings_resetpos", cJSON_CreateNumber(G->settings_resetpos));
+        cJSON_AddItemToObject(config_file, "settings_resetzoom", cJSON_CreateNumber(G->settings_resetzoom));
+        cJSON_AddItemToObject(config_file, "checkerboard_color_1", j_checkboard_color_1);
+        cJSON_AddItemToObject(config_file, "checkerboard_color_2", j_checkboard_color_2);
+        cJSON_AddItemToObject(config_file, "bg_color", j_bg_color);
+        cJSON_AddItemToObject(config_file, "settings_autoplayGIFs", cJSON_CreateBool(G->settings_autoplayGIFs));
+        cJSON_AddItemToObject(config_file, "settings_movementmag", cJSON_CreateNumber(G->settings_movementmag));
+        cJSON_AddItemToObject(config_file, "settings_shiftslowmag", cJSON_CreateNumber(G->settings_shiftslowmag));
+        cJSON_AddItemToObject(config_file, "settings_movementinvert", cJSON_CreateBool(G->settings_movementinvert));
+        cJSON_AddItemToObject(config_file, "nearest_filtering", cJSON_CreateBool(G->nearest_filtering));
+        cJSON_AddItemToObject(config_file, "pixel_grid", cJSON_CreateBool(G->pixel_grid));
+        cJSON_AddItemToObject(config_file, "settings_sort", cJSON_CreateBool(G->settings_sort));
+        cJSON_AddItemToObject(config_file, "settings_exif", cJSON_CreateBool(G->settings_exif));
+        cJSON_AddItemToObject(config_file, "settings_hide_status_fullscreen", cJSON_CreateBool(G->settings_hide_status_fullscreen));
+        cJSON_AddItemToObject(config_file, "settings_start_in_fullscreen", cJSON_CreateBool(G->settings_start_in_fullscreen));
+        cJSON_AddItemToObject(config_file, "settings_dont_resize", cJSON_CreateBool(G->settings_dont_resize));
+        cJSON_AddItemToObject(config_file, "settings_selected_theme", cJSON_CreateNumber(G->settings_selected_theme));
+        cJSON_AddItemToObject(config_file, "settings_calculate_histograms", cJSON_CreateBool(G->settings_calculate_histograms));
+        cJSON_AddItemToObject(config_file, "settings_preview_thumbs", cJSON_CreateBool(G->settings_preview_thumbs));
+        cJSON_AddItemToObject(config_file, "settings_hide_status_with_gui", cJSON_CreateBool(G->settings_hide_status_with_gui));
+        cJSON_AddItemToObject(config_file, "settings_always_show_gui", cJSON_CreateBool(G->settings_always_show_gui));
+        cJSON_AddItemToObject(config_file, "settings_newfilezoom", cJSON_CreateNumber(G->settings_newfilezoom));
+        cJSON_AddItemToObject(config_file, "settings_copy_color_format", cJSON_CreateNumber(G->settings_copy_color_format));
+        cJSON_AddItemToObject(config_file, "settings_copy_color_enclose_type", cJSON_CreateNumber(G->settings_copy_color_enclose_type));
+        cJSON_AddItemToObject(config_file, "settings_copy_color_include_alpha", cJSON_CreateBool(G->settings_copy_color_include_alpha));
+        cJSON_AddItemToObject(config_file, "settings_copy_color_normalize_rgb", cJSON_CreateBool(G->settings_copy_color_normalize_rgb));
+        fprintf(F, cJSON_Print(config_file));
+        fclose(F);
     }
 }
 
@@ -609,7 +623,7 @@ bool get_font_file_from_system(char* output, int output_size, char* font) {
     const CHAR* sub_key = "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
     CHAR fonts_dir[MAX_PATH];
     bool result = false;
-
+    
     if (SHGetFolderPathA(NULL, CSIDL_FONTS, NULL, SHGFP_TYPE_CURRENT, fonts_dir) == S_OK) {
         if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, sub_key, 0, KEY_READ, &hkey) == ERROR_SUCCESS) {
             if (RegQueryValueExA(hkey, font, NULL, NULL, (LPBYTE)value, &value_length) == ERROR_SUCCESS) {
@@ -632,10 +646,10 @@ bool get_font_file_from_system(char* output, int output_size, char* font) {
 static void init_all() {
     WW  = 700;
     WH = 800;
-
+    
     HINSTANCE hInstance = GetModuleHandle(NULL);
     const char* szTitle = "CactusViewer";
-   
+    
     WNDCLASSEX wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
 	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS ;
@@ -664,16 +678,16 @@ static void init_all() {
     pfd.cColorBits = 32;
     pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
-
+    
 	SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-
+    
 	Gdiplus::GdiplusStartupInput gdipsi;
 	ULONG_PTR gdipt;
 	Gdiplus::GdiplusStartup(&gdipt, &gdipsi, NULL);
-
+    
 	init_d3d11(hwnd, WW, WH);
 	init_logo_image();
-
+    
 	bg_color[0] = 0.15;
 	bg_color[1] = 0.15;
 	bg_color[2] = 0.15;
@@ -686,9 +700,9 @@ static void init_all() {
 	checkerboard_color_2[0] = c2;
 	checkerboard_color_2[1] = c2;
 	checkerboard_color_2[2] = c2;
-
+    
 	Checkerboard_size = 250;
-
+    
 	RGBAflags[0] = 1;
 	RGBAflags[1] = 1;
 	RGBAflags[2] = 1;
@@ -697,7 +711,7 @@ static void init_all() {
 	G->settings_autoplayGIFs = true;
 	G->settings_movementmag = 2;
 	G->settings_shiftslowmag = 9;
-
+    
 	G->hue = 0;
 	G->saturation = 1;
 	G->contrast = 1;
@@ -707,82 +721,88 @@ static void init_all() {
 	G->blur_lod = 1;
 	G->blur_samples = 32;
 	G->blur_scale = 0.001;
-
+    
 	G->graphics.main_image.has_exif = false;
 	G->graphics.main_image.orientation = 0;
-
+    
 	G->graphics.thumbs = create_texture(0, 4000, 4000, false);
-
+    
+    G->paint_brush_color  = v4(0.8f, 0.2f, 0.2f, 1.0f);
+    G->paint_brush_size   = 5.0f;
+    G->paint_brush_aa     = true;
+    G->paint_mode_toggled = false;
+    
 	load_settings();
-
-//	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
-//	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
-//		hwnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE,
-//		&USE_DARK_MODE, sizeof(USE_DARK_MODE)));
-
+    
+    //	BOOL USE_DARK_MODE = G->settings_selected_theme != UI_Theme_Light;
+    //	BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
+    //		hwnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE,
+    //		&USE_DARK_MODE, sizeof(USE_DARK_MODE)));
+    
     DragAcceptFiles(hwnd, TRUE);
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
     SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wcex.hIcon);
     SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)wcex.hIcon);
-
+    
 	G->hcursor[(int)Cursor_Type_arrow] =     LoadCursor(nullptr, IDC_ARROW);
 	G->hcursor[(int)Cursor_Type_text] =      LoadCursor(nullptr, IDC_IBEAM);
 	G->hcursor[(int)Cursor_Type_resize_h] =  LoadCursor(nullptr, IDC_SIZEWE);
 	G->hcursor[(int)Cursor_Type_resize_v] =  LoadCursor(nullptr, IDC_SIZENS);
 	G->hcursor[(int)Cursor_Type_resize_dr] = LoadCursor(nullptr, IDC_SIZENWSE);
 	G->hcursor[(int)Cursor_Type_resize_dl] = LoadCursor(nullptr, IDC_SIZENESW);
+	G->hcursor[(int)Cursor_Type_pen] = LoadCursor(nullptr, MAKEINTRESOURCE(32631));
     G->graphics.main_image.texture.d3d_texture = 0;
 	
     InitializeCriticalSection(&G->mutex);
     InitializeCriticalSection(&G->sort_mutex);
     InitializeCriticalSection(&G->thumbs_mutex);
     InitializeCriticalSection(&G->id_mutex);
-
+    
 	G->ui = UI_init_context();
 	UI_d3d11_init(G->ui, G->graphics.device, G->graphics.device_ctx);
 	UI_init_platform_win32(G->ui);
-
+    
 	int sizes[] = { 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20 };
 	int ascii_start = 32;
 	int ascii_end = 126;
-
-//#if	DEBUG_MODE
-//	G->ui_font = UI_load_font_file(G->ui, "../src/FiraSans-Regular.ttf", 
-//	                                 ascii_start, ascii_end, sizes, array_size(sizes));
-//#else
-//	u8 font_file[] = {
-//		#include "FiraSans-Regular.ttf.cpp"
-//	};
-//	G->ui_font = UI_load_font_memory(G->ui, font_file, array_size(font_file), 
-//	                                 ascii_start, ascii_end, sizes, array_size(sizes));
-//	#endif
-
+    
+    //#if	DEBUG_MODE
+    //	G->ui_font = UI_load_font_file(G->ui, "../src/FiraSans-Regular.ttf", 
+    //	                                 ascii_start, ascii_end, sizes, array_size(sizes));
+    //#else
+    //	u8 font_file[] = {
+    //		#include "FiraSans-Regular.ttf.cpp"
+    //	};
+    //	G->ui_font = UI_load_font_memory(G->ui, font_file, array_size(font_file), 
+    //	                                 ascii_start, ascii_end, sizes, array_size(sizes));
+    //	#endif
+    
 	// just getting the font from the system now:
 	char system_font[512] = {};
 	if (!get_font_file_from_system(system_font, 512, "Segoe UI (TrueType)"))
 		get_font_file_from_system(system_font, 512, "Arial (TrueType)");
 	G->ui_font = UI_load_font_file(G->ui, system_font, 
 								   ascii_start, ascii_end, sizes, array_size(sizes));
-
-//	G->shapes_texture_id = UI_create_texture(G->ui, 
-//	                                         (u8*)UI_asset_shape_arrow,
-//	                                         UI_ASSET_SHAPE_ARROW_WIDTH,
-//	                                         UI_ASSET_SHAPE_ARROW_HEIGHT);
-
-
+    
+    //	G->shapes_texture_id = UI_create_texture(G->ui, 
+    //	                                         (u8*)UI_asset_shape_arrow,
+    //	                                         UI_ASSET_SHAPE_ARROW_WIDTH,
+    //	                                         UI_ASSET_SHAPE_ARROW_HEIGHT);
+    
+    
     // CreateThread(NULL, 0, FontLoadThread, NULL, 0, NULL);
-
+    
 	G->force_loop_frames = 2;
 	G->loader_event = CreateEvent(
-		NULL,               // default security attributes
-		TRUE,               // manual-reset event; false = auto-reset
-		FALSE,              // initial state is nonsignaled
-		TEXT("loader event")     
-	);
-
-
-
+                                  NULL,               // default security attributes
+                                  TRUE,               // manual-reset event; false = auto-reset
+                                  FALSE,              // initial state is nonsignaled
+                                  TEXT("loader event")     
+                                  );
+    
+    
+    
 }
 
 static void push_alert(char *string, Alert_Type type = Alert_Error) {
@@ -791,7 +811,7 @@ static void push_alert(char *string, Alert_Type type = Alert_Error) {
     G->alert.timer = 1;
 	G->alert.type = type;
 	G->force_loop_frames += 310;
-
+    
 #if DEBUG_MODE
 	printf("%s\n",string);
 #endif
@@ -843,7 +863,7 @@ static int load_image_pre(wchar_t *path, u32 id, bool dropped) {
     int w, h, n;
     int result = 0;
     G->files[id].loading = true;
-
+    
     int size = stbi_convert_wchar_to_utf8(0, 0, path);
 	char *filename_utf8 = (char *)malloc(size);
 	stbi_convert_wchar_to_utf8(filename_utf8, size, path);
@@ -891,17 +911,17 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 	IWICBitmapDecoder* decoder = NULL;
 	IWICBitmapFrameDecode* frame = NULL;
 	IWICFormatConverter* converter = NULL;
-
+    
 	// Initialize the COM library
 	CoInitialize(NULL);
-
+    
 	// Create WIC factory
 	err(CoCreateInstance(CLSID_WICImagingFactory,
 	                     NULL,
 	                     CLSCTX_INPROC_SERVER,
 	                     IID_IWICImagingFactory,
 	                     (LPVOID*) & G->wic_factory));
-
+    
 	unsigned char *data = 0;
 	HRESULT hr = G->wic_factory->CreateDecoderFromFilename(path, NULL, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder);
 	if(SUCCEEDED(hr)) hr = decoder->GetFrame(0, &frame);
@@ -911,7 +931,7 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 		converter->GetSize(&w, &h);
 		data = (unsigned char *)walloc(w * h * 4);
 		converter->CopyPixels(NULL, w * 4, w * h * 4, data);
-
+        
 		// expensive, but requested:
 		if (G->settings_exif) {
 			FILE* temp_file = _wfopen(path, L"rb");
@@ -928,11 +948,11 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 				if (G->graphics.main_image.has_exif) {
 					switch (G->graphics.main_image.exif_info.Orientation) {
 						case 3:
-							G->graphics.main_image.orientation = 2; break;
+                        G->graphics.main_image.orientation = 2; break;
 						case 6:
-							G->graphics.main_image.orientation = 3; break;
+                        G->graphics.main_image.orientation = 3; break;
 						case 8:
-							G->graphics.main_image.orientation = 1; break;
+                        G->graphics.main_image.orientation = 1; break;
 					}
 					send_signal(G->signals.update_orientation_step_2);
 				}
@@ -948,14 +968,14 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 		} else {
 			LPVOID lpMsgBuf;
 			DWORD bufLen = FormatMessageA(
-				FORMAT_MESSAGE_ALLOCATE_BUFFER |
-				FORMAT_MESSAGE_FROM_SYSTEM |
-				FORMAT_MESSAGE_IGNORE_INSERTS,
-				NULL,
-				hr,
-				MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-				(LPSTR) & lpMsgBuf,
-				0, NULL);
+                                          FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                          FORMAT_MESSAGE_FROM_SYSTEM |
+                                          FORMAT_MESSAGE_IGNORE_INSERTS,
+                                          NULL,
+                                          hr,
+                                          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                          (LPSTR) & lpMsgBuf,
+                                          0, NULL);
 			push_alert((char*)lpMsgBuf);
 			LocalFree(lpMsgBuf);
 		}
@@ -963,7 +983,7 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
         G->loaded = true;
         
         //if (dropped)
-            //reset_to_no_folder();
+        //reset_to_no_folder();
         set_to_no_file();
     } else {
         if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
@@ -974,10 +994,10 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
                 G->graphics.main_image.w = w;
                 G->graphics.main_image.h = h;
                 G->graphics.main_image.n = 0;
-			//	if (G->graphics.main_image.data) {
-			//		wfree(G->graphics.main_image.data);
-			//		G->graphics.main_image.data = 0;
-			//	}
+                //	if (G->graphics.main_image.data) {
+                //		wfree(G->graphics.main_image.data);
+                //		G->graphics.main_image.data = 0;
+                //	}
 				G->graphics.main_image.data = data;
 				calculate_histogram(data, w * h * 4);
                 send_signal(G->signals.init_step_2);
@@ -988,14 +1008,14 @@ static int load_image_wic_pre(wchar_t *path, u32 id, bool dropped, File_Data* fi
 			result = 1;
         }
     }
-
+    
 	cleanup:
-
+    
 	if (frame) frame->Release();
 	if (decoder) decoder->Release();
 	if (converter) converter->Release();
 	CoUninitialize();
-
+    
     return result;
 }
 
@@ -1025,10 +1045,10 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 	uint8_t* file_data = (uint8_t*)malloc(file_size);
 	fread(file_data, 1, file_size, file);
 	fclose(file);
-
+    
 	WebPBitstreamFeatures features;
 	WebPGetFeatures(file_data, file_size, &features);
-
+    
 	if (!features.has_animation) {
 		G->files[id].loading = true;
 		unsigned char *data = WebPDecodeRGBA(file_data, file_size, &w, &h);
@@ -1039,7 +1059,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			G->loaded = true;
 			
 			//if (dropped)
-				//reset_to_no_folder();
+            //reset_to_no_folder();
 			set_to_no_file();
 		} else {
 			if (G->graphics.MAX_GPU < w || G->graphics.MAX_GPU < h) {
@@ -1070,7 +1090,7 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 		WebPData webp_data = { file_data, file_size };
 		Animated_Image webp_anim_image;
 		*type = TYPE_WEBP_ANIM;
-
+        
 		if (webp_anim_read_file(&webp_data, &webp_anim_image)) {
 			EnterCriticalSection(&G->mutex);
 			G->graphics.main_image.w = webp_anim_image.canvas_width;
@@ -1078,10 +1098,10 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			G->anim_frames = webp_anim_image.num_frames;
 			G->anim_frame_delays = webp_anim_image.durations;
 			G->anim_buffer = (unsigned char *)webp_anim_image.raw_mem;
-
+            
 			G->anim_index = 0;
 			G->anim_play = G->settings_autoplayGIFs;
-
+            
 			if (id != G->current_file_index)
 				unload_anim_image();
 			else
@@ -1092,11 +1112,11 @@ static int load_webp_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 			G->files[G->current_file_index].failed = true;
 			G->loaded = true;
 			//if (dropped)
-				//reset_to_no_folder();
+            //reset_to_no_folder();
 			set_to_no_file();
 		}
 		LeaveCriticalSection(&G->mutex);
-
+        
 	}
 	free(file_data);
 	free(filename_utf8);
@@ -1174,7 +1194,7 @@ static int load_ppm_pre(wchar_t *path, u32 id, bool dropped, int* type) {
 	}
 	LeaveCriticalSection(&G->mutex);
 	result = 1;
-cleanup:
+    cleanup:
 	// if (data) free(data);
 	if (f) fclose(f);
 	return result;
@@ -1200,23 +1220,23 @@ static int load_GIF_pre(wchar_t *File, u32 id, bool dropped) {
     int frames;
     int *delays;
     int result = 0;
-
+    
     unload_anim_image();
-
+    
     G->files[id].loading = true;
     unsigned char *data = stbi_xload_file(File, &w, &h, &frames, &delays);
     G->files[id].loading = false;
-
+    
     if (data != nullptr) {
         G->graphics.main_image.w = w;
         G->graphics.main_image.h = h;
         G->anim_frames = frames;
         G->anim_frame_delays = delays;
         G->anim_buffer = data;
-
+        
         G->anim_index = 0;
         G->anim_play = G->settings_autoplayGIFs;
-
+        
         if (id != G->current_file_index)
             unload_anim_image();
         else
@@ -1227,7 +1247,7 @@ static int load_GIF_pre(wchar_t *File, u32 id, bool dropped) {
         G->files[G->current_file_index].failed = true;
         G->loaded = true;
         //if (dropped)
-            //reset_to_no_folder();
+        //reset_to_no_folder();
         set_to_no_file();
     }
     return result;
@@ -1239,20 +1259,20 @@ struct Reduced_Frac {
 
 int gcd(int n, int m) {
     int gcd, rem;
-
+    
     while (n != 0) {
         rem = m % n;
         m = n;
         n = rem;
     }
     gcd = m;
-
+    
     return gcd;
 }
 
 Reduced_Frac reduced_fraction(int n1, int n2) {
     Reduced_Frac result;
-
+    
     result.n1 = n1 / gcd(n1, n2);
     result.n2 = n2 / gcd(n1, n2);
     return result;
@@ -1277,12 +1297,12 @@ static void apply_scale(float true_scale)
 {
 	float TS = true_scale;
 	TS = clamp(TS, 0.1, 500.f);
-
+    
 	if (G->graphics.aspect_img < G->graphics.aspect_wnd)
 		G->scale = TS * (float)G->graphics.main_image.h / WH;
 	else
 		G->scale = TS * (float)G->graphics.main_image.w / WW;
-
+    
 	//if (!G->signals.setting_applied) G->position *= G->scale / prev_scale;
 	send_signal(G->signals.update_truescale);
 }
@@ -1300,7 +1320,7 @@ static void refresh_display() {
     }
     else
         set_window_size(display_size, max(G->graphics.main_image.w, 700), max(G->graphics.main_image.h, 700));
-
+    
     get_window_size();
 }
 
@@ -1335,34 +1355,34 @@ static void fit_image_1()
 static void apply_settings() {
 	bool dont_apply_scale = false;
     switch (G->settings_resetzoom) {
-    case 0: dont_apply_scale = true; break;
-    case 1: // Save zoom for each file
+        case 0: dont_apply_scale = true; break;
+        case 1: // Save zoom for each file
 		if (G->files[G->current_file_index].scaled)
         	G->req_truescale = G->files[G->current_file_index].scale;
 		else // use new file setting
 		{
 			switch (G->settings_newfilezoom)
 			{
-			case 0: fit_image_in(); break;
-			case 1: fit_image_1(); break;
+                case 0: fit_image_in(); break;
+                case 1: fit_image_1(); break;
 			}
 		}
         break;
-    case 2: fit_image_w(); break;
-    case 3: fit_image_h(); break;
-    case 4: fit_image_1();break;
-    default: break;
+        case 2: fit_image_w(); break;
+        case 3: fit_image_h(); break;
+        case 4: fit_image_1();break;
+        default: break;
     }
     switch (G->settings_resetpos) {
-    case 0: // Persistent position across all files
+        case 0: // Persistent position across all files
         break;
-    case 1: // Save position for each file
+        case 1: // Save position for each file
         G->position = G->files[G->current_file_index].pos;
         break;
-    case 2: // Reset to center
+        case 2: // Reset to center
         G->position = v2(0, 0);
         break;
-    default:
+        default:
         break;
     }
 	if (!dont_apply_scale)
@@ -1375,16 +1395,16 @@ static void load_image_post() {
 			G->anim_texture.d3d_texture->Release();
 		if (G->anim_texture.d3d_texture == 0)
             refresh_display();
-
+        
 		G->anim_texture = create_texture(G->anim_buffer + G->anim_index * G->graphics.main_image.w * G->graphics.main_image.h * 4, 
-		                                G->graphics.main_image.w, G->graphics.main_image.h, true);
+                                         G->graphics.main_image.w, G->graphics.main_image.h, true);
     } else {
 		if (G->graphics.main_image.texture.d3d_texture != 0)
 			G->graphics.main_image.texture.d3d_texture->Release();
-
+        
 		if (G->graphics.main_image.texture.d3d_texture == 0)
             refresh_display();
-
+        
 		G->graphics.main_image.texture = create_texture(G->graphics.main_image.data, G->graphics.main_image.w, G->graphics.main_image.h, false);
 		if (G->graphics.main_image.data) {
 			wfree(G->graphics.main_image.data);
@@ -1392,17 +1412,74 @@ static void load_image_post() {
 			G->graphics.main_image.data = 0;
 		}
     }
-
+    
     Reduced_Frac frac = reduced_fraction(G->graphics.main_image.w, G->graphics.main_image.h);
     G->graphics.main_image.frac1 = frac.n1;
     G->graphics.main_image.frac2 = frac.n2;
     G->graphics.main_image.aspect_ratio = (float)frac.n1 / frac.n2;
-
+    
     wchar_t title[512];
     swprintf(title, array_size(title), L"CactusViewer %hs - %ws", VERSION, G->files[G->current_file_index].file.name);
     SetWindowTextW(hwnd, title);
-
+    
     apply_settings();
+    
+    {
+        Graphics *gfx = &G->graphics;
+        
+        //~ Create textures for paint canvas.
+        if (gfx->paint_canvas_srv) {
+            gfx->paint_canvas_srv->Release();
+            gfx->paint_canvas_preview_srv->Release();
+            gfx->paint_canvas_srv         = NULL;
+            gfx->paint_canvas_preview_srv = NULL;
+        }
+        if (gfx->paint_canvas_uav) {
+            gfx->paint_canvas_uav->Release();
+            gfx->paint_canvas_preview_uav->Release();
+            gfx->paint_canvas_uav         = NULL;
+            gfx->paint_canvas_preview_uav = NULL;
+        }
+        
+        D3D11_TEXTURE2D_DESC desc_main_image;
+        G->graphics.main_image.texture.d3d_texture->GetDesc(&desc_main_image);
+        
+        ID3D11Texture2D *paint_canvas_tex;
+        ID3D11Texture2D *paint_canvas_preview_tex;
+        D3D11_TEXTURE2D_DESC desc_paint_canvas = {};
+        desc_paint_canvas.Width      = desc_main_image.Width;
+        desc_paint_canvas.Height     = desc_main_image.Height;
+        desc_paint_canvas.MipLevels  = 1;
+        desc_paint_canvas.ArraySize  = 1;
+        desc_paint_canvas.Format     = desc_main_image.Format;
+        desc_paint_canvas.SampleDesc = {1, 0};
+        desc_paint_canvas.Usage      = D3D11_USAGE_DEFAULT;
+        desc_paint_canvas.BindFlags  = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+        err(G->graphics.device->CreateTexture2D(&desc_paint_canvas, 0, &paint_canvas_tex));
+        err(G->graphics.device->CreateTexture2D(&desc_paint_canvas, 0, &paint_canvas_preview_tex));
+        
+        D3D11_SHADER_RESOURCE_VIEW_DESC desc_srv = {};
+        desc_srv.Format                    = desc_paint_canvas.Format;
+        desc_srv.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+        desc_srv.Texture2D.MostDetailedMip = 0;
+        desc_srv.Texture2D.MipLevels       = 1;
+        err(G->graphics.device->CreateShaderResourceView(paint_canvas_tex, &desc_srv, &gfx->paint_canvas_srv));
+        err(G->graphics.device->CreateShaderResourceView(paint_canvas_preview_tex, &desc_srv, &gfx->paint_canvas_preview_srv));
+        
+        D3D11_UNORDERED_ACCESS_VIEW_DESC desc_uav = {};
+        desc_uav.Format              = desc_paint_canvas.Format;
+        desc_uav.ViewDimension       = D3D11_UAV_DIMENSION_TEXTURE2D;
+        desc_uav.Texture2D.MipSlice  = 0;
+        err(G->graphics.device->CreateUnorderedAccessView(paint_canvas_tex, &desc_uav, &gfx->paint_canvas_uav));
+        err(G->graphics.device->CreateUnorderedAccessView(paint_canvas_preview_tex, &desc_uav, &gfx->paint_canvas_preview_uav));
+        
+        paint_canvas_tex->Release();
+        paint_canvas_preview_tex->Release();
+        
+        const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_uav, c);
+        G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_preview_uav, c);
+    }
 }
 
 DWORD WINAPI loader_thread(LPVOID lpParam) {
@@ -1431,12 +1508,12 @@ static int check_valid_extention(wchar_t *EXT) {
     ext[0] = '.';
     for (int i = 1; i < length + 1; i++)
         ext[i] = tolower(EXT[i]);
-
+    
     int result = TYPE_UNKNOWN;
-//    if      (wcscmp(ext, L".png")  == 0)	result = TYPE_STB_IMAGE;
-//    else if (wcscmp(ext, L".jpg")  == 0)	result = TYPE_STB_IMAGE;
-//    else if (wcscmp(ext, L".jpeg") == 0)	result = TYPE_STB_IMAGE;
-//    else if (wcscmp(ext, L".bmp")  == 0)	result = TYPE_STB_IMAGE;
+    //    if      (wcscmp(ext, L".png")  == 0)	result = TYPE_STB_IMAGE;
+    //    else if (wcscmp(ext, L".jpg")  == 0)	result = TYPE_STB_IMAGE;
+    //    else if (wcscmp(ext, L".jpeg") == 0)	result = TYPE_STB_IMAGE;
+    //    else if (wcscmp(ext, L".bmp")  == 0)	result = TYPE_STB_IMAGE;
 	if (wcscmp(ext, L".gif")  == 0)	result = TYPE_GIF;
     else if (wcscmp(ext, L".webp") == 0)	result = TYPE_WEBP;
     // Portable PixMap
@@ -1508,13 +1585,13 @@ static int check_valid_extention(wchar_t *EXT) {
 	else if (wcscmp(ext, L".wdp")   == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".webp")  == 0)   result = TYPE_MISC;
 	else if (wcscmp(ext, L".x3f")   == 0)   result = TYPE_MISC;
-
+    
     free(ext);
     return result;
 }
 static void remove_char(wchar_t *str, wchar_t ch) {
     int len = wcslen(str);
-
+    
     for (int i = 0; i < len; i++) {
         if (str[i] == ch) {
             for (int j = i; j < len; j++) {
@@ -1575,7 +1652,7 @@ wchar_t *get_wc(char *c) {
     const size_t cSize = strlen(c) + 1;
     wchar_t* wc = new wchar_t[cSize];
     mbstowcs(wc, c, cSize);
-
+    
     return wc;
 }
 void get_c(wchar_t* wc, char* target) {
@@ -1596,10 +1673,10 @@ int cmp(const void* a, const void* b)  {
 static void sort_folder() {
     for (int i =0; i < G->files.Count; i++)
         for (int j =0; j < items_in_folder; j++)
-            if (wcscmp(G->files[i].file.path, files_in_folder[j].wpath) == 0) {
-                G->files[i].index = j;
-                break;
-            }
+        if (wcscmp(G->files[i].file.path, files_in_folder[j].wpath) == 0) {
+        G->files[i].index = j;
+        break;
+    }
     qsort(G->files.Data, G->files.Count, sizeof(File_Data), cmp);
 }
 
@@ -1611,9 +1688,9 @@ struct Folder_Sort_Thread_data {
 DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
     EnterCriticalSection(&G->sort_mutex);
     G->sorting = true;
-
+    
     Folder_Sort_Thread_data *data = (Folder_Sort_Thread_data *)lpParam;
-
+    
     wchar_t *file_path = data->path;
     wchar_t *file_name = data->FileName;
 	wchar_t path_buffer[MAX_PATH + 4];
@@ -1656,7 +1733,7 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 		if (!SHGetPathFromIDListW(fullPIDL, path_buffer)) goto Alert;
 		if (!string_equal(file_path, path_buffer)) goto Alert;
 		if (S_OK != folderView->ItemCount(SVGIO_ALLVIEW, &itemCount)) goto Alert;
-
+        
 		if (!(files_in_folder = (Folder_Entry *) malloc(itemCount * sizeof(Folder_Entry)))) goto Alert;
 		
 		for (int i = 0; i < itemCount; i++)  {
@@ -1671,7 +1748,7 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 		
 		items_in_folder = itemCount;
 		index_in_folder = focusedItem;
-	
+        
 		success = true;
 		Alert:;
 		
@@ -1690,15 +1767,15 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 	}
 	
 	shellWindows->Release();
-
-	if (files_in_folder) {
     
+	if (files_in_folder) {
+        
         for(int i = 0; i < items_in_folder; i++) {
 			get_c(files_in_folder[i].wpath, files_in_folder[i].path);
         }
-
+        
         sort_folder();
-
+        
         for (int i = 0; i < G->files.Count; i++) {
             if (wcscmp(file_name, G->files[i].file.name) == 0) {
 				EnterCriticalSection(&G->id_mutex);
@@ -1709,9 +1786,9 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
             G->files[i].failed = false;
         }
     } 
-
+    
 	free(files_in_folder);
-
+    
     free(data->FileName);
     free(data->path);
     G->sorting = false;
@@ -1721,7 +1798,7 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 }
 
 DWORD WINAPI thumbs_thread(LPVOID lpParam) {
-
+    
 	IWICImagingFactory* pFactory = nullptr;
 	IWICBitmapScaler* pScaler = nullptr;
 	IWICBitmapClipper* pClipper = nullptr;
@@ -1731,15 +1808,15 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 	pFactory->CreateBitmapScaler(&pScaler);
 	pFactory->CreateBitmapClipper(&pClipper);
 	pFactory->CreateFormatConverter(&pConverter);
-
+    
 	i32 index_pro = clamp(G->current_file_index, 0, G->files.Count - 1);
 	i32 index_retro = clamp(G->current_file_index - 1, 0, G->files.Count - 1);
-
+    
 	//for (int i = 0; i < G->files.Count; i++)
 	bool turn_pro = 0;
 	while(true)
 	{
-
+        
 		i32 i = turn_pro ? index_pro : index_retro;
 		if (turn_pro && index_pro > G->files.Count - 1) {
 			i = index_retro;
@@ -1748,12 +1825,12 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 			i = index_pro;
 			turn_pro = true;
 		}
-
+        
 		cf_file_t *file = &G->files[i].file;
-
+        
 		EnterCriticalSection(&G->thumbs_mutex);
 		i32 thumb_dim = THUMBS_DIM;
-
+        
 		IWICBitmapDecoder* pDecoder = nullptr;
 		IWICBitmapSource* pThumbnail = nullptr;
 		IWICBitmapSource* pSource = nullptr;
@@ -1761,30 +1838,30 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 		IWICFormatConverter* pConverter = nullptr;
 		IWICBitmapClipper* pClipper = nullptr;
 		IWICBitmapScaler* pScaler = nullptr;
-
+        
 		HRESULT hr = pFactory->CreateDecoderFromFilename(file->path, nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &pDecoder);
 		if (SUCCEEDED(hr)) hr = pDecoder->GetThumbnail(&pThumbnail);
-
+        
 		if (FAILED(hr) && pDecoder) hr = pDecoder->GetFrame(0, &pFrame);
 		if (SUCCEEDED(hr)) pSource = pThumbnail ? pThumbnail : pFrame;
-
+        
 		if (SUCCEEDED(hr)) hr = pFactory->CreateFormatConverter(&pConverter);
 		if (SUCCEEDED(hr)) hr = pConverter->Initialize(pFrame, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, NULL, 0.0, WICBitmapPaletteTypeCustom);
 		if (SUCCEEDED(hr)) pSource = pConverter;
-
+        
 		UINT o_w, o_h;
 		if (SUCCEEDED(hr)) hr = pSource->GetSize(&o_w, &o_h);
-
+        
 		UINT sq_l = min(o_w, o_h);
 		UINT offsetX = (o_w - sq_l) / 2;
 		UINT offsetY = (o_h - sq_l) / 2;
 		WICRect rcClip = { (int)(offsetX), (int)(offsetY), (int)(sq_l), (int)(sq_l) };
-
+        
 		if (SUCCEEDED(hr)) hr = pFactory->CreateBitmapClipper(&pClipper);
 		if (SUCCEEDED(hr)) hr = pClipper->Initialize(pSource, &rcClip);
 		if (SUCCEEDED(hr)) hr = pFactory->CreateBitmapScaler(&pScaler);
 		if (SUCCEEDED(hr)) hr = pScaler->Initialize(pClipper, thumb_dim, thumb_dim, WICBitmapInterpolationModeFant);
-
+        
 		UINT stride = thumb_dim * 4;
 		UINT bufferSize = stride * thumb_dim;
 		BYTE* buffer = nullptr;
@@ -1793,21 +1870,21 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 			memset(buffer, 0, bufferSize);
 			hr = pScaler->CopyPixels(nullptr, stride, bufferSize, buffer);
 		}
-
+        
 		if (SUCCEEDED(hr)) {
 			int n = i;
 			const UINT texture_size = 4000;
 			const UINT max_thumbnails_per_row = texture_size / thumb_dim;
-
+            
 			UINT start_x = (n % max_thumbnails_per_row) * thumb_dim;
 			UINT start_y = (n / max_thumbnails_per_row) * thumb_dim;
 			UINT end_x = start_x + thumb_dim;
 			UINT end_y = start_y + thumb_dim;
-
+            
 			D3D11_BOX dst_box = { start_x, start_y, 0, end_x, end_y, 1 };
 			G->graphics.device_ctx->UpdateSubresource(G->graphics.thumbs.d3d_texture, 0, &dst_box, buffer, stride, bufferSize);
 		}
-
+        
 		if (pSource && pSource != pThumbnail && pSource != pConverter) pSource->Release();
 		if (buffer) 	free(buffer);
 		if (pThumbnail) pThumbnail->Release();
@@ -1816,28 +1893,28 @@ DWORD WINAPI thumbs_thread(LPVOID lpParam) {
 		if (pClipper) 	pClipper->Release();
 		if (pScaler) 	pScaler->Release();
 		if (pDecoder) 	pDecoder->Release();
-
+        
 		if (turn_pro)
 			index_pro++;
 		else
 			index_retro--;
-
+        
 		turn_pro = !turn_pro;
-
+        
 		G->files[i].thumb_loaded = true;
 		LeaveCriticalSection(&G->thumbs_mutex);
-
+        
 		if (index_pro > G->files.Count - 1 && index_retro < 0)
 			break;
 		if(G->signals.new_folder)
 			break;
 	}
-
+    
 	if (pClipper) pClipper->Release();
 	if (pScaler) pScaler->Release();
 	if (pFactory) pFactory->Release();
 	CoUninitialize();
-
+    
     return 0;
 }
 
@@ -1849,21 +1926,21 @@ Folder_Sort_Thread_data sort_data;
 #define SCAN_DIR 2
 
 static int scan_folder(wchar_t *path) {
-
-
+    
+    
 	int result = SCAN_FILE;
     if (path == nullptr) {
         G->files.reset_count();
 		return SCAN_DIR;
     }
-
-
+    
+    
     int len = wcslen(path);
     wchar_t *BasePath = nullptr;
     wchar_t *FileName = nullptr;
     wchar_t *FullPath = nullptr;
     int newlen = len;
-
+    
 	if (PathIsDirectoryW(path))  {
 		BasePath = (wchar_t*)malloc((len + 2) * sizeof(wchar_t));
 		memcpy(BasePath, path, (len + 1) * sizeof(wchar_t));
@@ -1874,14 +1951,14 @@ static int scan_folder(wchar_t *path) {
 		result = SCAN_DIR;
 	} else {
 		remove_char(path, '/"');
-
+        
 		for (int i = len - 1; i > 0; i--) {
 			if (path[i] == '/' || path[i] == '\\') {
 				newlen = i + 1;
 				break;
 			}
 		}
-
+        
 		BasePath = (wchar_t *)malloc((newlen + 1) * sizeof(wchar_t));
 		FileName = (wchar_t *)malloc((len - newlen + 1) * sizeof(wchar_t));
 		memcpy(FileName, &path[newlen], (len - newlen) * sizeof(wchar_t));
@@ -1914,26 +1991,26 @@ static int scan_folder(wchar_t *path) {
         G->files.reset_count();
 		return SCAN_DIR;
     }
-
+    
     cf_dir_t dir;
     cf_dir_open(&dir, BasePath);
-
+    
 	send_signal(G->signals.new_folder);
-
+    
 	EnterCriticalSection(&G->thumbs_mutex);
-
+    
     G->files.reset_count();
-
+    
     while (dir.has_next) {
         cf_file_t file_0;
         cf_read_file(&dir, &file_0);
-
+        
         if (file_0.is_dir) {
             cf_dir_next(&dir);
             continue;
         }
         remove_char(file_0.path, '/');
-
+        
 		int type = check_valid_extention(file_0.ext); 
 		if (type == TYPE_UNKNOWN) {
 			if (wcscmp(FileName, file_0.name) == 0) {
@@ -1949,18 +2026,18 @@ static int scan_folder(wchar_t *path) {
 		File_Data new_file;
         G->files.push_back(new_file);
 		G->files.back().type = type;
-
+        
         cf_file_t *file = &G->files.back().file;
         *file = file_0;
 	    stbi_convert_wchar_to_utf8(file->name_utf8, 1024, file->name);
-
+        
         cf_dir_next(&dir);
     }
     cf_dir_close(&dir);
-
+    
 	if (result == SCAN_FAILED)
 		goto cleanup;
-
+    
     if (!G->sorting && G->settings_sort) {   
         sort_data.FileName = (wchar_t*)malloc((wcslen(FileName) + 1) * sizeof(wchar_t));
         memcpy(sort_data.FileName, FileName,  (wcslen(FileName) + 1) * sizeof(wchar_t));
@@ -1971,7 +2048,7 @@ static int scan_folder(wchar_t *path) {
 	} else {
 		G->current_file_index = 0;
 	}
-
+    
 	for (int i = 0; i < G->files.Count; i++) {
 		if (wcscmp(FileName, G->files[i].file.name) == 0) {
 			G->current_file_index = i;
@@ -1983,9 +2060,9 @@ static int scan_folder(wchar_t *path) {
     free(FileName);  
 	
 	LeaveCriticalSection(&G->thumbs_mutex);
-
+    
 	G->signals.new_folder = false;
-
+    
 	if (G->settings_preview_thumbs)
 		CreateThread(NULL, 0, thumbs_thread, 0, 0, NULL);
 	
@@ -2000,7 +2077,7 @@ unsigned long create_RBG(int r, int g, int b) {
 
 
 static GUID get_GUID(Encoder_Format encoder_format) {
-
+    
 	switch (encoder_format) {
 		case Format_Bmp:	return GUID_ContainerFormatBmp;
 		case Format_Png:	return GUID_ContainerFormatPng;
@@ -2014,28 +2091,34 @@ static GUID get_GUID(Encoder_Format encoder_format) {
 		case Format_Heif:	return GUID_ContainerFormatHeif;
 		//case Format_Webp:	return GUID_ContainerFormatWebp;
 		//case Format_Raw:	return GUID_ContainerFormatRaw;
-
+        
 		default:  			return GUID_ContainerFormatJpeg;
 	}
 }
 
 static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool clipboard = false) {
+    
+    // @@Todo:
+    // - Ability to "Save" current image.
+    // - Fix "Save As" doesn't seem to work if we overwrite current opened image.
+    //
+    
 	Graphics* ctx = &G->graphics;
-
+    
 	IWICBitmapEncoder* encoder = 0;
 	IWICStream* stream = 0;
 	IWICBitmapFrameEncode* frame = 0;
-
+    
 	HRESULT hr = 0;
 	if (!clipboard && path == 0) {
 		push_alert("Failed to fetch file path from `save as` dialogue.");
 		return -1;
 	}
-
+    
 	DXGI_FORMAT image_format = DXGI_FORMAT_B8G8R8A8_UNORM;
-
+    
 	v2 new_size = _v2(G->crop_b - G->crop_a);
-
+    
 	// create an offscreen texture
 	D3D11_TEXTURE2D_DESC tex_desc = { };
 	tex_desc.Width =  new_size.x; 
@@ -2053,7 +2136,7 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 	ID3D11RenderTargetView* offscreen_texture_rtv = nullptr;
 	hr = ctx->device->CreateTexture2D(&tex_desc, NULL, &offscreen_texture);
 	hr = ctx->device->CreateRenderTargetView(offscreen_texture, NULL, &offscreen_texture_rtv);
-
+    
 	// run the shaders on it
 	ctx->device_ctx->ClearState();
 	Shader_Constants_Main constants_main = set_main_shader_constants();
@@ -2079,7 +2162,23 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 	ctx->device_ctx->RSSetViewports(1, &vp);
 	ctx->device_ctx->OMSetRenderTargets(1, &offscreen_texture_rtv, nullptr); // we don't need a depth/stencil view here
 	ctx->device_ctx->Draw(4, 0);
-
+    
+    // Draw paint canvas.
+    ID3D11ShaderResourceView *null_srv = NULL;
+    ID3D11RenderTargetView   *null_rtv = NULL;
+    ID3D11Buffer             *null_buf = NULL;
+    ctx->device_ctx->VSSetShader(ctx->paint_program.vertex_shader, nullptr, 0);
+    ctx->device_ctx->VSSetConstantBuffers(0, 1, &ctx->main_program.constants_buffer);
+    ctx->device_ctx->PSSetShader(ctx->paint_program.pixel_shader, nullptr, 0);
+    ctx->device_ctx->PSSetConstantBuffers(0, 1, &null_buf);
+    ctx->device_ctx->PSSetShaderResources(0, 1, &ctx->main_image.texture.srv);
+    ctx->device_ctx->PSSetShaderResources(2, 1, &ctx->paint_canvas_srv);
+    ctx->device_ctx->OMSetBlendState(ctx->paint_blend_state, nullptr, 0xffffffff);
+    ctx->device_ctx->Draw(4, 0);
+    ctx->device_ctx->PSSetShaderResources(0, 1, &null_srv);
+    ctx->device_ctx->PSSetShaderResources(2, 1, &null_srv);
+    ctx->device_ctx->OMSetBlendState(ctx->blend_state, nullptr, 0xffffffff);
+    
 	// Create a staging texture with the same format as the render target
 	D3D11_TEXTURE2D_DESC staging_desc = {};
 	staging_desc.Width = new_size.x;
@@ -2091,54 +2190,54 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 	staging_desc.Usage = D3D11_USAGE_STAGING;
 	staging_desc.BindFlags = 0;
 	staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-
+    
 	ID3D11Texture2D* staging_texture = nullptr;
 	hr = ctx->device->CreateTexture2D(&staging_desc, nullptr, &staging_texture);
 	if (FAILED(hr)) {
 		goto cleanup;
 	}
-
+    
 	// Copy the whole texture from the render target to the staging texture
 	ctx->device_ctx->CopySubresourceRegion(staging_texture, 0, 0, 0, 0, offscreen_texture, 0, 0);
-
+    
 	// Map the staging texture
 	D3D11_MAPPED_SUBRESOURCE mapped_resource;
 	hr = ctx->device_ctx->Map(staging_texture, 0, D3D11_MAP_READ, 0, &mapped_resource);
 	if (FAILED(hr)) {
 		goto cleanup;
 	}
-
+    
 	u8* data = reinterpret_cast<u8*>(mapped_resource.pData);
 	if (data == nullptr) {
 		printf("invalid data ptr\n");
 		goto cleanup;
 	}
-
+    
 	if (clipboard) {
 		// @hkva: GdiPlus required here as Gdi32 does not easily support bitmaps with alpha channels.
 		//	      First create a device-independent bitmap (GdiPlus::Bitmap), then convert to a
 		//		  device-compatible bitmap for WinAPI use.
 		// References:
 		//        https://github.com/nakst/imgview/blob/d3e918b7f65cfb5a595b1b756c69cd1c1a30b13e/imgview.cpp#L574
-
+        
 		Gdiplus::Bitmap dib(new_size.x, new_size.y, mapped_resource.RowPitch, PixelFormat32bppARGB, data);
 		if (dib.GetLastStatus() != Gdiplus::Ok) {
 			printf("Failed to create GDI+ bitmap\n");
 			return 1;
 		}
-
+        
 		HBITMAP hdib;
 		dib.GetHBITMAP(0, &hdib);
-
+        
 		DIBSECTION hdibs;
 		GetObject(hdib, sizeof(hdibs), &hdibs);
-
+        
 		HBITMAP ddb = CreateDIBitmap(hdc, &hdibs.dsBmih, CBM_INIT, hdibs.dsBm.bmBits, (const BITMAPINFO*)&hdibs.dsBmih, DIB_RGB_COLORS);
 		if (!ddb) {
 			printf("Failed to to convert GDI+ bitmap to a device-compatible bitmap\n");
 			return 1;
 		}
-
+        
 		if (!OpenClipboard(NULL)) {
 			printf("Failed to open clipboard\n");
 			return 1;
@@ -2146,12 +2245,12 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 		EmptyClipboard();
 		SetClipboardData(CF_BITMAP, ddb);
 		CloseClipboard();
-
+        
 		DeleteObject(ddb);
-
+        
 		goto cleanup;
 	}
-
+    
 	// Read the pixel value BGRA (!)
 	CoInitialize(NULL);
 	IPropertyBag2 *property_bag = NULL;
@@ -2184,21 +2283,21 @@ static HRESULT save_image(Encoder_Format encoder_format, wchar_t* path, bool cli
 	} else {
 		printf("failed!\n");
 	}
-
+    
 	cleanup:
-
+    
 	if (frame) frame->Release();
 	if (stream) stream->Release();
 	if (encoder) encoder->Release();
-
+    
 	if (offscreen_texture_rtv) offscreen_texture_rtv->Release();
 	if (offscreen_texture) offscreen_texture->Release();
-
+    
 	if (staging_texture) ctx->device_ctx->Unmap(staging_texture, 0);
 	if (staging_texture) staging_texture->Release();
-
+    
 	CoUninitialize();
-
+    
 	return hr;
 }
 
@@ -2208,11 +2307,11 @@ HRESULT save_as_dialogue() {
 	IShellItem *item = 0;
 	PWSTR file_path = 0;
 	UINT selected_encoder_index = 0;
-
+    
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL, 
 	                              IID_IFileSaveDialog, reinterpret_cast<void**>(&dialogue));	
-
+    
 	if (dialogue == 0)
 		goto cleanup;
 	if (SUCCEEDED(hr))
@@ -2230,15 +2329,15 @@ HRESULT save_as_dialogue() {
 	if (SUCCEEDED(hr)) {
 		hr = save_image((Encoder_Format)(selected_encoder_index - 1), file_path);
 	}
-
+    
 	cleanup:
-
+    
 	if (item) 		item->Release();
 	if (dialogue) 	dialogue->Release();
 	if (file_path)	free(file_path);
-
+    
 	CoUninitialize();
-
+    
 	return hr;
 }
 
@@ -2247,13 +2346,13 @@ void file_open_dialogue() {
     IFileOpenDialog *dialogue = 0;
 	IShellItem *item = 0;
 	PWSTR file_path = 0;
-
+    
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, 
-            IID_IFileOpenDialog, reinterpret_cast<void**>(&dialogue));
+                                  IID_IFileOpenDialog, reinterpret_cast<void**>(&dialogue));
 	COMDLG_FILTERSPEC extensions[] = {  { L"Images", L"*.3fr;*.ari;*.arw;*.avci;*.avcs;*.avif;*.avifs;*.bay;*.bmp;*.cap;*.cr2;*.cr3;*.crw;*.cur;*.dcr;*.dcs;*.dds;*.dib;*.dng;*.drf;*.eip;*.erf;*.exif;*.fff;*.gif;*.heic;*.heics;*.heif;*.heifs;*.hif;*.ico;*.icon;*.iiq;*.jfif;*.jpe;*.jpeg;*.jpg;*.jxr;*.k25;*.kdc;*.mef;*.mos;*.mrw;*.nef;*.nrw;*.orf;*.ori;*.pef;*.png;*.ptx;*.pxn;*.raf;*.raw;*.rle;*.rw2;*.rwl;*.sr2;*.srf;*.srw;*.tif;*.tiff;*.wdp;*.webp;*.x3f" },
     };
-
+    
 	if (dialogue == 0) 
 		goto cleanup;
 	if (SUCCEEDED(hr))
@@ -2273,12 +2372,12 @@ void file_open_dialogue() {
 		}
 		G->dropped_file = true;
 	}
-
+    
 	cleanup:
-		
+    
 	if (item) 		item->Release();
 	if (dialogue) 	dialogue->Release();
-
+    
     CoUninitialize();
 }
 bool should_show_gui() {
@@ -2302,12 +2401,12 @@ static v4 read_texture_pixel(ID3D11Texture2D* renderTargetTexture, iv2 pixel) {
 	staging_desc.Usage = D3D11_USAGE_STAGING;
 	staging_desc.BindFlags = 0;
 	staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-
+    
 	ID3D11Texture2D* staging_texture = nullptr;
 	HRESULT hr = ctx->device->CreateTexture2D(&staging_desc, nullptr, &staging_texture);
 	if (FAILED(hr))
 		return v4(0, 0, 0, 0);
-
+    
 	// Copy the specific pixel from the render target to the staging texture
 	pixel.x = clamp(pixel.x, 0, WW);
 	pixel.y = clamp(pixel.y, 0, WH);
@@ -2319,7 +2418,7 @@ static v4 read_texture_pixel(ID3D11Texture2D* renderTargetTexture, iv2 pixel) {
 	source_region.front = 0;
 	source_region.back = 1;
 	ctx->device_ctx->CopySubresourceRegion(staging_texture, 0, 0, 0, 0, renderTargetTexture, 0, &source_region);
-
+    
 	// Map the staging texture
 	D3D11_MAPPED_SUBRESOURCE mapped_resource;
 	hr = ctx->device_ctx->Map(staging_texture, 0, D3D11_MAP_READ, 0, &mapped_resource);
@@ -2327,7 +2426,7 @@ static v4 read_texture_pixel(ID3D11Texture2D* renderTargetTexture, iv2 pixel) {
 		staging_texture->Release();
 		return v4(0, 0, 0, 0);
 	}
-
+    
 	u8* data = reinterpret_cast<u8*>(mapped_resource.pData);
 	if (data == nullptr) {
 		ctx->device_ctx->Unmap(staging_texture, 0);
@@ -2335,14 +2434,14 @@ static v4 read_texture_pixel(ID3D11Texture2D* renderTargetTexture, iv2 pixel) {
 		printf("invalid data ptr\n");
 		return v4(0, 0, 0, 0);
 	}
-
+    
 	// Read the pixel value (BGRA)!
 	u8 b = data[0];
 	u8 g = data[1];
 	u8 r = data[2];
 	u8 a = data[3];
 	v4 result = v4(r, g, b, a) / 255.f;
-
+    
 	// Unmap and release the staging texture
 	ctx->device_ctx->Unmap(staging_texture, 0);
 	staging_texture->Release();
@@ -2402,14 +2501,14 @@ static void reset_image_edit() {
 
 static void update_gui() {
 	UI_Context* ctx = G->ui;
-
+    
 	bool disabled_prv = false;
-
+    
 	UI_Theme* theme = UI_get_theme();
-
+    
 	u32 font_size_status = 13;
 	u32 font_size_btn = 12;
-
+    
 	u32 status_bar_height = 0;
 	bool fullscreen = is_fullscreen(hwnd);
 	bool draw_status = !fullscreen || (fullscreen && !G->settings_hide_status_fullscreen);
@@ -2417,7 +2516,7 @@ static void update_gui() {
 		draw_status = false;
 	if (G->settings_always_show_gui)
 		draw_status = true;
-
+    
 	if (draw_status) {
 		UI_Block *status_bar = UI_push_block(ctx, 0);
 		status_bar->flags |= UI_Block_Flags_draw_background;
@@ -2430,7 +2529,7 @@ static void update_gui() {
 		status_bar->style.layout.align[axis_y] = align_center;
 		status_bar->style.layout.axis = axis_x;
 		status_bar_height = 30;
-
+        
 		UI_push_parent(ctx, status_bar);
 		if (G->alert.timer > 0) {
 			if (G->alert.type == Alert_Error)
@@ -2440,7 +2539,7 @@ static void update_gui() {
 		} else {
 			if (G->files.Count > 0) {
 				UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%i / %i | ", G->current_file_index + 1, G->files.Count);
-
+                
 				if (G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM)
 					UI_text(theme->text_reg_light, G->ui_font, font_size_status, "%d x %d - frames: %i - ", G->graphics.main_image.w, G->graphics.main_image.h, G->anim_frames);
 				else
@@ -2454,16 +2553,16 @@ static void update_gui() {
 		}
 		UI_pop_parent(ctx);
 	}
-
+    
 	if (!G->loaded && G->files.Count > 0) {
 		UI_Block *frame = UI_push_block(ctx, 0);
 		frame->style.size[axis_x] = { UI_Size_t::pixels, f32(WW), 1 };
 		frame->style.size[axis_y] = { UI_Size_t::pixels, f32(WH), 1 };
 		frame->style.layout.align[axis_y] = align_start;
 		frame->style.layout.align[axis_x] = align_start;
-
+        
 		UI_push_parent(ctx, frame);
-
+        
 		UI_Block *loading = UI_push_block(ctx);
 		loading->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
 		loading->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
@@ -2471,11 +2570,11 @@ static void update_gui() {
 		loading->style.roundness = v4(6.f);
 		loading->style.color[c_background] = theme->bg_main_0;
 		loading->flags |= UI_Block_Flags_draw_background;
-
+        
 		UI_push_parent(ctx, loading);
 		UI_text(theme->text_info, G->ui_font, font_size_status, "Loading image...");
 		UI_pop_parent(ctx);
-
+        
 		UI_pop_parent(ctx);
 	}
 	if (G->crop_mode) {
@@ -2489,7 +2588,7 @@ static void update_gui() {
 		poup->style.color[c_background] = theme->bg_main_0;
 		poup->flags |= UI_Block_Flags_draw_background;
 		poup->style.layout.spacing = v2(4);
-
+        
 		UI_push_parent(ctx, poup);
 		iv2 dim = G->crop_b - G->crop_a;
 		UI_Color4 col_0 = theme->text_header_2;
@@ -2508,7 +2607,7 @@ static void update_gui() {
 			UI_text(col_1, G->ui_font, 12, "%i, %i", G->crop_b.x, G->crop_b.y);
 		}
 		UI_pop_parent(ctx);
-
+        
 	}
 	
 	if (keypress(Key_Ctrl) || keypress(MouseM)) {
@@ -2577,14 +2676,14 @@ static void update_gui() {
                         sprintf(color_str, "%c%.4f, %.4f, %.4f%s%c", e0, hsv[0], hsv[1], hsv[2], alpha_str, e1);
                     }
                 }
-		if (keyup(MouseR)) set_clipboard_text(color_str);
+                if (keyup(MouseR)) set_clipboard_text(color_str);
                 UI_text(theme->text_info, G->ui_font, 13, color_str);
-		UI_text(theme->text_reg_mid, G->ui_font, 9, "Right click to copy");
+                UI_text(theme->text_reg_mid, G->ui_font, 9, "Right click to copy");
 			}
 		}
-
+        
 	}
-
+    
 	UI_Button_Style btn_default;
 	btn_default.dots = false;
 	btn_default.color_bg = {
@@ -2602,7 +2701,7 @@ static void update_gui() {
 	btn_default.font = G->ui_font;
 	btn_default.font_size = font_size_btn;
 	btn_default.roundness = v4(4);
-
+    
 	UI_Checkbox_Style checkbox_default;
 	checkbox_default.color = {
 		theme->bg_main_2,
@@ -2622,7 +2721,7 @@ static void update_gui() {
 	checkbox_default.roundness = 4;
 	checkbox_default.line_height = 20;
 	checkbox_default.box_dim = 18;
-
+    
 	UI_Color_Picker_Style picker_style = { 0 };
 	picker_style.roundness = 4;
 	picker_style.font_size = btn_default.font_size;
@@ -2684,16 +2783,16 @@ static void update_gui() {
 		theme->text_reg_main_d
 	};
 	default_combo_style.roundness = 4;
-
+    
 	if (G->files.Count == 0)
 		G->gui_disabled = true;
 	static bool popup_open = false;
-
+    
 	if ((G->show_gui || popup_open) || G->settings_always_show_gui) {
 		popup_open = false;
 		//if (G->files.Count && G->files[G->current_file_index].failed)
 		//G->gui_disabled = true;
-
+        
 		UI_Block *main_bar = UI_push_block(ctx, 0);
 		main_bar->style.position[axis_x] = { UI_Position_t::absolute, 0 };
 		main_bar->style.position[axis_y] = { UI_Position_t::absolute, 0 };
@@ -2740,19 +2839,19 @@ static void update_gui() {
 						image_value_style.color_text = theme->text_reg_main;
 						image_value_style.color_frame_bg = theme->bg_sub;
 						popup_open |= UI_image_edit(&image_value_style, "edit");
-
+                        
 						UI_Histogram_Style histogram_style;
 						histogram_style.button_style = btn_default;
 						histogram_style.button_style.size = btn_size;
 						histogram_style.color_text = theme->text_reg_main;
 						histogram_style.checkbox_style = checkbox_default;
 						histogram_style.color_frame_bg = theme->bg_sub;
-
+                        
 						UI_set_disabled_defer((!G->settings_calculate_histograms || !G->graphics.main_image.has_histo))
 						{
 							popup_open |= UI_histogram(&histogram_style, "histogram");
 						}
-
+                        
 						UI_Button_Style style = btn_default;
 						style.color_bg.base = theme->pos_btn_0;
 						style.color_bg.hot = theme->pos_btn_1;
@@ -2798,7 +2897,7 @@ static void update_gui() {
 						}
 					}
 				}
-
+                
 				UI_Block *control_menu = UI_push_block(ctx);
 				control_menu->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
 				control_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
@@ -2842,11 +2941,11 @@ static void update_gui() {
 					slider_style.bar_short_axis = slider_style.pad_min_size = 25;
 					slider_style.logarithmic = true;
 					sprintf(slider_style.string, "zoom: %.0f%%%%", G->truescale * 100);
-
+                    
 					if (UI_slider(&slider_style, axis_x, &G->truescale_edit, 0.1, 500, UI_hash_djb2(ctx, "zoom slider"))) {
 						send_signal(G->signals.update_scale_ui);
 					}
-	
+                    
 					slider_style.logarithmic = false;
 					UI_push_parent_defer(ctx, UI_bar(axis_x))
 					{
@@ -2863,7 +2962,7 @@ static void update_gui() {
 								send_signal(G->signals.next_image);
 							}
 						}
-
+                        
 					}
 					float file = G->current_file_index;
 					slider_style.string[0] = 0;
@@ -2893,7 +2992,7 @@ static void update_gui() {
 						}
 					}
 				}
-
+                
 				UI_Block *right_menu = UI_push_block(ctx);
 				right_menu->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
 				right_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
@@ -2948,7 +3047,7 @@ static void update_gui() {
 								UI_tooltip("Show pixel grid");
 								UI_reset_disabled();
 							}
-
+                            
 							UI_set_disabled_defer(false) {
 								static u32 tmp_bg_color = UI_v4_to_u32(v4(bg_color));
 								UI_push_parent_defer(ctx, UI_bar(axis_y))
@@ -2999,10 +3098,76 @@ static void update_gui() {
 								else
 									UI_tooltip("Open image EXIF metadata");
 							}
-
+                            
 						}
 					}
 				}
+                
+                // @@Todo: Make height align with other menus.
+                //
+                //~ Paint UI
+                UI_Block *paint_menu = UI_push_block(ctx);
+                paint_menu->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
+                paint_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
+                paint_menu->style.color[c_background] = theme->bg_main_0;
+                paint_menu->style.layout.padding = v2(8);
+                paint_menu->style.layout.spacing = v2(5, 3);
+                paint_menu->style.layout.axis = axis_y;
+                paint_menu->style.roundness = v4(8);
+                paint_menu->flags |= UI_Block_Flags_draw_background;
+                paint_menu->hash = UI_hash_djb2(ctx, "paint_menu");
+                G->check_mouse_hashes.push_back(paint_menu->hash);
+                float slider_h = 70.0f;
+                UI_push_parent_defer(ctx, paint_menu)
+                {
+                    UI_push_parent_defer(ctx, UI_bar(axis_x))
+                    {
+                        UI_get_current_parent(ctx)->style.layout.spacing = v2(15);
+                        
+                        UI_set_disabled_defer((G->files.Count == 0)) {
+                            static u32 tmp_color = UI_v4_to_u32(G->paint_brush_color);
+                            UI_push_parent_defer(ctx, UI_bar(axis_y))
+                            {
+                                UI_Block* bar = UI_get_current_parent(ctx);
+                                bar->style.layout.spacing = v2(3);
+                                picker_style.button_size = v2(15, slider_h);
+                                popup_open |= UI_color_picker(&picker_style, &tmp_color, true, UI_hash_djb2(ctx, "paint color picker"));
+                                UI_tooltip("Brush color");
+                                G->paint_brush_color = UI_u32_to_v4(tmp_color);
+                            }
+                            
+                            const float PAINT_MAX_RADIUS = 100.0f;
+                            float tmp_radius = G->paint_brush_size;
+                            slider_style.bar_long_axis = slider_h;
+                            sprintf(slider_style.string, "%dpx", (int)G->paint_brush_size);
+                            UI_slider(&slider_style, axis_y, &tmp_radius, 1.0f, PAINT_MAX_RADIUS, UI_hash_djb2(ctx, "paint brush radius slider"));
+                            UI_tooltip("Brush size");
+                            G->paint_brush_size = clamp(roundf(tmp_radius), 1.0f, PAINT_MAX_RADIUS);
+                            
+                            UI_push_parent_defer(ctx, UI_bar(axis_y))
+                            {
+                                UI_checkbox(&checkbox_default, &G->paint_mode_toggled, "Toggle");
+                                UI_tooltip("Toggle brush");
+                                
+                                UI_checkbox(&checkbox_default, &G->paint_brush_aa, "AA Brush");
+                                UI_tooltip("Enable/disable anti-aliased brush");
+                                
+                                UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
+                                UI_Button_Style style = btn_default;
+                                style.color_bg.base = theme->pos_btn_0;
+                                style.color_bg.hot = theme->pos_btn_1;
+                                style.color_bg.active = theme->pos_btn_2;
+                                style.size = v2(50, 35);
+                                if (UI_button(&style, "Clear")) {
+                                    const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                                    G->graphics.device_ctx->ClearUnorderedAccessViewFloat(G->graphics.paint_canvas_uav, c);
+                                }
+                                UI_tooltip("Clear paint canvas");
+                            }
+                        }
+                    }
+                    
+                }
 			}
 			if (G->files.Count && G->settings_preview_thumbs) {
 				i32 thumb_dim = THUMBS_DIM;
@@ -3020,12 +3185,12 @@ static void update_gui() {
 					f32 begin_should = WW / 2.f - thumb_dim / 2.f - G->current_file_index * thumb_dim + (thumb_dim / 2.f);
 					if (WW)
 						begin = UI_lerp_f32(begin, begin_should, 0.2);
-
+                    
 					int thumbs_that_fit = (WW / thumb_dim) + 2;
 					int start_index = G->current_file_index - (min(G->current_file_index, thumbs_that_fit / 2));
 					f32 offset_begin = begin + start_index * thumb_dim;
 					int end_index = min(start_index + thumbs_that_fit, G->files.Count);
-
+                    
 					UI_Block *thumbs_scroll = UI_push_block(ctx);
 					thumbs_scroll->style.position[axis_x] = { UI_Position_t::absolute, f32(offset_begin) };
 					thumbs_scroll->style.layout.axis = axis_x;
@@ -3070,13 +3235,13 @@ static void update_gui() {
 	static bool exif_popup_open = false;
 	if (G->exif_data_visible || exif_popup_open) {
 		UI_set_disabled(false);
-
+        
 		UI_Block *frame = UI_push_block(ctx, 0);
 		frame->style.size[axis_x] = { UI_Size_t::pixels, f32(WW), 1 };
 		frame->style.size[axis_y] = { UI_Size_t::pixels, f32(WH), 1 };
 		frame->style.layout.align[axis_y] = align_center;
 		frame->style.layout.align[axis_x] = align_center;
-
+        
 		UI_Block *exif_menu = UI_push_block(ctx, frame);
 		exif_menu->style.size[axis_x] = { UI_Size_t::pixels, 350, 1 };
 		exif_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
@@ -3205,17 +3370,17 @@ static void update_gui() {
 		UI_reset_disabled();
 	}
 	static bool save_as_popup_open = false;
-
+    
 	static bool settings_popup_open = false;
 	if (G->settings_visible || settings_popup_open) {
 		UI_set_disabled(false);
-
+        
 		UI_Block *frame = UI_push_block(ctx, 0);
 		frame->style.size[axis_x] = {UI_Size_t::pixels, f32(WW), 1};
 		frame->style.size[axis_y] = {UI_Size_t::pixels, f32(WH), 1};
 		frame->style.layout.align[axis_y] = align_center;
 		frame->style.layout.align[axis_x] = align_center;
-
+        
 		UI_Block *settings_menu = UI_push_block(ctx, frame);
 		settings_menu->style.size[axis_x] = { UI_Size_t::pixels, 500, 1 };
 		settings_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
@@ -3310,7 +3475,7 @@ static void update_gui() {
 			}
 			UI_separator(2, theme->separator);
 			UI_text(theme->text_header_1, G->ui_font, 13,"Settings:");
-
+            
 			char *resetzoom_options[]  {"Do not reset zoom", "Save zoom for each file", "Fit Width", "Fit Height", "Zoom to 1:1"};
 			char *resetpos_options[] { "Do not reset position", "Save position for each file", "Reset to center" };
 			char *new_file_zoom_options[] { "Fill window", "zoom to 1:1" };
@@ -3413,7 +3578,7 @@ static void update_gui() {
 				UI_checkbox(&checkbox_default, &G->settings_calculate_histograms, "Calculate image histograms (relatively performance intensive on load)");
 				UI_checkbox(&checkbox_default, &G->settings_preview_thumbs, "Show thumbnail bar of images in folder.");
 				UI_tooltip("Generates thumbnails for images in the folder (can be performance intensive with large folders and is limited to 25.600 images.)");
-
+                
 			}
 			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
 				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
@@ -3455,23 +3620,144 @@ static void update_gui() {
 	G->gui_disabled = false;
 }
 
+////////////////////////////////
+//~ Paint logic.
+
+static v2 get_rotated_pixel_mouse(iv2 *out_rotated_canvas_size = 0)
+{
+    v2 pos = G->pixel_mouse;
+    iv2 sz = { G->graphics.main_image.w, G->graphics.main_image.h };
+    switch (G->graphics.main_image.orientation) {
+        case 0:                                                      break;
+        case 1: pos = {sz.y - 1 - pos.y, pos.x}; sz  = {sz.y, sz.x}; break;
+        case 2: pos = {sz.x - 1 - pos.x, sz.y - 1 - pos.y};          break;
+        case 3: pos = {pos.y, sz.x - 1 - pos.x}; sz  = {sz.y, sz.x}; break;
+    }
+    pos.x = clamp(pos.x, 0.0f, (float)sz.x - 1.0f);
+    pos.y = clamp(pos.y, 0.0f, (float)sz.y - 1.0f);
+    v2 result = { floorf(pos.x) + 0.5f, floorf(pos.y) + 0.5f }; // Snap to pixel center.
+    if (out_rotated_canvas_size)
+        *out_rotated_canvas_size = sz;
+    return result;
+}
+
+static void paint_render(ID3D11UnorderedAccessView *target_uav, const Shader_Constants_Paint &constants)
+{
+    ID3D11DeviceContext1 *ctx = G->graphics.device_ctx;
+    
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    ctx->Map(G->graphics.paint_constants_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    memcpy(mapped.pData, &constants, sizeof(Shader_Constants_Paint));
+    ctx->Unmap(G->graphics.paint_constants_buffer, 0);
+    
+    ID3D11UnorderedAccessView* uavs[] = { target_uav };
+    ctx->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+    ctx->CSSetConstantBuffers(0, 1, &G->graphics.paint_constants_buffer);
+    ctx->CSSetShader(G->graphics.paint_cs_shader, nullptr, 0);
+    
+    // Dispatch over full canvas (simple, not optimal).
+    UINT groups_x = (constants.canvas_size.x + 8 - 1) / 8;
+    UINT groups_y = (constants.canvas_size.y + 8 - 1) / 8;
+    ctx->Dispatch(groups_x, groups_y, 1);
+    
+    ID3D11UnorderedAccessView *null_uav[1] = { NULL };
+    ID3D11Buffer *null_cb[1] = { NULL };
+    ctx->CSSetUnorderedAccessViews(0, 1, null_uav, NULL);
+    ctx->CSSetConstantBuffers(0, 1, null_cb);
+    ctx->CSSetShader(NULL, NULL, 0);
+}
+
+static void paint_update() 
+{
+    if (G->files.Count <= 0 || !G->graphics.paint_canvas_uav)
+        return;
+    
+    if (keydn(Key_B)) {
+        G->paint_mode_toggled = !G->paint_mode_toggled;
+    }
+    G->paint_mode = (keypress(Key_Shift) && !G->ui_want_capture_mouse) || (G->paint_mode_toggled);
+    if (G->paint_mode) {
+        G->crop_mode  = false;
+        SetCursor(G->hcursor[Cursor_Type_pen]);
+    } else {
+        G->paint_mode = false;
+        G->paint_stroke_points.reset_count();
+        SetCursor(G->hcursor[Cursor_Type_arrow]);
+    }
+    
+    // Always clear preview canvas.
+    const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    G->graphics.device_ctx->ClearUnorderedAccessViewFloat(G->graphics.paint_canvas_preview_uav, c);
+    
+    if (G->paint_mode && !G->ui_want_capture_mouse) {
+        v2   p0, p1;   // Start and end pixel-center position of our stroke.
+        iv2  s;        // Rotated canvas/image size.
+        bool down      = keydn(MouseL) || keydn(MouseR);
+        bool pressed   = keypress(MouseL) || keypress(MouseR);
+        bool moved     = (G->keys.Mouse_rel.x || G->keys.Mouse_rel.y);
+        
+        bool paint_on_click = down;
+        bool paint_on_move  = pressed && moved && !G->paint_stroke_points.is_empty();
+        
+        // Change brush size with SHIFT+MW
+        G->paint_brush_size += G->keys.scroll_y_diff;
+        G->paint_brush_size  = clamp(G->paint_brush_size, 1, 100);
+        
+        v2 mouse_current = get_rotated_pixel_mouse(&s);
+        if (paint_on_click) {
+            G->paint_stroke_points.reset_count();
+            G->paint_stroke_points.push_back(mouse_current);
+            G->paint_stroke_points.push_back(mouse_current);
+            p0 = mouse_current;
+            p1 = mouse_current;
+        } else if (paint_on_move) {
+            p0 = G->paint_stroke_points.back();
+            p1 = mouse_current;
+            G->paint_stroke_points.push_back(p1);
+        }
+        
+        {
+            Shader_Constants_Paint constants;
+            constants.point_a     = p0;
+            constants.point_b     = p1;
+            constants.color       = G->paint_brush_color;
+            constants.canvas_size = s;
+            constants.radius      = G->paint_brush_size * 0.5f;
+            constants.smoothness  = G->paint_brush_aa ? 2.0f : 0.0f;
+            constants.erase       = keypress(MouseR);
+            
+            // Render brush stroke.
+            if (paint_on_click || paint_on_move) {
+                paint_render(G->graphics.paint_canvas_uav, constants);
+            }
+            
+            // Render brush preview.
+            constants.point_a = mouse_current;
+            constants.point_b = mouse_current;
+            paint_render(G->graphics.paint_canvas_preview_uav, constants);
+        }
+    }
+}
+
+////////////////////////////////
+
 enum Drag_index {
 	drag_free,
 	drag_crop_a_x,
 	drag_crop_a_y,
 	drag_crop_b_x,
 	drag_crop_b_y,
-
+    
 	drag_crop_a_x_a_y,
 	drag_crop_a_x_b_y,
 	drag_crop_b_x_a_y,
 	drag_crop_b_x_b_y,
-
+    
 	drag_count,
 };
 
 static void shuffle_folder() {
-
+    
 	for (int i = G->files.Count - 1; i > 0; i--) {
 		int j = rand() % (i + 1);
 		swap(File_Data, G->files[i], G->files[j]);
@@ -3483,19 +3769,21 @@ static void shuffle_folder() {
 static void update_logic() {
 	bool WantCaptureMouse = G->ui_want_capture_mouse;
 	bool fullscreen = is_fullscreen(hwnd);
-
+    
     if (G->alert.timer > 0)
         G->alert.timer++;
     if (G->alert.timer == 300)
         G->alert.timer = 0;
-
+    
+    paint_update();
+    
 	if (keyup(Key_F11))
 		toggle_fullscreen(hwnd);
 	if (keyup(Key_Esc) && fullscreen) 
 		exit_fullscreen(hwnd);
 	if (keyup(Key_Esc) && !fullscreen)
 		post_quit();
-
+    
 	if (keyup(Key_F)) {
         //send_signal(G->signals.update_filtering);
         G->nearest_filtering = !G->nearest_filtering;
@@ -3506,135 +3794,141 @@ static void update_logic() {
 	if (G->files.Count > 0 && keyup(Key_R)) {
 		scan_folder(G->files[G->current_file_index].file.path);
 	}
-
-	G->mouse_dragging = false;
-	static int drag_index = drag_free;
-	bool hovers[drag_count] = { 0 };
-	if (!WantCaptureMouse) {
-		if (G->crop_mode) {
-			f32 threshold = 5 / G->truescale;
-			SetCursor(G->hcursor[Cursor_Type_arrow]);
-
-			if 		  (abso(G->pixel_mouse.x - (G->crop_a.x)) < threshold) {
-				if (keydn(MouseL)) drag_index = drag_crop_a_x;
-				hovers[drag_crop_a_x] = true;
-				SetCursor(G->hcursor[Cursor_Type_resize_h]);
-			} else if (abso(G->pixel_mouse.x - (G->crop_b.x)) < threshold) {
-				if (keydn(MouseL)) drag_index = drag_crop_b_x;
-				hovers[drag_crop_b_x] = true;
-				SetCursor(G->hcursor[Cursor_Type_resize_h]);
-			}
-
-			if 		  (abso(G->pixel_mouse.y - (G->crop_a.y)) < threshold) {
-				if (keydn(MouseL)) drag_index = drag_crop_a_y;
-				hovers[drag_crop_a_y] = true;
-				SetCursor(G->hcursor[Cursor_Type_resize_v]);
-			} else if (abso(G->pixel_mouse.y - (G->crop_b.y)) < threshold) {
-				if (keydn(MouseL)) drag_index = drag_crop_b_y;
-				hovers[drag_crop_b_y] = true;
-				SetCursor(G->hcursor[Cursor_Type_resize_v]);
-			}
-
-			if 		  (hovers[drag_crop_a_x] && hovers[drag_crop_a_y]) {
-				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
-				if (keydn(MouseL)) drag_index = drag_crop_a_x_a_y;
-			} else if (hovers[drag_crop_a_x] && hovers[drag_crop_b_y]) {
-				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
-				if (keydn(MouseL)) drag_index = drag_crop_a_x_b_y;
-			} else if (hovers[drag_crop_b_x] && hovers[drag_crop_a_y]) {
-				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
-				if (keydn(MouseL)) drag_index = drag_crop_b_x_a_y;
-			} else if (hovers[drag_crop_b_x] && hovers[drag_crop_b_y]) {
-				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
-				if (keydn(MouseL)) drag_index = drag_crop_b_x_b_y;
-			}
-		}
-		if (keypress(MouseL)) {
-			if (drag_index == drag_free)
-				G->position += G->keys.Mouse_rel;
-			G->mouse_dragging = true;
-		}
-	}
-	if (G->crop_mode) {
-		v2 new_pixel = G->pixel_mouse + 0.5f;
-		switch (drag_index) {
-			case drag_crop_a_x: 
-				SetCursor(G->hcursor[Cursor_Type_resize_h]);
-				G->crop_a.x = new_pixel.x; 
-				break;
-			case drag_crop_b_x: 
-				SetCursor(G->hcursor[Cursor_Type_resize_h]);
-				G->crop_b.x = new_pixel.x;
-				break;
-			case drag_crop_a_y: 
-				SetCursor(G->hcursor[Cursor_Type_resize_v]);
-				G->crop_a.y = new_pixel.y;
-				break;
-			case drag_crop_b_y: 
-				SetCursor(G->hcursor[Cursor_Type_resize_v]);
-				G->crop_b.y = new_pixel.y;
-				break;
-			case drag_crop_a_x_a_y: 
-				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
-				G->crop_a.x = new_pixel.x; 
-				G->crop_a.y = new_pixel.y;
-				break;
-			case drag_crop_a_x_b_y: 
-				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
-				G->crop_a.x = new_pixel.x; 
-				G->crop_b.y = new_pixel.y;
-				break;
-			case drag_crop_b_x_a_y: 
-				SetCursor(G->hcursor[Cursor_Type_resize_dl]);
-				G->crop_b.x = new_pixel.x;
-				G->crop_a.y = new_pixel.y;
-				break;
-			case drag_crop_b_x_b_y: 
-				SetCursor(G->hcursor[Cursor_Type_resize_dr]);
-				G->crop_b.x = new_pixel.x;
-				G->crop_b.y = new_pixel.y;
-				break;
-			default:
-				if (keypress(MouseR) && !WantCaptureMouse) {
-					G->crop_a += _iv2(G->keys.Mouse_rel / G->truescale);
-					G->crop_b += _iv2(G->keys.Mouse_rel / G->truescale);
-					G->mouse_dragging = true;
-				}
-				break;
-		}
-		if (drag_index != drag_free) 
-			G->mouse_dragging = true;
-	}
-	v2 img_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
-	G->crop_a.x = clamp(G->crop_a.x, 0, G->crop_b.x - 1);
-	G->crop_b.x = clamp(G->crop_b.x, G->crop_a.x + 1, img_dim.x);
-	G->crop_a.y = clamp(G->crop_a.y, 0, G->crop_b.y - 1);
-	G->crop_b.y = clamp(G->crop_b.y, G->crop_a.y + 1, img_dim.y);
-
-	if (!keypress(MouseL)) {
-		drag_index = drag_free;
-	}
-
-	if (G->keys.double_click) {
-		G->crop_mode = false;
-		G->force_loop_frames++;
-	}
-	if (G->files.Count > 0 && keyup(Key_C)) {
-		if (keypress(Key_Ctrl)) {
-			if (SUCCEEDED(save_image(Format_Bmp, NULL, true))) {
-				push_alert("Image copied successfully!", Alert_Info);
-			} else {
-				push_alert("Failed to copy image to clipboard");
-			}
-		} else {
-			G->crop_mode = !G->crop_mode;
-			G->force_loop_frames++;
-		}
-	}
-
+    
+    if (G->paint_mode == false) {
+        G->mouse_dragging = false;
+        static int drag_index = drag_free;
+        bool hovers[drag_count] = { 0 };
+        if (!WantCaptureMouse) {
+            if (G->crop_mode) {
+                f32 threshold = 5 / G->truescale;
+                SetCursor(G->hcursor[Cursor_Type_arrow]);
+                
+                if 		  (abso(G->pixel_mouse.x - (G->crop_a.x)) < threshold) {
+                    if (keydn(MouseL)) drag_index = drag_crop_a_x;
+                    hovers[drag_crop_a_x] = true;
+                    SetCursor(G->hcursor[Cursor_Type_resize_h]);
+                } else if (abso(G->pixel_mouse.x - (G->crop_b.x)) < threshold) {
+                    if (keydn(MouseL)) drag_index = drag_crop_b_x;
+                    hovers[drag_crop_b_x] = true;
+                    SetCursor(G->hcursor[Cursor_Type_resize_h]);
+                }
+                
+                if 		  (abso(G->pixel_mouse.y - (G->crop_a.y)) < threshold) {
+                    if (keydn(MouseL)) drag_index = drag_crop_a_y;
+                    hovers[drag_crop_a_y] = true;
+                    SetCursor(G->hcursor[Cursor_Type_resize_v]);
+                } else if (abso(G->pixel_mouse.y - (G->crop_b.y)) < threshold) {
+                    if (keydn(MouseL)) drag_index = drag_crop_b_y;
+                    hovers[drag_crop_b_y] = true;
+                    SetCursor(G->hcursor[Cursor_Type_resize_v]);
+                }
+                
+                if 		  (hovers[drag_crop_a_x] && hovers[drag_crop_a_y]) {
+                    SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+                    if (keydn(MouseL)) drag_index = drag_crop_a_x_a_y;
+                } else if (hovers[drag_crop_a_x] && hovers[drag_crop_b_y]) {
+                    SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+                    if (keydn(MouseL)) drag_index = drag_crop_a_x_b_y;
+                } else if (hovers[drag_crop_b_x] && hovers[drag_crop_a_y]) {
+                    SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+                    if (keydn(MouseL)) drag_index = drag_crop_b_x_a_y;
+                } else if (hovers[drag_crop_b_x] && hovers[drag_crop_b_y]) {
+                    SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+                    if (keydn(MouseL)) drag_index = drag_crop_b_x_b_y;
+                }
+            }
+            if (keypress(MouseL)) {
+                if (drag_index == drag_free)
+                    G->position += G->keys.Mouse_rel;
+                G->mouse_dragging = true;
+            }
+        }
+        if (G->crop_mode) {
+            v2 new_pixel = G->pixel_mouse + 0.5f;
+            switch (drag_index) {
+                case drag_crop_a_x: 
+                SetCursor(G->hcursor[Cursor_Type_resize_h]);
+                G->crop_a.x = new_pixel.x; 
+                break;
+                case drag_crop_b_x: 
+                SetCursor(G->hcursor[Cursor_Type_resize_h]);
+                G->crop_b.x = new_pixel.x;
+                break;
+                case drag_crop_a_y: 
+                SetCursor(G->hcursor[Cursor_Type_resize_v]);
+                G->crop_a.y = new_pixel.y;
+                break;
+                case drag_crop_b_y: 
+                SetCursor(G->hcursor[Cursor_Type_resize_v]);
+                G->crop_b.y = new_pixel.y;
+                break;
+                case drag_crop_a_x_a_y: 
+                SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+                G->crop_a.x = new_pixel.x; 
+                G->crop_a.y = new_pixel.y;
+                break;
+                case drag_crop_a_x_b_y: 
+                SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+                G->crop_a.x = new_pixel.x; 
+                G->crop_b.y = new_pixel.y;
+                break;
+                case drag_crop_b_x_a_y: 
+                SetCursor(G->hcursor[Cursor_Type_resize_dl]);
+                G->crop_b.x = new_pixel.x;
+                G->crop_a.y = new_pixel.y;
+                break;
+                case drag_crop_b_x_b_y: 
+                SetCursor(G->hcursor[Cursor_Type_resize_dr]);
+                G->crop_b.x = new_pixel.x;
+                G->crop_b.y = new_pixel.y;
+                break;
+                default:
+                if (keypress(MouseR) && !WantCaptureMouse) {
+                    G->crop_a += _iv2(G->keys.Mouse_rel / G->truescale);
+                    G->crop_b += _iv2(G->keys.Mouse_rel / G->truescale);
+                    G->mouse_dragging = true;
+                }
+                break;
+            }
+            if (drag_index != drag_free) 
+                G->mouse_dragging = true;
+        }
+        v2 img_dim = v2(G->graphics.main_image.w, G->graphics.main_image.h);
+        G->crop_a.x = clamp(G->crop_a.x, 0, G->crop_b.x - 1);
+        G->crop_b.x = clamp(G->crop_b.x, G->crop_a.x + 1, img_dim.x);
+        G->crop_a.y = clamp(G->crop_a.y, 0, G->crop_b.y - 1);
+        G->crop_b.y = clamp(G->crop_b.y, G->crop_a.y + 1, img_dim.y);
+        
+        if (!keypress(MouseL)) {
+            drag_index = drag_free;
+        }
+    }
+    
+    if (G->keys.double_click) {
+        G->crop_mode = false;
+        G->force_loop_frames++;
+    }
+    if (G->files.Count > 0 && keyup(Key_C)) {
+        if (keypress(Key_Ctrl)) {
+            if (SUCCEEDED(save_image(Format_Bmp, NULL, true))) {
+                push_alert("Image copied successfully!", Alert_Info);
+            } else {
+                push_alert("Failed to copy image to clipboard");
+            }
+        } else {
+            G->crop_mode = !G->crop_mode;
+            G->force_loop_frames++;
+            if (G->crop_mode) {
+                G->paint_mode         = false;
+                G->paint_mode_toggled = false;
+            }
+        }
+    }
+    
     {
         v2 diff = v2(keypress(Key_D) - keypress(Key_A), keypress(Key_S) - keypress(Key_W)) *
-                  G->settings_movementmag / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
+            G->settings_movementmag / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
         if (G->settings_movementinvert)
             diff = -diff;
         G->position += diff;
@@ -3655,20 +3949,20 @@ static void update_logic() {
         }
         G->anim_index = clamp(reqindex, 0, G->anim_frames - 1);
     }
-
+    
     G->graphics.aspect_wnd = (float)WW / WH;
     G->graphics.aspect_img = (float)G->graphics.main_image.w / G->graphics.main_image.h;
-
+    
     float prev_scale = G->scale;
     v2 prev_Position = G->position;
     bool updatescalebar = false;
 	handle_signal(G->signals.update_scale_ui) {
 		updatescalebar = true;
 	}
-
+    
     if (G->loaded && G->files.Count > 0) {
         if (!WantCaptureMouse)
-            G->scale *= 1 + G->keys.scroll_y_diff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift));
+            G->scale *= 1 + G->keys.scroll_y_diff * 0.1 / (1 + G->settings_shiftslowmag * keypress(Key_Shift)) * !G->paint_mode;
         if (G->files[G->current_file_index].type != 1) {
             G->files[G->current_file_index].pos = G->position;
             G->files[G->current_file_index].scale = G->truescale;
@@ -3690,9 +3984,9 @@ static void update_logic() {
     } 
     {
         v2 Mouse = G->keys.Mouse - v2(WW, WH) / 2;
-
+        
         v2 M = G->keys.Mouse;
-
+        
         float TS = G->truescale;
         if (!G->signals.setting_applied) {
             G->position -= Mouse;
@@ -3716,14 +4010,14 @@ static void update_logic() {
             handle_signal(G->signals.update_truescale) {
                 TS = G->req_truescale;
             }
-
+            
             TS = clamp(TS, 0.1, 500.f);
-
+            
             if (G->graphics.aspect_img < G->graphics.aspect_wnd)
                 G->scale = TS * (float)G->graphics.main_image.h / WH;
             else
                 G->scale = TS * (float)G->graphics.main_image.w / WW;
-
+            
             if (!G->signals.setting_applied) G->position *= G->scale / prev_scale;
         }
     }
@@ -3763,7 +4057,7 @@ static void render_histogram() {
 	ctx->device_ctx->PSSetShader(ctx->lines_program.pixel_shader, nullptr, 0);
 	ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->lines_program.constants_buffer);
 	ctx->device_ctx->ClearDepthStencilView(ctx->depth_buffer_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
+    
 	for (int i = 0; i < 4; i++) {
 		v2* target = G->p_histo_t;
 		v4 color = v4(1, 1, 1, 1);
@@ -3773,14 +4067,14 @@ static void render_histogram() {
 			case 2: if (!G->draw_histo_g) continue; target = G->p_histo_g; color = v4(0, 1, 0, 1); break;
 			case 3: if (!G->draw_histo_r) continue; target = G->p_histo_r; color = v4(1, 0, 0, 1); break;
 		}
-
+        
 		D3D11_MAPPED_SUBRESOURCE mapped_data;
 		ctx->device_ctx->Map(G->graphics.lines_vertex_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_data);
 		Vertex* buffer_data = (Vertex*)mapped_data.pData;
 		memcpy(buffer_data, target, sizeof(v2) * 256);
 		ctx->device_ctx->Unmap(G->graphics.lines_vertex_buffer, 0);
-
-
+        
+        
 		Shader_Constants_Lines constants_lines;
 		constants_lines.window = v2(WW, WH);
 		constants_lines.offset = G->histo_block->position + v2(2, 2);
@@ -3794,7 +4088,7 @@ static void render() {
 	Graphics* ctx = &G->graphics;
 	ID3D11ShaderResourceView** target_srv = 0;
 	bool force_nearest = false;
-
+    
 	if (G->signals.init_step_2 || G->loaded || G->files.Count == 0) {
 		handle_signal(G->signals.init_step_2) {
 			load_image_post();
@@ -3811,7 +4105,7 @@ static void render() {
 				free(global_temp_path);
 			}
 		}
-
+        
 		if (G->files.Count > 0 && !G->files[G->current_file_index].failed) { // check if we have a folder open and no failed to load image 
 			if ((G->files[G->current_file_index].type == TYPE_GIF || G->files[G->current_file_index].type == TYPE_WEBP_ANIM) && G->anim_frames > 0) {
 				static uint32_t time = 0;
@@ -3836,15 +4130,15 @@ static void render() {
 			force_nearest = true;
 			set_to_no_file();
 		}
-
+        
 		G->graphics.aspect_wnd = (float)WW / WH;
 		G->graphics.aspect_img = (float)G->graphics.main_image.w / G->graphics.main_image.h;
-
+        
 		//clear
 		f32 color[4] = { bg_color[0], bg_color[1], bg_color[2], 1.0f };
 		ctx->device_ctx->ClearRenderTargetView(ctx->frame_buffer_view, color);
 		ctx->device_ctx->ClearDepthStencilView(ctx->depth_buffer_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
+        
 		//common stuff
 		ctx->device_ctx->OMSetRenderTargets(1, &ctx->frame_buffer_view, ctx->depth_buffer_view);
 		ctx->device_ctx->OMSetDepthStencilState(ctx->depth_stencil_state, 0);
@@ -3858,7 +4152,7 @@ static void render() {
 			ctx->device_ctx->PSSetSamplers(0, 1, &ctx->sampler_nearest);
 		else 
 			ctx->device_ctx->PSSetSamplers(0, 1, &ctx->sampler_linear);
-
+        
 		//draw checkerboard
 		Shader_Constants_BG constants_bg;
 		constants_bg.window = v2(WW, WH);
@@ -3872,7 +4166,7 @@ static void render() {
 		ctx->device_ctx->PSSetShader(ctx->bg_program.pixel_shader, nullptr, 0);
 		ctx->device_ctx->PSSetConstantBuffers(0, 1, &ctx->bg_program.constants_buffer);
 		ctx->device_ctx->Draw(4, 0);
-	
+        
 		//draw image
 		Shader_Constants_Main constants_main = set_main_shader_constants();
 		if (force_nearest) { 
@@ -3887,7 +4181,25 @@ static void render() {
 		if (target_srv)
 			ctx->device_ctx->PSSetShaderResources(0, 1, target_srv); 	
 		ctx->device_ctx->Draw(4, 0);
-
+        
+        //~ Draw paint canvas.
+        ID3D11ShaderResourceView *null_srv = NULL;
+        ID3D11RenderTargetView   *null_rtv = NULL;
+        ID3D11Buffer             *null_buf = NULL;
+        ctx->device_ctx->VSSetShader(ctx->paint_program.vertex_shader, nullptr, 0);
+        ctx->device_ctx->VSSetConstantBuffers(0, 1, &ctx->main_program.constants_buffer);
+        ctx->device_ctx->PSSetShader(ctx->paint_program.pixel_shader, nullptr, 0);
+        ctx->device_ctx->PSSetShaderResources(2, 1, &ctx->paint_canvas_srv);
+        ctx->device_ctx->OMSetBlendState(ctx->paint_blend_state, nullptr, 0xffffffff);
+        ctx->device_ctx->Draw(4, 0);
+        // Preview.
+        ctx->device_ctx->PSSetShaderResources(2, 1, &ctx->paint_canvas_preview_srv);
+        ctx->device_ctx->Draw(4, 0);
+        ctx->device_ctx->PSSetShaderResources(2, 1, &null_srv);
+        ctx->device_ctx->OMSetBlendState(ctx->blend_state, nullptr, 0xffffffff);
+        
+        
+        
 		if (G->crop_mode) {
 			//draw crop overlay
 			Shader_Constants_Crop constants_crop;
@@ -3906,15 +4218,15 @@ static void render() {
 			ctx->device_ctx->Draw(4, 0);
 		}
 	}
-
+    
 	G->imgui_in_frame = false;
 	UI_end_frame(G->ui);
 	UI_render(G->ui);
-
+    
 	render_histogram();
-
+    
 	ctx->swap_chain->Present(1, 0);
-
+    
 	if (keypress(Key_Ctrl) || keypress(MouseM)) {
 		G->read_px = read_texture_pixel(G->graphics.frame_buffer, _iv2(G->keys.Mouse));
 	}

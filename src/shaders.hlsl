@@ -35,9 +35,10 @@ cbuffer Main_Constants : register(b0) {
 
 };
 
-Texture2D<float4> 	image_texture 	: register(t0);
-Texture2D<float4> 	thumbs_texture 	: register(t1);
-SamplerState 		texture_sampler	: register(s0);
+Texture2D<float4> 	image_texture        : register(t0);
+Texture2D<float4> 	thumbs_texture       : register(t1);
+Texture2D<float4> 	paint_canvas_texture : register(t2);
+SamplerState 		texture_sampler      : register(s0);
 
 #define PI 3.14159265359
 #define RENDER_MODE_VEIWER	0
@@ -252,6 +253,14 @@ float4 ps_main(VS_Output input) : SV_TARGET {
 		return color;
 	}
 }
+
+float4 ps_paint(VS_Output input) : SV_TARGET {  
+	float4 color_paint = paint_canvas_texture.Sample(texture_sampler, input.uv);
+	if (color_paint.a < 0.001f)
+		discard;
+	return color_paint;
+}
+
 )###";
 
 /////////////////////////////////
@@ -371,6 +380,71 @@ float4 vs_lines(VS_Input input) : SV_POSITION {
 
 float4 ps_lines() : SV_Target {
     return color;
+}
+
+)###";
+
+/////////////////////////////////
+
+char *shader_text_paint = R"###(
+
+RWTexture2D<unorm float4> paint_canvas_uav : register(u0);
+SamplerState 	   texture_sampler  : register(s0);
+
+cbuffer Paint_Constants : register(b0) {
+	float2 point_a;      // Previous mouse position in pixels.
+	float2 point_b;      // Current mouse position in pixels.
+	float4 color;        // Brush color (rgb) and base alpha in .a.
+	uint2  canvas_size;  // Canvas size in pixels (width, height).
+	float  radius;       // Brush radius in pixels.
+	float  smoothness;   // In pixels. 0.0f means hard edge (no AA).
+	int    erase;
+	float3 padding;
+};
+
+float sd_segment(float2 p, float2 a, float2 b) {
+	float2 ba  = b-a;
+	float2 pa  = p-a;
+	float  bal = dot(ba, ba);
+	if (bal <= 1e-6f)
+		return length(pa); // Degenrate case: Use sphere SDF.
+	float h = saturate(dot(pa, ba) / bal);
+	return length(pa - h * ba);
+}
+
+[numthreads(8, 8, 1)]
+void cs_paint(uint3 dtid : SV_DispatchThreadID) {
+	uint2 coord = dtid.xy;
+	if (coord.x < 0 || coord.x >= canvas_size.x || coord.y < 0 || coord.y >= canvas_size.y)
+		return;
+
+	float2 p    = float2(coord) + 0.5f; // Center of pixel.
+	float  dist = sd_segment(p, point_a, point_b);
+	float  alpha;
+	if (smoothness <= 0.0f) {
+		alpha = (dist <= radius) ? 1.0f : 0.0f;
+	} else {
+		float inner = radius - smoothness;
+		float outer = radius;
+		inner       = min(inner, outer - 1e-6f);
+		alpha       = 1.0f - smoothstep(inner, outer, dist);
+	}
+	alpha *= color.a;
+	if (alpha <= 0.0f)
+		return;
+
+	float4 dst = paint_canvas_uav[coord];
+
+	if (erase) {
+		paint_canvas_uav[coord] = 0.0f;
+	} else {
+		float4 src;
+		src.rgb = color.rgb * alpha;
+		src.a   = alpha;
+		float  out_a   = src.a   + dst.a   * (1.0f - src.a); // Over operator for premultiplied alpha.
+		float3 out_rgb = src.rgb + dst.rgb * (1.0f - src.a);
+		paint_canvas_uav[coord] = float4(out_rgb, out_a);		
+	}
 }
 
 )###";
