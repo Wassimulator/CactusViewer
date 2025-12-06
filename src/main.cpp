@@ -10,6 +10,11 @@ int wmain(int argc, wchar_t **argv) {
     sprintf(APPDATA_FOLDER, "%s\\CactusViewer", appdata);
     CreateDirectoryA(APPDATA_FOLDER, NULL);
     
+    // Initialize debug logging
+    debug_log_init();
+    DLOG_INIT("CactusViewer starting up");
+    DLOG_INIT("APPDATA_FOLDER: %s", APPDATA_FOLDER);
+    
     // Store exe parent folder.
     wchar_t exe_path[256];
     GetModuleFileNameW(0, exe_path, sizeof(exe_path));
@@ -28,22 +33,36 @@ int wmain(int argc, wchar_t **argv) {
 #endif
 	Loader_Thread_Inputs inputs;
 
+	DLOG_INIT("Converting thread to fiber");
 	G->main_loop_fiber =  ConvertThreadToFiber(NULL);
 	G->message_loop_fiber = CreateFiber(0, poll_events, NULL);
 
+    DLOG_INIT("Calling init_all()");
     init_all();
-	if (G->settings_start_in_fullscreen)
+    DLOG_INIT("init_all() completed");
+	if (G->settings_start_in_fullscreen) {
+		DLOG_INIT("Entering fullscreen mode (from settings)");
 		enter_fullscreen(hwnd);
+	}
 	{
+		DLOG_INIT("Processing command line arguments, argc=%d", argc);
 		// Use immediate loading for startup - load the image first, then scan folder in background
 		if (argc > 1 && !PathIsDirectoryW(argv[1])) {
+			DLOG_FILE("Attempting immediate load of file from argv[1]");
+			debug_log_wstr("FILE", "Path", argv[1]);
 			if (!load_image_immediate(argv[1])) {
+				DLOG_ERROR("load_image_immediate failed - file type not supported");
 				push_alert("File type not supported");
+			} else {
+				DLOG_FILE("load_image_immediate succeeded");
 			}
 		} else {
 			// Directory or no argument - use the old flow
+			DLOG_SCAN("Using old flow (directory or no argument)");
 			int scan = scan_folder(argv[1]);
+			DLOG_SCAN("scan_folder returned %d", scan);
 			if (argc > 1 && scan != SCAN_FAILED) {
+				DLOG_LOADER("Creating loader thread for initial file, index=%u", G->current_file_index);
 				inputs = { argv[1], G->current_file_index, &G->files[G->current_file_index] };
 				CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
 			}
@@ -61,18 +80,27 @@ int wmain(int argc, wchar_t **argv) {
 		G->ui_mouse_hit_test = false;
 
         if (G->dropped_file) {
+            DLOG_FILE("Processing dropped file");
+            debug_log_wstr("FILE", "Dropped path", global_temp_path);
             G->loading_dropped_file = true;
 			// Use immediate loading for dropped files - load image first, scan folder in background
 			if (!PathIsDirectoryW(global_temp_path)) {
+				DLOG_FILE("Dropped item is a file, using immediate load");
 				if (!load_image_immediate(global_temp_path)) {
+					DLOG_ERROR("load_image_immediate failed for dropped file");
 					push_alert("File type not supported");
 					G->loading_dropped_file = false;
+				} else {
+					DLOG_FILE("Immediate load succeeded for dropped file");
 				}
 			} else {
 				// Directory dropped - use old flow
+				DLOG_SCAN("Dropped item is a directory, using scan_folder");
 				int scan = scan_folder(global_temp_path);
+				DLOG_SCAN("scan_folder returned %d", scan);
 				if (scan != SCAN_FAILED) {
 					G->loaded = false;
+					DLOG_LOADER("Creating loader thread for first file in dropped directory");
 					inputs = { G->files[0].file.path, 0, &G->files[0], true };
 					CreateThread(NULL, 0, loader_thread, (LPVOID) & inputs, 0, NULL);
 				}
@@ -84,6 +112,8 @@ int wmain(int argc, wchar_t **argv) {
 
 		// Start deferred folder scan once the immediate load completes
 		if (G->pending_folder_scan && G->loaded) {
+			DLOG_SCAN("Starting deferred folder scan");
+			debug_log_wstr("SCAN", "Deferred scan path", G->pending_folder_scan_path);
 			G->pending_folder_scan = false;
 			start_deferred_folder_scan(G->pending_folder_scan_path);
 		}
@@ -97,8 +127,11 @@ int wmain(int argc, wchar_t **argv) {
                 G->signals.next_image = false;
 
                 if (G->current_file_index < G->files.Count - 1) {
+                    DLOG_NAV("Navigating to NEXT image, current=%u, new=%u, total=%u", 
+                             G->current_file_index, G->current_file_index + 1, G->files.Count);
                     G->current_file_index++;
                     G->loaded = false;
+                    debug_log_wstr("NAV", "Loading file", G->files[G->current_file_index].file.path);
                     inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
                     CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
                 }
@@ -107,15 +140,20 @@ int wmain(int argc, wchar_t **argv) {
                 G->signals.prev_image = false;
 
                 if (G->current_file_index > 0) {
+                    DLOG_NAV("Navigating to PREV image, current=%u, new=%u, total=%u", 
+                             G->current_file_index, G->current_file_index - 1, G->files.Count);
                     G->current_file_index--;
                     G->loaded = false;
+                    debug_log_wstr("NAV", "Loading file", G->files[G->current_file_index].file.path);
 					inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
                     CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
                 }
             }
 			if (G->signals.reload_file) {
+				DLOG_NAV("Reload file signal, req_index=%u", G->req_file_index);
 				G->current_file_index = G->req_file_index;
 				G->signals.reload_file = false;
+				debug_log_wstr("NAV", "Reloading file", G->files[G->current_file_index].file.path);
 				inputs = {G->files[G->current_file_index].file.path, G->current_file_index, &G->files[G->current_file_index], false};
 				CreateThread(NULL, 0, loader_thread, (LPVOID)&inputs, 0, NULL);
 			}
@@ -164,7 +202,9 @@ int wmain(int argc, wchar_t **argv) {
 		if (keyup(MouseL))
 			G->mouse_dn_hash = 0;
     }
+    DLOG_INIT("Main loop ended, saving settings");
     save_settings();
+    debug_log_close();
     return 0;
 }
 
