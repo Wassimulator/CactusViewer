@@ -1591,44 +1591,47 @@ static void load_image_post() {
             gfx->paint_canvas_preview_uav = NULL;
         }
         
-        D3D11_TEXTURE2D_DESC desc_main_image;
-        G->graphics.main_image.texture.d3d_texture->GetDesc(&desc_main_image);
-        
-        ID3D11Texture2D *paint_canvas_tex;
-        ID3D11Texture2D *paint_canvas_preview_tex;
-        D3D11_TEXTURE2D_DESC desc_paint_canvas = {};
-        desc_paint_canvas.Width      = desc_main_image.Width;
-        desc_paint_canvas.Height     = desc_main_image.Height;
-        desc_paint_canvas.MipLevels  = 1;
-        desc_paint_canvas.ArraySize  = 1;
-        desc_paint_canvas.Format     = desc_main_image.Format;
-        desc_paint_canvas.SampleDesc = {1, 0};
-        desc_paint_canvas.Usage      = D3D11_USAGE_DEFAULT;
-        desc_paint_canvas.BindFlags  = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
-        err(G->graphics.device->CreateTexture2D(&desc_paint_canvas, 0, &paint_canvas_tex));
-        err(G->graphics.device->CreateTexture2D(&desc_paint_canvas, 0, &paint_canvas_preview_tex));
-        
-        D3D11_SHADER_RESOURCE_VIEW_DESC desc_srv = {};
-        desc_srv.Format                    = desc_paint_canvas.Format;
-        desc_srv.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-        desc_srv.Texture2D.MostDetailedMip = 0;
-        desc_srv.Texture2D.MipLevels       = 1;
-        err(G->graphics.device->CreateShaderResourceView(paint_canvas_tex, &desc_srv, &gfx->paint_canvas_srv));
-        err(G->graphics.device->CreateShaderResourceView(paint_canvas_preview_tex, &desc_srv, &gfx->paint_canvas_preview_srv));
-        
-        D3D11_UNORDERED_ACCESS_VIEW_DESC desc_uav = {};
-        desc_uav.Format              = desc_paint_canvas.Format;
-        desc_uav.ViewDimension       = D3D11_UAV_DIMENSION_TEXTURE2D;
-        desc_uav.Texture2D.MipSlice  = 0;
-        err(G->graphics.device->CreateUnorderedAccessView(paint_canvas_tex, &desc_uav, &gfx->paint_canvas_uav));
-        err(G->graphics.device->CreateUnorderedAccessView(paint_canvas_preview_tex, &desc_uav, &gfx->paint_canvas_preview_uav));
-        
-        paint_canvas_tex->Release();
-        paint_canvas_preview_tex->Release();
-        
-        const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_uav, c);
-        G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_preview_uav, c);
+        // Only create paint canvas if main texture exists
+        if (G->graphics.main_image.texture.d3d_texture) {
+            D3D11_TEXTURE2D_DESC desc_main_image;
+            G->graphics.main_image.texture.d3d_texture->GetDesc(&desc_main_image);
+            
+            ID3D11Texture2D *paint_canvas_tex;
+            ID3D11Texture2D *paint_canvas_preview_tex;
+            D3D11_TEXTURE2D_DESC desc_paint_canvas = {};
+            desc_paint_canvas.Width      = desc_main_image.Width;
+            desc_paint_canvas.Height     = desc_main_image.Height;
+            desc_paint_canvas.MipLevels  = 1;
+            desc_paint_canvas.ArraySize  = 1;
+            desc_paint_canvas.Format     = desc_main_image.Format;
+            desc_paint_canvas.SampleDesc = {1, 0};
+            desc_paint_canvas.Usage      = D3D11_USAGE_DEFAULT;
+            desc_paint_canvas.BindFlags  = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+            err(G->graphics.device->CreateTexture2D(&desc_paint_canvas, 0, &paint_canvas_tex));
+            err(G->graphics.device->CreateTexture2D(&desc_paint_canvas, 0, &paint_canvas_preview_tex));
+            
+            D3D11_SHADER_RESOURCE_VIEW_DESC desc_srv = {};
+            desc_srv.Format                    = desc_paint_canvas.Format;
+            desc_srv.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+            desc_srv.Texture2D.MostDetailedMip = 0;
+            desc_srv.Texture2D.MipLevels       = 1;
+            err(G->graphics.device->CreateShaderResourceView(paint_canvas_tex, &desc_srv, &gfx->paint_canvas_srv));
+            err(G->graphics.device->CreateShaderResourceView(paint_canvas_preview_tex, &desc_srv, &gfx->paint_canvas_preview_srv));
+            
+            D3D11_UNORDERED_ACCESS_VIEW_DESC desc_uav = {};
+            desc_uav.Format              = desc_paint_canvas.Format;
+            desc_uav.ViewDimension       = D3D11_UAV_DIMENSION_TEXTURE2D;
+            desc_uav.Texture2D.MipSlice  = 0;
+            err(G->graphics.device->CreateUnorderedAccessView(paint_canvas_tex, &desc_uav, &gfx->paint_canvas_uav));
+            err(G->graphics.device->CreateUnorderedAccessView(paint_canvas_preview_tex, &desc_uav, &gfx->paint_canvas_preview_uav));
+            
+            paint_canvas_tex->Release();
+            paint_canvas_preview_tex->Release();
+            
+            const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+            G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_uav, c);
+            G->graphics.device_ctx->ClearUnorderedAccessViewFloat(gfx->paint_canvas_preview_uav, c);
+        }
     }
     DLOG_IMAGE("load_image_post END");
 }
@@ -3298,10 +3301,28 @@ static void update_gui() {
 		G->gui_disabled = true;
 	static bool popup_open = false;
 
+	// Tab key toggles edit/paint panel (runs every frame, independent of status bar)
+	if (keydn(Key_Tab) && G->files.Count > 0 && !ctx->want_capture_keyboard) {
+		G->edit_panel_visible = !G->edit_panel_visible;
+		G->force_loop_frames += 2;
+	}
+	
+	// Edit/Paint Panel (decoupled from status bar)
+	{
+		UI_Image_Edit_Style image_value_style;
+		image_value_style.checkbox_style = checkbox_default;
+		image_value_style.button_style = btn_default;
+		image_value_style.button_style.size = v2(75, 27);
+		image_value_style.slider_style = slider_style;
+		image_value_style.slider_style.pad_style = false;
+		image_value_style.slider_style.logarithmic = false;
+		image_value_style.color_text = theme->text_reg_main;
+		image_value_style.color_frame_bg = theme->bg_sub;
+		UI_edit_paint_panel(&image_value_style);
+	}
+
 	if ((G->show_gui || popup_open) || G->settings_always_show_gui) {
 		popup_open = false;
-		//if (G->files.Count && G->files[G->current_file_index].failed)
-		//G->gui_disabled = true;
 
 		UI_Block *main_bar = UI_push_block(ctx, 0);
 		main_bar->style.position[axis_x] = { UI_Position_t::absolute, 0 };
@@ -3339,16 +3360,11 @@ static void update_gui() {
 					{
 						v2 btn_size = v2(75, 27);
 						UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
-						UI_Image_Edit_Style image_value_style;
-						image_value_style.checkbox_style = checkbox_default;
-						image_value_style.button_style = btn_default;
-						image_value_style.button_style.size = btn_size;
-						image_value_style.slider_style = slider_style;
-						image_value_style.slider_style.pad_style = false;
-						image_value_style.slider_style.logarithmic = false;
-						image_value_style.color_text = theme->text_reg_main;
-						image_value_style.color_frame_bg = theme->bg_sub;
-						popup_open |= UI_image_edit(&image_value_style, "edit");
+						
+						// Edit button - toggles the edit/paint panel
+						UI_Button_Style edit_btn_style = btn_default;
+						edit_btn_style.size = btn_size;
+						UI_image_edit_button(&edit_btn_style, "edit");
 
 						UI_Histogram_Style histogram_style;
 						histogram_style.button_style = btn_default;
@@ -3634,72 +3650,6 @@ static void update_gui() {
 						}
 					}
 				}
-                
-                // @@Todo: Make height align with other menus.
-                //
-                //~ Paint UI
-                UI_Block *paint_menu = UI_push_block(ctx);
-                paint_menu->style.size[axis_x] = { UI_Size_t::sum_of_children, 0, 1 };
-                paint_menu->style.size[axis_y] = { UI_Size_t::sum_of_children, 0, 1 };
-                paint_menu->style.color[c_background] = theme->bg_main_0;
-                paint_menu->style.layout.padding = v2(8);
-                paint_menu->style.layout.spacing = v2(5, 3);
-                paint_menu->style.layout.axis = axis_y;
-                paint_menu->style.roundness = v4(8);
-                paint_menu->flags |= UI_Block_Flags_draw_background;
-                paint_menu->hash = UI_hash_djb2(ctx, "paint_menu");
-                G->check_mouse_hashes.push_back(paint_menu->hash);
-                float slider_h = 70.0f;
-                UI_push_parent_defer(ctx, paint_menu)
-                {
-                    UI_push_parent_defer(ctx, UI_bar(axis_x))
-                    {
-                        UI_get_current_parent(ctx)->style.layout.spacing = v2(15);
-                        
-                        UI_set_disabled_defer((G->files.Count == 0)) {
-                            static u32 tmp_color = UI_v4_to_u32(G->paint_brush_color);
-                            UI_push_parent_defer(ctx, UI_bar(axis_y))
-                            {
-                                UI_Block* bar = UI_get_current_parent(ctx);
-                                bar->style.layout.spacing = v2(3);
-                                picker_style.button_size = v2(15, slider_h);
-                                popup_open |= UI_color_picker(&picker_style, &tmp_color, true, UI_hash_djb2(ctx, "paint color picker"));
-                                UI_tooltip("Brush color");
-                                G->paint_brush_color = UI_u32_to_v4(tmp_color);
-			}
-                            
-                            const float PAINT_MAX_RADIUS = 100.0f;
-                            float tmp_radius = G->paint_brush_size;
-                            slider_style.bar_long_axis = slider_h;
-                            sprintf(slider_style.string, "%dpx", (int)G->paint_brush_size);
-                            UI_slider(&slider_style, axis_y, &tmp_radius, 1.0f, PAINT_MAX_RADIUS, UI_hash_djb2(ctx, "paint brush radius slider"));
-                            UI_tooltip("Brush size");
-                            G->paint_brush_size = clamp(roundf(tmp_radius), 1.0f, PAINT_MAX_RADIUS);
-                            
-                            UI_push_parent_defer(ctx, UI_bar(axis_y))
-                            {
-                                UI_checkbox(&checkbox_default, &G->paint_mode_toggled, "Toggle");
-                                UI_tooltip("Toggle brush");
-                                
-                                UI_checkbox(&checkbox_default, &G->paint_brush_aa, "AA Brush");
-                                UI_tooltip("Enable/disable anti-aliased brush");
-                                
-                                UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
-                                UI_Button_Style style = btn_default;
-                                style.color_bg.base = theme->pos_btn_0;
-                                style.color_bg.hot = theme->pos_btn_1;
-                                style.color_bg.active = theme->pos_btn_2;
-                                style.size = v2(50, 35);
-                                if (UI_button(&style, "Clear")) {
-                                    const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-                                    G->graphics.device_ctx->ClearUnorderedAccessViewFloat(G->graphics.paint_canvas_uav, c);
-                                }
-                                UI_tooltip("Clear paint canvas");
-                            }
-                        }
-                    }
-                    
-                }
 			}
 			if (G->files.Count && G->settings_preview_thumbs) {
 				i32 thumb_dim = THUMBS_DIM;
@@ -3764,6 +3714,7 @@ static void update_gui() {
 			}
 		}
 	}
+	
 	static bool exif_popup_open = false;
 	if (G->exif_data_visible || exif_popup_open) {
 		UI_set_disabled(false);

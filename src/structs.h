@@ -592,6 +592,7 @@ struct Global
 	bool mouse_dragging = false;
 
     bool paint_mode = false;
+    bool edit_panel_visible = false;
     
 	bool crop_mode = false;
 	iv2 crop_a;

@@ -1305,209 +1305,263 @@ struct UI_Image_Edit_Style {
 
 static void reset_image_edit();
 
-bool UI_image_edit(UI_Image_Edit_Style *style, char* label) {
+// Standalone edit/paint panel - toggled by Tab or "edit" button
+bool UI_edit_paint_panel(UI_Image_Edit_Style *style) {
 	UI_Context *ctx = G->ui;
-	UI_Popup_Data *metadata = 0;
-	iv2 mouse = _iv2(UI_get_mouse());
-	bool hot = false;
-	bool active = false;
-	bool disabled = G->gui_disabled;
-	bool clicked = false;
-	bool clicked_outside = false;
-	bool popup_open = false;
-	static v2 spawn_pos;
-	u32 hash = UI_hash_djb2(ctx, label);
 	UI_Theme* theme = UI_get_theme();
 
-	metadata = (UI_Popup_Data *)
-		UI_find_else_allocate_data(ctx, hash, sizeof(UI_Popup_Data)).buffer;
+	if (!G->edit_panel_visible)
+		return false;
 
-	if (UI_button(&style->button_style, label)) {
-		metadata->open = !metadata->open;
+	UI_Block *popup = UI_push_block(ctx, 0);
+	popup->depth_level = 200;
+	popup->hash = UI_hash_djb2(ctx, "edit_paint_panel");
+	popup->flags |= UI_Block_Flags_hit_test;
+	G->check_mouse_hashes.push_back(popup->hash);
+
+	f32 text_bar_frac = 0.45;
+	style->slider_style.snap = true;
+	style->slider_style.mouse_right_to_reset = true;
+	UI_push_parent_defer(ctx, popup) {
+		UI_Button_Style btn_style = style->button_style;
+		btn_style.size.x = 120;
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			auto bar = UI_get_current_parent(ctx);
+			bar->style.layout.align[axis_x] = align_center;
+			bar->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1, 1 };
+			if (UI_button(&btn_style, G->crop_mode ? "Exit crop mode" : "Enter crop mode"))
+				G->crop_mode = !G->crop_mode;
+			UI_spacer_hor(5);
+			btn_style.color_bg.base = theme->neg_btn_0;
+			btn_style.color_bg.hot = theme->neg_btn_1;
+			btn_style.color_bg.active = theme->neg_btn_2;
+			if (UI_button(&btn_style, "Reset edits"))
+				reset_image_edit();
+			UI_spacer_hor(5);
+			UI_Button_Style close_style = style->button_style;
+			close_style.color_bg.base = theme->neg_btn_0;
+			close_style.color_bg.hot = theme->neg_btn_1;
+			close_style.color_bg.active = theme->neg_btn_2;
+			close_style.size = v2(20, 20);
+			if (UI_button(&close_style, "X")) {
+				G->edit_panel_visible = false;
+			}
+			UI_tooltip("Close (Tab)");
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Hue:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%.0f", G->hue * 180.f / M_PI);
+				style->slider_style.snap_value = 0;
+				style->slider_style.snap_range =  2 * M_PI * 0.05;
+				style->slider_style.reset_value = 0;
+				UI_slider(&style->slider_style, axis_x, &G->hue, - 2 * M_PI, 2 * M_PI, UI_hash_djb2(ctx, "edit_hue"));
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Saturation:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%.2f", G->saturation);
+				style->slider_style.snap_value = 1;
+				style->slider_style.snap_range = 0.07;
+				style->slider_style.reset_value = 1;
+				UI_slider(&style->slider_style, axis_x, &G->saturation, 0, 3, UI_hash_djb2(ctx, "edit_saturation"));
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Contrast:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%.2f", G->contrast);
+				style->slider_style.snap_value = 1;
+				style->slider_style.snap_range = 0.07;
+				style->slider_style.reset_value = 1;
+				UI_slider(&style->slider_style, axis_x, &G->contrast, 0, 2, UI_hash_djb2(ctx, "edit_contrast"));
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Brightness:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%.2f", G->brightness);
+				style->slider_style.snap_value = 0;
+				style->slider_style.snap_range = 0.07;
+				style->slider_style.reset_value = 0;
+				UI_slider(&style->slider_style, axis_x, &G->brightness, -1, 1, UI_hash_djb2(ctx, "edit_brightness"));
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Gamma:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%.2f", G->gamma);
+				style->slider_style.snap_value = 1;
+				style->slider_style.snap_range = 0.07;
+				style->slider_style.reset_value = 1;
+				UI_slider(&style->slider_style, axis_x, &G->gamma, 0, 2, UI_hash_djb2(ctx, "edit_gamma"));
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		UI_checkbox(&style->checkbox_style, &G->srgb, "Render base colors in sRGB");
+		UI_checkbox(&style->checkbox_style,(bool*)(&G->do_blur), "Gaussian blur (GPU intensive)");
+		bool prev_disabled = G->gui_disabled;
+		if (!G->do_blur)
+			G->gui_disabled = true;
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Blur samples:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%i", G->blur_samples);
+				style->slider_style.snap_value = 32;
+				style->slider_style.snap_range = 4;
+				style->slider_style.reset_value = 32;
+				float t_samples = G->blur_samples;
+				UI_slider(&style->slider_style, axis_x, &t_samples, 2, 64, UI_hash_djb2(ctx, "edit_blur_samples"));
+				G->blur_samples = t_samples;
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+			UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
+				UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Blur scale:");
+			}
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
+				sprintf(style->slider_style.string, "%.5f", G->blur_scale);
+				style->slider_style.snap_value = 0.001;
+				style->slider_style.snap_range = 0.0001;
+				style->slider_style.reset_value = 0.001;
+				style->slider_style.logarithmic = true;
+				UI_slider(&style->slider_style, axis_x, &G->blur_scale, 0, 0.005, UI_hash_djb2(ctx, "edit_blur_scale"));
+				UI_tooltip("right click to reset", 20);
+			}
+		}
+		G->gui_disabled = prev_disabled;
+
+		//~ Paint section separator
+		UI_Block *separator = UI_push_block(ctx);
+		separator->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1.0f, 1 };
+		separator->style.size[axis_y] = { UI_Size_t::pixels, 1, 1 };
+		separator->style.color[c_background] = theme->bg_main_3;
+		separator->flags |= UI_Block_Flags_draw_background;
+
+		//~ Paint section
+		UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Paint:");
+		UI_set_disabled_defer((G->files.Count == 0)) {
+			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+				UI_get_current_parent(ctx)->style.layout.spacing = v2(10);
+
+				// Column 1: Square color picker
+				static u32 tmp_color = UI_v4_to_u32(G->paint_brush_color);
+				UI_Color_Picker_Style picker_style = { 0 };
+                picker_style.col_bg = theme->bg_sub;
+				picker_style.button_size = v2(60, 60);
+				picker_style.font_size = style->button_style.font_size;
+				UI_color_picker(&picker_style, &tmp_color, true, UI_hash_djb2(ctx, "paint color picker"));
+				UI_tooltip("Brush color");
+				G->paint_brush_color = UI_u32_to_v4(tmp_color);
+
+				// Column 2: Size slider (horizontal) on its own
+				UI_push_parent_defer(ctx, UI_bar(axis_y)) {
+					UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
+
+					const float PAINT_MAX_RADIUS = 100.0f;
+					float tmp_radius = G->paint_brush_size;
+					UI_Slider_Style paint_slider = style->slider_style;
+					paint_slider.bar_long_axis = 200;
+					paint_slider.bar_short_axis = 20;
+					sprintf(paint_slider.string, "size: %dpx", (int)G->paint_brush_size);
+					UI_slider(&paint_slider, axis_x, &tmp_radius, 1.0f, PAINT_MAX_RADIUS, UI_hash_djb2(ctx, "paint brush radius slider"));
+					UI_tooltip("Brush size (scroll wheel in paint mode)");
+					G->paint_brush_size = clamp(roundf(tmp_radius), 1.0f, PAINT_MAX_RADIUS);
+
+					// Row 2: Toggle, AA, Clear
+					UI_push_parent_defer(ctx, UI_bar(axis_x)) {
+                        auto bar = UI_get_current_parent(ctx);
+                        bar->style.layout.align[axis_y] = align_center;
+						UI_get_current_parent(ctx)->style.layout.spacing = v2(5);
+						UI_checkbox(&style->checkbox_style, &G->paint_mode_toggled, "Toggle");
+						UI_tooltip("Toggle brush (B or hold Shift)");
+
+						UI_checkbox(&style->checkbox_style, &G->paint_brush_aa, "AA");
+						UI_tooltip("Anti-aliased brush");
+
+						UI_Button_Style clear_style = style->button_style;
+						clear_style.color_bg.base = theme->pos_btn_0;
+						clear_style.color_bg.hot = theme->pos_btn_1;
+						clear_style.color_bg.active = theme->pos_btn_2;
+						clear_style.size = v2(45, 25);
+                        UI_spacer_hor(5);
+						if (UI_button(&clear_style, "Clear")) {
+							const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+							G->graphics.device_ctx->ClearUnorderedAccessViewFloat(G->graphics.paint_canvas_uav, c);
+						}
+						UI_tooltip("Clear paint canvas");
+					}
+				}
+			}
+		}
+	}
+	popup->style.size[axis_x] = { UI_Size_t::pixels, 300, 1.0f };
+	popup->style.size[axis_y] = { UI_Size_t::sum_of_children, 1, 1.f };
+	popup->style.color[c_background] = style->color_frame_bg;
+	popup->style.color[c_border] = theme->bg_sub;
+	popup->style.border_size = 1;
+	popup->style.roundness = v4(8);
+	popup->style.layout.padding = v2(10);
+	popup->style.layout.spacing = v2(7);
+	popup->style.layout.axis = axis_y;
+	popup->style.position[axis_x] = { UI_Position_t::absolute, 10 };
+	popup->style.position[axis_y] = { UI_Position_t::absolute, 10 };
+	UI_Block *ref_popup = UI_find_block(ctx, popup->hash, UI_PREVIOUS);
+	if (ref_popup) {
+		popup->style.position[axis_x].value = clamp(popup->style.position[axis_x].value, 0, WW - ref_popup->size.x - 5);
+		popup->style.position[axis_y].value = clamp(popup->style.position[axis_y].value, 0, WH - ref_popup->size.y - 35);
+		popup->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_draw_border;
+	}
+
+	return false; // Don't affect status bar visibility
+}
+
+// Simple button to toggle the edit/paint panel
+void UI_image_edit_button(UI_Button_Style *style, char* label) {
+	if (UI_button(style, label)) {
+		G->edit_panel_visible = !G->edit_panel_visible;
 		G->force_loop_frames += 2;
-		spawn_pos = UI_get_mouse();
 	}
-
-	if (metadata && metadata->open) {
-		popup_open = true;
-		UI_Block *popup = UI_push_block(ctx, 0);
-		popup->depth_level = UI_get_current_parent(ctx)->depth_level + 200;
-		popup->hash = UI_hash_djb2(ctx, "popup", hash);
-		popup->flags |= UI_Block_Flags_hit_test;
-		G->check_mouse_hashes.push_back(popup->hash);
-		UI_Block *pop_prv = UI_find_block(ctx, popup->hash, UI_PREVIOUS);
-		if (pop_prv) {
-			if (!UI_mouse_in_block_force(pop_prv) && keydn(MouseL)) {
-				clicked_outside = true;
-			}
-		}
-		f32 text_bar_frac = 0.45;
-		style->slider_style.snap = true;
-		style->slider_style.mouse_right_to_reset = true;
-		UI_push_parent_defer(ctx, popup) {
-			UI_Button_Style btn_style = style->button_style;
-			btn_style.size.x = 120;
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				auto bar = UI_get_current_parent(ctx);
-				bar->style.layout.align[axis_x] = align_center;
-				bar->style.size[axis_x] = { UI_Size_t::percent_of_parent, 1, 1 };
-				if (UI_button(&btn_style, G->crop_mode ? "Exit crop mode" : "Enter crop mode"))
-					G->crop_mode = !G->crop_mode;
-				UI_spacer_hor(20);
-				btn_style.color_bg.base = theme->neg_btn_0;
-				btn_style.color_bg.hot = theme->neg_btn_1;
-				btn_style.color_bg.active = theme->neg_btn_2;
-				if (UI_button(&btn_style, "Reset edits"))
-					reset_image_edit();
-			}
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Hue:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%.0f", G->hue * 180.f / M_PI);
-					style->slider_style.snap_value = 0;
-					style->slider_style.snap_range =  2 * M_PI * 0.05;
-					style->slider_style.reset_value = 0;
-					UI_slider(&style->slider_style, axis_x, &G->hue, - 2 * M_PI, 2 * M_PI, UI_hash_formatted(ctx, "%s_hue", label));
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Saturation:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%.2f", G->saturation);
-					style->slider_style.snap_value = 1;
-					style->slider_style.snap_range = 0.07;
-					style->slider_style.reset_value = 1;
-					UI_slider(&style->slider_style, axis_x, &G->saturation, 0, 3, UI_hash_formatted(ctx, "%s_saturation", label));
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Contrast:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%.2f", G->contrast);
-					style->slider_style.snap_value = 1;
-					style->slider_style.snap_range = 0.07;
-					style->slider_style.reset_value = 1;
-					UI_slider(&style->slider_style, axis_x, &G->contrast, 0, 2, UI_hash_formatted(ctx, "%s_contrast", label));
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Brightness:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%.2f", G->brightness);
-					style->slider_style.snap_value = 0;
-					style->slider_style.snap_range = 0.07;
-					style->slider_style.reset_value = 0;
-					UI_slider(&style->slider_style, axis_x, &G->brightness, -1, 1, UI_hash_formatted(ctx, "%s_brightness", label));
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Gamma:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%.2f", G->gamma);
-					style->slider_style.snap_value = 1;
-					style->slider_style.snap_range = 0.07;
-					style->slider_style.reset_value = 1;
-					UI_slider(&style->slider_style, axis_x, &G->gamma, 0, 2, UI_hash_formatted(ctx, "%s_gamma", label));
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			UI_checkbox(&style->checkbox_style, &G->srgb, "Render base colors in sRGB");
-			UI_checkbox(&style->checkbox_style,(bool*)(&G->do_blur), "Gaussian blur (GPU intensive)");
-			bool prev_disabled = G->gui_disabled;
-			if (!G->do_blur)
-				G->gui_disabled = true;
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Blur samples:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%i", G->blur_samples);
-					style->slider_style.snap_value = 32;
-					style->slider_style.snap_range = 4;
-					style->slider_style.reset_value = 32;
-					float t_samples = G->blur_samples;
-					UI_slider(&style->slider_style, axis_x, &t_samples, 2, 64, UI_hash_formatted(ctx, "%s_blur_samples", label));
-					G->blur_samples = t_samples;
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-				UI_get_current_parent(ctx)->style.layout.align[axis_y] = align_center;
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.size[axis_x] = {UI_Size_t::percent_of_parent, text_bar_frac, 0};
-					UI_text(style->color_text, G->ui_font, style->button_style.font_size, "Blur scale:");
-				}
-				UI_push_parent_defer(ctx, UI_bar(axis_x)) {
-					UI_get_current_parent(ctx)->style.layout.align[axis_x] = align_end;
-					sprintf(style->slider_style.string, "%.5f", G->blur_scale);
-					style->slider_style.snap_value = 0.001;
-					style->slider_style.snap_range = 0.0001;
-					style->slider_style.reset_value = 0.001;
-					style->slider_style.logarithmic = true;
-					UI_slider(&style->slider_style, axis_x, &G->blur_scale, 0, 0.005, UI_hash_formatted(ctx, "%s_blur_scale", label));
-					UI_tooltip("right click to reset", 20);
-				}
-			}
-			G->gui_disabled = prev_disabled;
-		}
-		popup->style.size[axis_x] = { UI_Size_t::pixels, 300, 1.0f };
-		popup->style.size[axis_y] = { UI_Size_t::sum_of_children, 1, 1.f };
-		popup->style.color[c_background] = style->color_frame_bg;
-		popup->style.color[c_border] = theme->bg_sub;
-		popup->style.border_size = 1;
-		popup->style.roundness = v4(8);
-		popup->style.layout.padding = v2(10);
-		popup->style.layout.spacing = v2(7);
-		popup->style.layout.axis = axis_y;
-		popup->style.position[axis_x] = { UI_Position_t::absolute, 5 };
-		popup->style.position[axis_y] = { UI_Position_t::absolute, WH - 120.f };
-		UI_Block *ref_popup = UI_find_block(ctx, popup->hash, UI_PREVIOUS);
-		if (ref_popup) {
-			popup->style.position[axis_x].value = clamp(popup->style.position[axis_x].value, 0, WW - ref_popup->size.x - 5);
-			popup->style.position[axis_y].value = clamp(popup->style.position[axis_y].value, 0, WH - ref_popup->size.y - 35);
-			popup->flags |= UI_Block_Flags_draw_background | UI_Block_Flags_draw_border;
-		}
-
-	}
-
-	if (metadata) {
-		if (clicked)			{ metadata->open = true; G->force_loop_frames += 2; }
-		if (clicked_outside)	metadata->open = false;
-	}
-
-	return popup_open;
+	UI_tooltip("Toggle Edit/Paint panel (Tab)");
 }
 
 static int scan_folder(wchar_t *path);
