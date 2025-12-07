@@ -1913,6 +1913,12 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	if (S_OK != CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **) &shellWindows)) {
         DLOG_ERROR("Failed to create ShellWindows instance");
+        // Must cleanup before early return
+        free(data->FileName);
+        free(data->path);
+        G->sorting = false;
+        LeaveCriticalSection(&G->sort_mutex);
+        CoUninitialize();
         return 0;
     }
 
