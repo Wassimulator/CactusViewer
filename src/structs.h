@@ -114,7 +114,7 @@ enum Key_ID
     Key_RWIN,
     Key_NumLock,
     Key_ScrollLock,
-
+    
     key_COUNT
 };
 
@@ -130,9 +130,9 @@ struct Keys
 {
     Key_Data K[key_COUNT];
     bool disconnect = false;
-
+    
 	bool double_click = false;
-
+    
     v2 Mouse;
     v2 Mouse_rel;
     int ScrollY = 0;
@@ -181,31 +181,31 @@ struct Shader_Constants_Main { //packed to 16 byte alignment
 	f32 aspect_wnd;
 	f32 scale;
 	f32 _padding;
-
+    
 	v2 position;
 	i32 pixel_grid;
 	f32 true_scale;
-
+    
 	v2 image_dim;
 	v2 window;
-
+    
 	v4 rgba_flags;
 	
 	i32 rotation;
 	f32 hue;
 	f32 saturation;
 	f32 contrast;
-
+    
 	f32 brightness;
 	f32 gamma;
 	i32 srgb;
 	i32 render_mode;
-
+    
 	i32 do_blur;
 	u32 blur_samples;
 	u32 blur_lod;
 	f32 blur_scale;
-
+    
 	v2 crop_a;
 	v2 crop_b;
 	i32 crop_mode;
@@ -215,31 +215,31 @@ struct Shader_Constants_BG { //packed to 16 byte alignment
 	v2 window;
 	f32 size;
 	f32 _padding0;
-
+    
 	v3 color1;
 	f32 _padding1;
-
+    
 	v3 color2;
 	f32 _padding2;
-
+    
 	v4 bg;
 };
 
 struct Shader_Constants_Crop { //packed to 16 byte alignment
 	v2 window;
 	v2 image_pos;
-
+    
 	v2 crop_a;
 	v2 crop_b;
-
+    
 	v2 image_dim;
-
+    
 	f32 scale;
 };
 
 struct Shader_Constants_Lines { //packed to 16 byte alignment
 	v4 color;
-
+    
 	v2 window;
 	v2 offset;
 };
@@ -275,7 +275,7 @@ enum Encoder_Format {
 	Format_Heif,
 	//Format_Webp,
 	//Format_Raw,
-
+    
 	Format_Count
 };
 
@@ -347,14 +347,14 @@ struct Graphics
 	ID3D11BlendState			*blend_state;
 	ID3D11SamplerState			*sampler_linear;
 	ID3D11SamplerState			*sampler_nearest;
-
+    
 	iv2							viewport_size;
-
+    
 	Shader_Program 				main_program;
 	Shader_Program 				bg_program;
 	Shader_Program 				crop_program;
 	Shader_Program 				lines_program;
-
+    
     Shader_Program             paint_program; // For blending paint canvas on top of backbuffer.
     ID3D11ComputeShader       *paint_cs_shader;
     ID3D11Buffer              *paint_constants_buffer;
@@ -365,13 +365,13 @@ struct Graphics
     ID3D11BlendState          *paint_blend_state;
     
 	ID3D11Buffer				*lines_vertex_buffer;
-
+    
     i32 MAX_GPU = 0;
-
+    
     Image main_image;
 	Texture logo_image;
 	Texture thumbs;
-
+    
     float aspect_wnd;
     float aspect_img;
 };
@@ -432,7 +432,7 @@ enum Cursor_Type {
 	Cursor_Type_resize_dl,
 	Cursor_Type_text,
 	Cursor_Type_pen,
-
+    
 	Cursor_Type_count
 };
 
@@ -442,7 +442,7 @@ enum UI_Theme_Type {
 	UI_Theme_Dark_Purple,
 	UI_Theme_Crimson_Black,
 	UI_Theme_Polar_White,
-
+    
 	UI_Theme_Count,
 };
 char *themes_str[] {"Cactus Green", "Cyber Blue", "Dark Purple", "Crimson Black", "Ice White"};
@@ -464,19 +464,19 @@ struct UI_Theme {
 	UI_Color4 text_reg_mid;
 	UI_Color4 text_error;
 	UI_Color4 text_info;
-
+    
 	UI_Color4 text_header_0;
 	UI_Color4 text_header_1;
 	UI_Color4 text_header_2;
-
+    
 	UI_Color4 text_slider_0;
 	UI_Color4 text_slider_1;
 	UI_Color4 text_slider_2;
-
+    
 	UI_Color4 pos_btn_0;
 	UI_Color4 pos_btn_1;
 	UI_Color4 pos_btn_2;
-
+    
 	UI_Color4 neg_btn_0;
 	UI_Color4 neg_btn_1;
 	UI_Color4 neg_btn_2;
@@ -496,9 +496,9 @@ struct Global
     CRITICAL_SECTION imgui_mutex;
     Signals signals;
     Alert alert;
-
+    
 	IWICImagingFactory* wic_factory = NULL;
-
+    
     bool keep_menu = false;
     bool loaded = false;
     bool sorting = false;
@@ -512,23 +512,23 @@ struct Global
 	bool gui_disabled = false; //inter-frame value, not cross-frame! used by gui functions
 	bool gui_disabled_backup = false;
 	HANDLE folder_scan_event = NULL;
-
+    
     float scale = 1;
     float truescale = 1;
     float truescale_edit = 1;
     float req_truescale = 1;
-
+    
 	HCURSOR hcursor[Cursor_Type_count];
-
+    
 	bool minimized = false;
-
+    
 	bool force_loop;
 	i32 force_loop_frames;
 	HANDLE loader_event;
-
+    
 	LPVOID main_loop_fiber = NULL;
 	LPVOID message_loop_fiber = NULL;
-
+    
 	UI_Context *ui;
 	UI_Font* ui_font;
 	UI_Block* tooltip_block;
@@ -538,7 +538,7 @@ struct Global
 	bool ui_mouse_hit_test;
 	u32 mouse_dn_hash;
 	v4 read_px;
-
+    
     v2 position = v2(0, 0);
     cf_file_t file;
     v2 pixel_mouse;
@@ -553,7 +553,7 @@ struct Global
 	i32 blur_samples;
 	i32 blur_lod;
 	f32 blur_scale;
-
+    
 	int anim_index;
 	bool anim_play;
     unsigned char *anim_buffer;
@@ -565,7 +565,7 @@ struct Global
     bool exif_data_visible;
     bool dropped_file;
     bool loading_dropped_file;
-
+    
     int32_t settings_resetpos;
     int32_t settings_resetzoom;
     int32_t settings_copy_color_format;
@@ -588,16 +588,16 @@ struct Global
     bool settings_preview_thumbs = true;
     bool settings_esc_to_quit = true;
 	int32_t settings_selected_theme = UI_Theme_Cactus_Green;
-
+    
 	bool mouse_dragging = false;
-
+    
     bool paint_mode = false;
     bool edit_panel_visible = false;
     
 	bool crop_mode = false;
 	iv2 crop_a;
 	iv2 crop_b;
-
+    
 	u64 histo_r[256]; 
 	u64 histo_g[256]; 
 	u64 histo_b[256]; 
@@ -607,20 +607,20 @@ struct Global
 	v2 p_histo_g[265];
 	v2 p_histo_b[265];
 	v2 p_histo_t[265];
-
+    
 	bool draw_histo_r = 1;
 	bool draw_histo_g = 1;
 	bool draw_histo_b = 1;
 	bool draw_histo_t = 1;
-
+    
 	u64 histo_max;
 	u64 histo_max_edit;
 	UI_Block* histo_block;
-
+    
     bool nearest_filtering = false;
     bool pixel_grid = false;
     
-    dynarray <v2> paint_stroke_points;
+    v2            paint_last_mouse = { -1.0f, -1.0f };
     v4            paint_brush_color;
     float         paint_brush_size; // In pixels.
     bool          paint_brush_aa;
