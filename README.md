@@ -32,7 +32,7 @@ It also supports installed codecs for WIC, check Microsoft Store to get codecs l
 
 ### Folder Navigation
 - **Folder scanning**: Automatically scans the folder of any opened image and lets you flip through all supported images with arrow keys or on-screen controls.
-- **Smart folder sorting**: Automatically detects and matches the sort order from Windows Explorer or [FilePilot](https://www.filepilot.app/) file manager. Supports sorting by name (with natural sorting so "file2" comes before "file10"), date modified, file size, and file type—both ascending and descending. Can be disabled to default to alphabetical order.
+- **Smart folder sorting**: Automatically detects and matches the sort order from Windows Explorer or [FilePilot](https://filepilot.tech/) file manager. Supports sorting by name (with natural sorting so "file2" comes before "file10"), date modified, file size, and file type—both ascending and descending. Can be disabled to default to alphabetical order.
 - **Thumbnail preview bar**: Quick visual navigation through all images in the current folder. Click any thumbnail to jump directly to that image.
 - **Multithreaded loading**: Images load in the background so you can keep browsing while large files decode.
 
