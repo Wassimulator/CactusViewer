@@ -106,6 +106,13 @@ Using an MSVC 64 bit developer terminal:
 - Update 2.0 ditches ImGui and OpenGL, the executable runs now on D3D11 with a handmade immediate mode UI library. If you have Windows, it should work, so please report any bugs!
 - For the sake of everyone's sanity, this repo has prebuilt binaries of all the above for Windows x64, I will provide other builds if I make any.
 
+## Troubleshooting
+If you encounter any issues or crashes, CactusViewer writes a debug log to:
+```
+%APPDATA%\CactusViewer\debug.log
+```
+Please [create a GitHub issue](https://github.com/Wassimulator/CactusViewer/issues) describing the problem and email the log file to **wassimulator@gmail.com**.
+
 ## Possible improvements
 Possible things to expand on:
 - Unlock the supported image resolutions sizes beyond maximum GPU texture sizes, to support images larger than 60MP or 268MP respectively.
