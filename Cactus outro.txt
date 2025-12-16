@@ -1,7 +1,0 @@
-Thank you for installing Cactus Image Viewer!
-
-Check out my other projects at https://wassimulator.com
-You can check out the source code here: https://github.com/Wassimulator/CactusViewer
-YOu can follow me on Twitter here: https://twitter.com/Wassimulator
-
-Looking forward to hearing your thoughts and I hope you enjoy it!

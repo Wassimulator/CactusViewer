@@ -22,30 +22,50 @@ It also supports installed codecs for WIC, check Microsoft Store to get codecs l
 [Raw Image Extension](https://www.microsoft.com/store/productid/9NCTDW2W1BH8?ocid=pdpshare)
 
 ## Features
-- Standalone executable.
-- Crisp font rendering with subpixel antialiasing.
-- Scans folder of opened image and allows flipping through supported images within folder, and rotating the view without changing the source files.
-- Supports loading image files in the sorted order of the folder, can be optionally disabled to default to alphabetic.
-- Support for unicode file names.
-- Multithreaded file loading.
-- Fullscreen mode with F11.
-- Image pan and zoom with fitting modes; to width or height.
-- RGB Histograms.
-- Adjustable hue, saturation, gamma, and brightness values.
-- Image cropping
-- Gaussian blur filters
-- Ability to save images with current adjustments
-- Support for reading and displaying EXIF metadata off of JPEG images and rotation info.
-- Pixel color inspector and a quick copy of HEX value to clipboard.
-- Animated GIF and WebP support with play/pause and seek controls.
-- Quick toggle between nearest-neighbor and linear filtering for pixelart images.
-- Pixel grid.
-- Multiple UI themes.
-- Customizable background color with support for checkerboard with custom colors.
-- Drag and drop support for opening image files and folders.
-- Switches to turn individual RGB channels off and switch between premultiplied alpha and straight RGB.
-- Keyboard controls to pan, zoom, and flip through files and GIF controls.
-- Customizable settings to save each image's zoom and pan locations within a session, or to reset image zoom and pan upon file change.
+
+### Core
+- **Standalone executable**: No installation required. Just download and run, all dependencies are built-in.
+- **Crisp font rendering**: Custom text rendering with subpixel antialiasing for sharp, easy-to-read UI text on any display.
+- **Fullscreen mode**: Press F11 to toggle distraction-free fullscreen viewing.
+- **Drag and drop**: Open images or entire folders by dropping them onto the window.
+- **Unicode support**: Full support for international characters and symbols in file and folder names.
+
+### Folder Navigation
+- **Folder scanning**: Automatically scans the folder of any opened image and lets you flip through all supported images with arrow keys or on-screen controls.
+- **Smart folder sorting**: Automatically detects and matches the sort order from Windows Explorer or [FilePilot](https://www.filepilot.app/) file manager. Supports sorting by name (with natural sorting so "file2" comes before "file10"), date modified, file size, and file type—both ascending and descending. Can be disabled to default to alphabetical order.
+- **Thumbnail preview bar**: Quick visual navigation through all images in the current folder. Click any thumbnail to jump directly to that image.
+- **Multithreaded loading**: Images load in the background so you can keep browsing while large files decode.
+
+### Viewing & Navigation
+- **Pan and zoom**: Smooth image panning with mouse drag, and zoom with scroll wheel. Zoom centers on your cursor position for precise control.
+- **Fitting modes**: Quickly fit images to window width, height, or view at 1:1 actual pixels. Cycle through modes or set a default in settings.
+- **Rotation**: Rotate the view in 90° increments without modifying the source file. EXIF rotation data is automatically applied on load.
+- **Pixel-perfect mode**: Toggle between smooth linear filtering and crisp nearest-neighbor sampling—perfect for pixel art, sprites, and retro graphics.
+- **Pixel grid**: Overlay a grid at high zoom levels to see individual pixel boundaries clearly.
+
+### Image Analysis
+- **RGB Histograms**: Real-time histogram display showing the distribution of red, green, and blue color values across the image.
+- **Pixel color inspector**: Hover over any pixel to see its exact RGB values and coordinates. Click to copy the HEX color code to clipboard instantly.
+- **EXIF metadata**: View embedded camera and image data from JPEG files including camera model, exposure settings, GPS coordinates, and more.
+- **Channel isolation**: Toggle individual RGB channels on/off to analyze color composition. Switch between premultiplied alpha and straight RGB blending modes.
+
+### Image Editing
+- **Paint/Draw mode**: Draw directly on images with a circular brush. Adjust brush size with scroll wheel, pick any color, and toggle anti-aliasing for smooth or hard edges. Includes an eraser mode. Hold Shift or press B to toggle paint mode on/off.
+- **Color adjustments**: Fine-tune hue, saturation, gamma, and brightness with real-time preview. All adjustments are non-destructive until you save.
+- **Image cropping**: Select and crop to any rectangular region of the image with pixel-precise control.
+- **Gaussian blur**: Apply adjustable blur filters for effects or to obscure sensitive information.
+- **Save with adjustments**: Export images with all your current adjustments (color, crop, rotation, drawings) baked in.
+
+### Animation Support
+- **Animated GIF playback**: Full support for animated GIFs with smooth frame timing.
+- **Animated WebP playback**: Play animated WebP files with proper frame delays.
+- **Playback controls**: Play, pause, and scrub through animation frames. Jump to any frame or step through frame-by-frame.
+
+### Customization
+- **Multiple UI themes**: Choose from several built-in color themes to match your preference or reduce eye strain.
+- **Custom backgrounds**: Set any solid color as the image background, or use a customizable checkerboard pattern (great for viewing transparency). Configure both checkerboard colors.
+- **Persistent settings**: Optionally remember zoom level and pan position for each image during a session, or reset to default view on every image change.
+- **Keyboard shortcuts**: Full keyboard control for navigation, zooming, rotation, animation playback, and more. See the config panel for the complete list.
 
 ## Installation
 
@@ -53,12 +73,7 @@ It also supports installed codecs for WIC, check Microsoft Store to get codecs l
 
 Download and run the latest standalone `CactusViewer.exe` file from [releases](https://github.com/Wassimulator/CactusViewer/releases).
 
-### [Option 2] Installer from GitHub releases
-
-While the viewer is only one executable, the installer provides the ability to add it to desktop and start menu, add a right click context button to "Open with CactusViewer" and associates it with common image file extensions. 
-Download and run the latest `CactusViewer_Setup.exe` from [releases](https://github.com/Wassimulator/CactusViewer/releases).
-
-### [Option 3] Using Scoop
+### [Option 2] Using Scoop
 
 This will install the standalone `CactusViewer.exe` using [Scoop](https://scoop.sh/), which will also add a shortcut to the start menu and add `CactusViewer.exe` to the PATH environment variable.
 
