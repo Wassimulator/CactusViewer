@@ -107,11 +107,11 @@ Using an MSVC 64 bit developer terminal:
 - For the sake of everyone's sanity, this repo has prebuilt binaries of all the above for Windows x64, I will provide other builds if I make any.
 
 ## Troubleshooting
-If you encounter any issues or crashes, CactusViewer writes a debug log to:
+If you encounter any issues or crashes, short of trying to debug it yourself, CactusViewer writes a debug log to:
 ```
 %APPDATA%\CactusViewer\debug.log
 ```
-Please [create a GitHub issue](https://github.com/Wassimulator/CactusViewer/issues) describing the problem and email the log file to **wassimulator@gmail.com**.
+If you need help please [create a GitHub issue](https://github.com/Wassimulator/CactusViewer/issues) describing the problem and attach your log file or the relevant entries.
 
 ## Possible improvements
 Possible things to expand on:
