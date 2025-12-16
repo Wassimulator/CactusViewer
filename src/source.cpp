@@ -3398,7 +3398,10 @@ static void update_gui() {
                         sprintf(color_str, "%c%.4f, %.4f, %.4f%s%c", e0, hsv[0], hsv[1], hsv[2], alpha_str, e1);
                     }
                 }
-		if (keyup(MouseR)) set_clipboard_text(color_str);
+                if (keyup(MouseR)) {
+                    set_clipboard_text(color_str);
+                    G->paint_brush_color = px;
+                }
                 UI_text(theme->text_info, G->ui_font, 13, color_str);
 		UI_text(theme->text_reg_mid, G->ui_font, 9, "Right click to copy");
 			}
@@ -4375,10 +4378,10 @@ static void paint_update()
         SetCursor(G->hcursor[Cursor_Type_pen]);
     } else {
         G->paint_mode = false;
-        G->paint_stroke_points.reset_count();
+        G->paint_last_mouse = { -1.0f, -1.0f };
         SetCursor(G->hcursor[Cursor_Type_arrow]);
     }
-    
+
     // Always clear preview canvas.
     const float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     G->graphics.device_ctx->ClearUnorderedAccessViewFloat(G->graphics.paint_canvas_preview_uav, c);
@@ -4389,27 +4392,25 @@ static void paint_update()
         bool down      = keydn(MouseL) || keydn(MouseR);
         bool pressed   = keypress(MouseL) || keypress(MouseR);
         bool moved     = (G->keys.Mouse_rel.x || G->keys.Mouse_rel.y);
-        
+
         bool paint_on_click = down;
-        bool paint_on_move  = pressed && moved && !G->paint_stroke_points.is_empty();
-        
-        // Change brush size with SHIFT+MW
+        bool paint_on_move  = pressed && moved && (G->paint_last_mouse.x != -1.0f && G->paint_last_mouse.y != -1.0f);
+
+        // Change brush size with mouse wheel.
         G->paint_brush_size += G->keys.scroll_y_diff;
         G->paint_brush_size  = clamp(G->paint_brush_size, 1, 100);
-        
+
         v2 mouse_current = get_rotated_pixel_mouse(&s);
         if (paint_on_click) {
-            G->paint_stroke_points.reset_count();
-            G->paint_stroke_points.push_back(mouse_current);
-            G->paint_stroke_points.push_back(mouse_current);
             p0 = mouse_current;
             p1 = mouse_current;
+            G->paint_last_mouse = mouse_current;
         } else if (paint_on_move) {
-            p0 = G->paint_stroke_points.back();
+            p0 = G->paint_last_mouse;
             p1 = mouse_current;
-            G->paint_stroke_points.push_back(p1);
+            G->paint_last_mouse = p1;
         }
-        
+
         {
             Shader_Constants_Paint constants;
             constants.point_a     = p0;

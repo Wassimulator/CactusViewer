@@ -1484,7 +1484,8 @@ bool UI_edit_paint_panel(UI_Image_Edit_Style *style) {
 				UI_get_current_parent(ctx)->style.layout.spacing = v2(10);
 
 				// Column 1: Square color picker
-				static u32 tmp_color = UI_v4_to_u32(G->paint_brush_color);
+				static u32 tmp_color;
+                tmp_color = UI_v4_to_u32(G->paint_brush_color);
 				UI_Color_Picker_Style picker_style = { 0 };
                 picker_style.col_bg = theme->bg_sub;
 				picker_style.button_size = v2(60, 60);

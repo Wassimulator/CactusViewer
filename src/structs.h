@@ -251,7 +251,7 @@ struct Shader_Constants_Paint {
     iv2   canvas_size;  // Canvas size in pixels (width, height).
     float radius;       // Brush radius in pixels.
     float smoothness;   // In pixels. 0.0f means hard edge (no AA).
-    bool  erase;
+    int   erase;
     v3    padding;
 };
 
@@ -636,8 +636,8 @@ struct Global
 
     bool nearest_filtering = false;
     bool pixel_grid = false;
-    
-    dynarray <v2> paint_stroke_points;
+
+    v2            paint_last_mouse = { -1.0f, -1.0f };
     v4            paint_brush_color;
     float         paint_brush_size; // In pixels.
     bool          paint_brush_aa;
