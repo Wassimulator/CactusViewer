@@ -119,6 +119,7 @@ int wmain(int argc, wchar_t **argv) {
 
         update_gui();
 		update_logic();
+		process_pending_thumb_uploads();
         render();
 
         if (G->files.Count > 0) {

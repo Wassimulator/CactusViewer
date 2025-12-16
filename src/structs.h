@@ -498,6 +498,12 @@ struct UI_Theme {
 	UI_Color4 neg_btn_2;
 };
 
+struct Pending_Thumb_Upload {
+    BYTE* buffer;
+    i32 index;
+    UINT thumb_dim;
+};
+
 struct Global
 {
     Graphics graphics;
@@ -510,6 +516,8 @@ struct Global
     CRITICAL_SECTION sort_mutex;
     CRITICAL_SECTION thumbs_mutex;
     CRITICAL_SECTION imgui_mutex;
+    CRITICAL_SECTION thumb_upload_mutex;
+    dynarray<Pending_Thumb_Upload> pending_thumb_uploads;
     Signals signals;
     Alert alert;
 
