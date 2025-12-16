@@ -518,6 +518,7 @@ static void save_settings() {
     cJSON_AddItemToObject(config_file, "nearest_filtering", cJSON_CreateBool(G->nearest_filtering));
     cJSON_AddItemToObject(config_file, "pixel_grid", cJSON_CreateBool(G->pixel_grid));
     cJSON_AddItemToObject(config_file, "settings_sort", cJSON_CreateBool(G->settings_sort));
+    cJSON_AddItemToObject(config_file, "settings_sort_filepilot", cJSON_CreateBool(G->settings_sort_filepilot));
     cJSON_AddItemToObject(config_file, "settings_exif", cJSON_CreateBool(G->settings_exif));
     cJSON_AddItemToObject(config_file, "settings_hide_status_fullscreen", cJSON_CreateBool(G->settings_hide_status_fullscreen));
     cJSON_AddItemToObject(config_file, "settings_start_in_fullscreen", cJSON_CreateBool(G->settings_start_in_fullscreen));
@@ -580,6 +581,7 @@ static void load_settings() {
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "nearest_filtering"); 					if (item) G->nearest_filtering = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "pixel_grid"); 						if (item) G->pixel_grid = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_sort"); 						if (item) G->settings_sort = item->valueint;
+		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_sort_filepilot"); 			if (item) G->settings_sort_filepilot = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_exif"); 						if (item) G->settings_exif = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_hide_status_fullscreen"); 	if (item) G->settings_hide_status_fullscreen = item->valueint;
 		item = cJSON_GetObjectItemCaseSensitive(config_file, "settings_start_in_fullscreen"); 		if (item) G->settings_start_in_fullscreen = item->valueint;
@@ -1864,6 +1866,67 @@ void get_c(wchar_t* wc, char* target) {
 }
 int items_in_folder;
 
+static Sort_Order g_current_sort_order = Sort_Order_Name_Asc;
+
+static int natural_wcscmp(const wchar_t* a, const wchar_t* b) {
+    while (*a && *b) {
+        if (iswdigit(*a) && iswdigit(*b)) {
+            wchar_t *end_a, *end_b;
+            long num_a = wcstol(a, &end_a, 10);
+            long num_b = wcstol(b, &end_b, 10);
+            if (num_a != num_b) return (num_a > num_b) ? 1 : -1;
+            a = end_a;
+            b = end_b;
+        } else {
+            wchar_t ca = towlower(*a);
+            wchar_t cb = towlower(*b);
+            if (ca != cb) return (ca > cb) ? 1 : -1;
+            a++;
+            b++;
+        }
+    }
+    return (*a) ? 1 : ((*b) ? -1 : 0);
+}
+
+int cmp_files(const void* a, const void* b) {
+    File_Data* A = (File_Data*)a;
+    File_Data* B = (File_Data*)b;
+    int result = 0;
+    
+    switch (g_current_sort_order) {
+        case Sort_Order_Name_Asc:
+            result = natural_wcscmp(A->file.name, B->file.name);
+            break;
+        case Sort_Order_Name_Desc:
+            result = -natural_wcscmp(A->file.name, B->file.name);
+            break;
+        case Sort_Order_Date_Asc:
+            result = CompareFileTime(&A->modified_time, &B->modified_time);
+            break;
+        case Sort_Order_Date_Desc:
+            result = -CompareFileTime(&A->modified_time, &B->modified_time);
+            break;
+        case Sort_Order_Size_Asc:
+            result = (A->file_size > B->file_size) ? 1 : ((A->file_size < B->file_size) ? -1 : 0);
+            break;
+        case Sort_Order_Size_Desc:
+            result = (A->file_size < B->file_size) ? 1 : ((A->file_size > B->file_size) ? -1 : 0);
+            break;
+        case Sort_Order_Type_Asc:
+            result = _wcsicmp(A->file.ext, B->file.ext);
+            if (result == 0) result = natural_wcscmp(A->file.name, B->file.name);
+            break;
+        case Sort_Order_Type_Desc:
+            result = -_wcsicmp(A->file.ext, B->file.ext);
+            if (result == 0) result = -natural_wcscmp(A->file.name, B->file.name);
+            break;
+        default:
+            result = natural_wcscmp(A->file.name, B->file.name);
+            break;
+    }
+    return result;
+}
+
 int cmp(const void* a, const void* b)  {
     File_Data* A = (File_Data*)a;
     File_Data* B = (File_Data*)b;
@@ -1882,6 +1945,106 @@ static void sort_folder() {
     qsort(G->files.Data, G->files.Count, sizeof(File_Data), cmp);
 }
 
+bool check_filepilot_sort(const wchar_t* folder_path, Sort_Order* detected_sort) {
+    wchar_t session_path[MAX_PATH];
+    if (!SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, session_path))) {
+        return false;
+    }
+    wcscat(session_path, L"\\Voidstar\\FilePilot\\FPilot-Session.json");
+    
+    if (GetFileAttributesW(session_path) == INVALID_FILE_ATTRIBUTES) {
+        DLOG_SORT("FilePilot session file not found");
+        return false;
+    }
+    
+    FILE* f = _wfopen(session_path, L"rb");
+    if (!f) {
+        DLOG_SORT("Failed to open FilePilot session file");
+        return false;
+    }
+    
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    char* json_str = (char*)malloc(fsize + 1);
+    if (!json_str) {
+        fclose(f);
+        return false;
+    }
+    fread(json_str, 1, fsize, f);
+    fclose(f);
+    json_str[fsize] = 0;
+    
+    cJSON* root = cJSON_Parse(json_str);
+    free(json_str);
+    
+    if (!root) {
+        DLOG_SORT("Failed to parse FilePilot session JSON");
+        return false;
+    }
+    
+    bool found = false;
+    
+    char folder_utf8[MAX_PATH * 4];
+    WideCharToMultiByte(CP_UTF8, 0, folder_path, -1, folder_utf8, sizeof(folder_utf8), NULL, NULL);
+    for (char* p = folder_utf8; *p; p++) {
+        if (*p == '\\') *p = '/';
+        if (*p >= 'A' && *p <= 'Z') *p = *p + ('a' - 'A');
+    }
+    size_t len = strlen(folder_utf8);
+    if (len > 0 && folder_utf8[len-1] == '/') folder_utf8[len-1] = 0;
+    
+    DLOG_SORT("Looking for folder in FilePilot: %s", folder_utf8);
+    
+    cJSON* layout = cJSON_GetObjectItem(root, "Layout");
+    if (layout) {
+        cJSON* panels = cJSON_GetObjectItem(layout, "Panels");
+        if (panels && cJSON_IsArray(panels)) {
+            cJSON* panel;
+            cJSON_ArrayForEach(panel, panels) {
+                cJSON* path_item = cJSON_GetObjectItem(panel, "Path");
+                if (path_item && cJSON_IsString(path_item)) {
+                    char panel_path[MAX_PATH * 4];
+                    strncpy(panel_path, path_item->valuestring, sizeof(panel_path) - 1);
+                    panel_path[sizeof(panel_path) - 1] = 0;
+                    for (char* p = panel_path; *p; p++) {
+                        if (*p == '\\') *p = '/';
+                        if (*p >= 'A' && *p <= 'Z') *p = *p + ('a' - 'A');
+                    }
+                    size_t plen = strlen(panel_path);
+                    if (plen > 0 && panel_path[plen-1] == '/') panel_path[plen-1] = 0;
+                    
+                    if (strcmp(folder_utf8, panel_path) == 0) {
+                        cJSON* sorted_by = cJSON_GetObjectItem(panel, "SortedBy");
+                        if (sorted_by && cJSON_IsNumber(sorted_by)) {
+                            int sort_val = sorted_by->valueint;
+                            DLOG_SORT("Found folder in FilePilot! SortedBy=%d", sort_val);
+                            
+                            // FilePilot SortBy: 0=None, 1/3=NameAsc, 2/4=NameDesc, 5=SizeAsc, 6=SizeDesc,
+                            // 7/9=DateAsc, 8/10=DateDesc, 17=TypeAsc, 18=TypeDesc
+                            switch (sort_val) {
+                                case 1: case 3:  *detected_sort = Sort_Order_Name_Asc;  found = true; break;
+                                case 2: case 4:  *detected_sort = Sort_Order_Name_Desc; found = true; break;
+                                case 5:          *detected_sort = Sort_Order_Size_Asc;  found = true; break;
+                                case 6:          *detected_sort = Sort_Order_Size_Desc; found = true; break;
+                                case 7: case 9:  *detected_sort = Sort_Order_Date_Asc;  found = true; break;
+                                case 8: case 10: *detected_sort = Sort_Order_Date_Desc; found = true; break;
+                                case 17:         *detected_sort = Sort_Order_Type_Asc;  found = true; break;
+                                case 18:         *detected_sort = Sort_Order_Type_Desc; found = true; break;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    cJSON_Delete(root);
+    return found;
+}
+
 struct Folder_Sort_Thread_data {
     wchar_t *path;
     wchar_t *FileName;
@@ -1892,154 +2055,170 @@ DWORD WINAPI folder_sort_thread(LPVOID lpParam) {
     DLOG_MUTEX("Entering G->sort_mutex");
     EnterCriticalSection(&G->sort_mutex);
     G->sorting = true;
-    DLOG_SORT("G->sorting = true");
-
-    // Reset globals at the start to prevent use-after-free
-    files_in_folder = NULL;
-    items_in_folder = 0;
 
     Folder_Sort_Thread_data *data = (Folder_Sort_Thread_data *)lpParam;
-
-    wchar_t *file_path = data->path;
-    wchar_t *file_name = data->FileName;
-    debug_log_wstr("SORT", "file_path", file_path);
-    debug_log_wstr("SORT", "file_name", file_name);
-    
-	wchar_t path_buffer[MAX_PATH + 4];
-    static int index_in_folder;
-
-    DLOG_SORT("Initializing COM and ShellWindows");
-	IShellWindows *shellWindows = NULL;
-	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-	if (S_OK != CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **) &shellWindows)) {
-        DLOG_ERROR("Failed to create ShellWindows instance");
-        // Must cleanup before early return
-        free(data->FileName);
-        free(data->path);
+    if (!data || !data->path || !data->FileName) {
+        DLOG_ERROR("folder_sort_thread: invalid data!");
         G->sorting = false;
         LeaveCriticalSection(&G->sort_mutex);
-        CoUninitialize();
         return 0;
     }
 
-	IDispatch *dispatch = NULL;
-	VARIANT v  {};
-	V_VT(&v) = VT_I4;
-	
-	for (V_I4(&v) = 0; S_OK == shellWindows->Item(v, &dispatch); V_I4(&v)++)  {
-		bool success = false;
-		
-		IFolderView *folderView = NULL;	
-		IWebBrowserApp *webBrowserApp = NULL;
-		IServiceProvider *serviceProvider = NULL;
-		IShellBrowser *shellBrowser = NULL;
-		IShellView *shellView = NULL;
-		IPersistFolder2 *persistFolder = NULL;
-		ITEMIDLIST *folderPIDL = NULL;
-		ITEMIDLIST *itemPIDL = NULL;
-		PIDLIST_ABSOLUTE fullPIDL = NULL;
-		
-		int itemCount = 0, focusedItem = 0;
-		path_buffer[0] = 0;
-		
-		if (S_OK != dispatch->QueryInterface(IID_IWebBrowserApp, (void **) &webBrowserApp)) goto Alert;
-		if (S_OK != webBrowserApp->QueryInterface(IID_IServiceProvider, (void **) &serviceProvider)) goto Alert;
-		if (S_OK != serviceProvider->QueryService(SID_STopLevelBrowser, IID_IShellBrowser, (void **) &shellBrowser)) goto Alert;
-		if (S_OK != shellBrowser->QueryActiveShellView(&shellView)) goto Alert;
-		if (S_OK != shellView->QueryInterface(IID_IFolderView, (void **) &folderView)) goto Alert;
-		if (S_OK != folderView->GetFolder(IID_IPersistFolder2, (void **) &persistFolder)) goto Alert;
-		if (S_OK != persistFolder->GetCurFolder(&folderPIDL)) goto Alert;
-		if (S_OK != folderView->GetFocusedItem(&focusedItem)) goto Alert;
-		if (S_OK != folderView->Item(focusedItem, &itemPIDL)) goto Alert;
-		fullPIDL = ILCombine(folderPIDL, itemPIDL);
-		if (!SHGetPathFromIDListW(fullPIDL, path_buffer)) goto Alert;
-		if (!string_equal(file_path, path_buffer)) goto Alert;
-		if (S_OK != folderView->ItemCount(SVGIO_ALLVIEW, &itemCount)) goto Alert;
-
-		if (!(files_in_folder = (Folder_Entry *) malloc(itemCount * sizeof(Folder_Entry)))) goto Alert;
-		
-		for (int i = 0; i < itemCount; i++)  {
-			files_in_folder[i].wpath[0] = 0;
-			ITEMIDLIST *itemPIDL = NULL;
-			if (S_OK != folderView->Item(i, &itemPIDL)) continue;
-			PIDLIST_ABSOLUTE fullPIDL = ILCombine(folderPIDL, itemPIDL);
-			SHGetPathFromIDListW(fullPIDL, files_in_folder[i].wpath);
-			CoTaskMemFree(fullPIDL);
-			CoTaskMemFree(itemPIDL);
-		}
-		
-		items_in_folder = itemCount;
-		index_in_folder = focusedItem;
-	
-		success = true;
-		Alert:;
-		
-		if ( fullPIDL       ) CoTaskMemFree(fullPIDL);
-		if ( folderPIDL     ) CoTaskMemFree(folderPIDL);
-		if ( itemPIDL       ) CoTaskMemFree(itemPIDL);
-		if ( persistFolder  ) persistFolder   ->Release();
-		if ( folderView     ) folderView      ->Release();
-		if ( shellView      ) shellView       ->Release();
-		if ( shellBrowser   ) shellBrowser    ->Release();
-		if ( serviceProvider) serviceProvider ->Release();
-		if ( webBrowserApp  ) webBrowserApp   ->Release();
-		if ( dispatch       ) dispatch        ->Release();
-		
-		if (success) break;
-	}
-	
-	shellWindows->Release();
-
-    DLOG_SORT("ShellWindows released, files_in_folder=%p, items_in_folder=%d", files_in_folder, items_in_folder);
-	if (files_in_folder) {
-        DLOG_SORT("Processing %d items from Explorer window", items_in_folder);
-
-        for(int i = 0; i < items_in_folder; i++) {
-			get_c(files_in_folder[i].wpath, files_in_folder[i].path);
+    wchar_t *file_path = data->path;
+    wchar_t *file_name = data->FileName;
+    
+    wchar_t folder_path[MAX_PATH];
+    wcscpy(folder_path, file_path);
+    wchar_t* last_slash = wcsrchr(folder_path, L'\\');
+    if (!last_slash) last_slash = wcsrchr(folder_path, L'/');
+    if (last_slash) *last_slash = L'\0';
+    
+    Sort_Order detected_sort = Sort_Order_Name_Asc;
+    bool found_sort_source = false;
+    
+    // Try FilePilot first
+    if (G->settings_sort_filepilot) {
+        if (check_filepilot_sort(folder_path, &detected_sort)) {
+            found_sort_source = true;
+            DLOG_SORT("Got sort order from FilePilot");
         }
-
-        DLOG_SORT("Calling sort_folder");
-        sort_folder();
-        DLOG_SORT("sort_folder completed");
-
-        for (int i = 0; i < G->files.Count; i++) {
-            if (wcscmp(file_name, G->files[i].file.name) == 0) {
-                DLOG_SORT("Found matching file at index %d", i);
-                DLOG_MUTEX("Entering G->id_mutex for sort");
-				EnterCriticalSection(&G->id_mutex);
-                G->current_file_index = i;
-				LeaveCriticalSection(&G->id_mutex);
-                DLOG_MUTEX("Left G->id_mutex for sort");
-			}
-            G->files[i].loading = false;
-            G->files[i].failed = false;
+    }
+    
+    // Fall back to Windows Explorer
+    if (!found_sort_source) {
+        HRESULT hrCoInit = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    
+        if (SUCCEEDED(hrCoInit) || hrCoInit == S_FALSE) {
+        IShellWindows *shellWindows = NULL;
+        if (S_OK == CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_ALL, IID_IShellWindows, (void **)&shellWindows)) {
+            VARIANT v = {};
+            V_VT(&v) = VT_I4;
+            IDispatch *dispatch = NULL;
+            
+            for (V_I4(&v) = 0; S_OK == shellWindows->Item(v, &dispatch); V_I4(&v)++) {
+                IWebBrowserApp *webBrowserApp = NULL;
+                IServiceProvider *serviceProvider = NULL;
+                IShellBrowser *shellBrowser = NULL;
+                IShellView *shellView = NULL;
+                IFolderView2 *folderView2 = NULL;
+                IPersistFolder2 *persistFolder = NULL;
+                ITEMIDLIST *folderPIDL = NULL;
+                
+                wchar_t path_buffer[MAX_PATH + 4] = {0};
+                bool match = false;
+                
+                if (S_OK == dispatch->QueryInterface(IID_IWebBrowserApp, (void **)&webBrowserApp) &&
+                    S_OK == webBrowserApp->QueryInterface(IID_IServiceProvider, (void **)&serviceProvider) &&
+                    S_OK == serviceProvider->QueryService(SID_STopLevelBrowser, IID_IShellBrowser, (void **)&shellBrowser) &&
+                    S_OK == shellBrowser->QueryActiveShellView(&shellView) &&
+                    S_OK == shellView->QueryInterface(IID_IFolderView2, (void **)&folderView2) &&
+                    S_OK == folderView2->GetFolder(IID_IPersistFolder2, (void **)&persistFolder) &&
+                    S_OK == persistFolder->GetCurFolder(&folderPIDL)) {
+                    
+                    int focusedItem = 0;
+                    ITEMIDLIST *itemPIDL = NULL;
+                    if (S_OK == folderView2->GetFocusedItem(&focusedItem) &&
+                        S_OK == folderView2->Item(focusedItem, &itemPIDL)) {
+                        PIDLIST_ABSOLUTE fullPIDL = ILCombine(folderPIDL, itemPIDL);
+                        if (fullPIDL && SHGetPathFromIDListW(fullPIDL, path_buffer)) {
+                            match = (wcscmp(file_path, path_buffer) == 0);
+                        }
+                        if (fullPIDL) CoTaskMemFree(fullPIDL);
+                        CoTaskMemFree(itemPIDL);
+                    }
+                    
+                    if (match) {
+                        DLOG_SORT("Found matching Explorer window");
+                        found_sort_source = true;
+                        
+                        SORTCOLUMN sortColumns[1] = {0};
+                        int columnCount = 0;
+                        if (S_OK == folderView2->GetSortColumnCount(&columnCount) && columnCount > 0) {
+                            if (S_OK == folderView2->GetSortColumns(sortColumns, 1)) {
+                                PROPERTYKEY pk = sortColumns[0].propkey;
+                                bool ascending = (sortColumns[0].direction == SORT_ASCENDING);
+                                
+                                DLOG_SORT("Sort column GUID: {%08lX-%04X-%04X-...}, pid=%lu, dir=%d", 
+                                    pk.fmtid.Data1, pk.fmtid.Data2, pk.fmtid.Data3, pk.pid, sortColumns[0].direction);
+                                
+                                bool detected = false;
+                                
+                                // PKEY_DateModified {F7DB74B4-...} pid=100
+                                if (pk.fmtid.Data1 == 0xF7DB74B4 && pk.pid == 100) {
+                                    detected_sort = ascending ? Sort_Order_Date_Asc : Sort_Order_Date_Desc;
+                                    detected = true;
+                                }
+                                // PKEY_DateCreated {28636AA6-...} pid=5
+                                else if (pk.fmtid.Data1 == 0x28636AA6 && pk.pid == 5) {
+                                    detected_sort = ascending ? Sort_Order_Date_Asc : Sort_Order_Date_Desc;
+                                    detected = true;
+                                }
+                                // Shell GUID {B725F130-47EF-...}
+                                else if (pk.fmtid.Data1 == 0xB725F130 && pk.fmtid.Data2 == 0x47EF) {
+                                    switch (pk.pid) {
+                                        case 10: // Name
+                                            detected_sort = ascending ? Sort_Order_Name_Asc : Sort_Order_Name_Desc;
+                                            detected = true;
+                                            break;
+                                        case 14: case 15: // Date
+                                            detected_sort = ascending ? Sort_Order_Date_Asc : Sort_Order_Date_Desc;
+                                            detected = true;
+                                            break;
+                                        case 12: // Size
+                                            detected_sort = ascending ? Sort_Order_Size_Asc : Sort_Order_Size_Desc;
+                                            detected = true;
+                                            break;
+                                        case 4: // Type
+                                            detected_sort = ascending ? Sort_Order_Type_Asc : Sort_Order_Type_Desc;
+                                            detected = true;
+                                            break;
+                                    }
+                                }
+                                
+                                if (detected) DLOG_SORT("Detected sort order: %d", detected_sort);
+                            }
+                        }
+                    }
+                    
+                    CoTaskMemFree(folderPIDL);
+                }
+                
+                if (persistFolder) persistFolder->Release();
+                if (folderView2) folderView2->Release();
+                if (shellView) shellView->Release();
+                if (shellBrowser) shellBrowser->Release();
+                if (serviceProvider) serviceProvider->Release();
+                if (webBrowserApp) webBrowserApp->Release();
+                if (dispatch) dispatch->Release();
+                
+                if (found_sort_source) break;
+            }
+            shellWindows->Release();
         }
-    } else {
-		// Fallback when no Explorer window is found (e.g., file opened from Chrome/ShareX)
-        DLOG_SORT("No Explorer window found, using fallback");
-		// Still need to set current_file_index by matching filename
-		EnterCriticalSection(&G->id_mutex);
-		for (int i = 0; i < G->files.Count; i++) {
-			if (wcscmp(file_name, G->files[i].file.name) == 0) {
-                DLOG_SORT("Found matching file at index %d (fallback)", i);
-				G->current_file_index = i;
-				break;
-    } 
-			G->files[i].loading = false;
-			G->files[i].failed = false;
-		}
-		LeaveCriticalSection(&G->id_mutex);
-	}
-
-    DLOG_SORT("Freeing files_in_folder");
-	free(files_in_folder);
+        CoUninitialize();
+        }
+    }
+    
+    g_current_sort_order = detected_sort;
+    
+    qsort(G->files.Data, G->files.Count, sizeof(File_Data), cmp_files);
+    DLOG_SORT("Sorted %d files with order %d", G->files.Count, detected_sort);
+    
+    EnterCriticalSection(&G->id_mutex);
+    for (int i = 0; i < G->files.Count; i++) {
+        if (wcscmp(file_name, G->files[i].file.name) == 0) {
+            G->current_file_index = i;
+            break;
+        }
+        G->files[i].loading = false;
+        G->files[i].failed = false;
+    }
+    LeaveCriticalSection(&G->id_mutex);
 
     free(data->FileName);
     free(data->path);
     G->sorting = false;
     LeaveCriticalSection(&G->sort_mutex);
-    DLOG_MUTEX("Left G->sort_mutex");
-	CoUninitialize();
     DLOG_SORT("folder_sort_thread ENDED");
     return 0;
 }
@@ -2296,12 +2475,21 @@ DWORD WINAPI folder_scan_thread(LPVOID lpParam) {
 		int type = check_valid_extention(file_0.ext);
 		if (type == TYPE_UNKNOWN) { cf_dir_next(&dir); continue; }
 
-		File_Data new_file;
+		File_Data new_file = {0};
+		new_file.type = type;
+		new_file.file = file_0;
+		stbi_convert_wchar_to_utf8(new_file.file.name_utf8, 1024, new_file.file.name);
+		
+		// Get file metadata for sorting
+		new_file.file_size = file_0.size;
+		cf_time_t ftime;
+		if (cf_get_file_time(file_0.path, &ftime)) {
+			new_file.modified_time = ftime.time;
+		} else {
+			memset(&new_file.modified_time, 0, sizeof(FILETIME));
+		}
+		
 		G->files.push_back(new_file);
-		G->files.back().type = type;
-		cf_file_t *file = &G->files.back().file;
-		*file = file_0;
-		stbi_convert_wchar_to_utf8(file->name_utf8, 1024, file->name);
 		cf_dir_next(&dir);
         files_found++;
 	}
@@ -4071,6 +4259,7 @@ static void update_gui() {
 			UI_push_parent_defer(ctx, UI_bar(axis_y)) {
 				UI_checkbox(&checkbox_default, &G->settings_autoplayGIFs, "Autoplay GIF files upon loading");
 				UI_checkbox(&checkbox_default, &G->settings_sort, "Sort files according to folder's sorting order (otherwise it's alphabetical)");
+				UI_checkbox(&checkbox_default, &G->settings_sort_filepilot, "Check FilePilot for sort order (before Windows Explorer)");
 				UI_checkbox(&checkbox_default, &G->settings_movementinvert, "Inverted pan movement with WASD");
 				UI_checkbox(&checkbox_default, &G->settings_exif, "Parse EXIF data from JPEGs");
 				UI_tooltip("Parses image orientation, disablable for optional performance improvement");

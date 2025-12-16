@@ -411,6 +411,18 @@ struct Signals
 #define TYPE_PPM 4
 #define TYPE_MISC 5
 
+enum Sort_Order {
+    Sort_Order_Name_Asc = 0,
+    Sort_Order_Name_Desc,
+    Sort_Order_Date_Asc,
+    Sort_Order_Date_Desc,
+    Sort_Order_Size_Asc,
+    Sort_Order_Size_Desc,
+    Sort_Order_Type_Asc,
+    Sort_Order_Type_Desc,
+    Sort_Order_Count
+};
+
 struct File_Data
 {
     cf_file_t file;
@@ -422,6 +434,10 @@ struct File_Data
 	bool scaled = false;
     int index;
 	bool thumb_loaded = false;
+    
+    // Metadata for sorting
+    FILETIME modified_time;
+    size_t file_size;
 };
 
 enum Cursor_Type {
@@ -578,6 +594,7 @@ struct Global
     bool settings_movementinvert;
     bool settings_autoplayGIFs;
     bool settings_sort = true;
+    bool settings_sort_filepilot = true;
     bool settings_exif = true;
     bool settings_hide_status_fullscreen = false;
     bool settings_hide_status_with_gui = false;
