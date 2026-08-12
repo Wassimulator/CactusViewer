@@ -123,7 +123,7 @@ UI_Color4 UI_mix_gradients(UI_Color4 a, UI_Color4 b, float a_portion) {
 	for (int i = 0; i < 4; i++) {
 		u32 col_a = a.c[i], col_b = b.c[i];
 		u32 r_a = (col_a >> 24) & 0xFF, g_a = (col_a >> 16) & 0xFF, b_a = (col_a >> 8) & 0xFF, a_a = (col_a >> 0) & 0xFF;
-		u32 r_b = (col_b >> 24) & 0xFF, g_b = (col_b >> 19) & 0xFF, b_b = (col_b >> 8) & 0xFF, a_b = (col_b >> 0) & 0xFF;
+		u32 r_b = (col_b >> 24) & 0xFF, g_b = (col_b >> 16) & 0xFF, b_b = (col_b >> 8) & 0xFF, a_b = (col_b >> 0) & 0xFF;
 		result.c[i] = ((u32)(r_a * (1.0f - a_portion) + r_b * a_portion) << 24) |
 					  ((u32)(g_a * (1.0f - a_portion) + g_b * a_portion) << 16) |
 					  ((u32)(b_a * (1.0f - a_portion) + b_b * a_portion) << 8)  |
